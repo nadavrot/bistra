@@ -157,6 +157,9 @@ struct Loop : public Stmt {
   Loop(std::string name, unsigned end, unsigned vf = 0, unsigned uf = 0)
       : c_(name), end_(end), vf_(vf), uf_(uf) {}
 
+  /// \returns the name of the induction variable.
+  const std::string &getName() { return c_; }
+
   /// \sets the body of the loop.
   void setBody(Stmt *s) { body_ = s; }
 
@@ -168,6 +171,7 @@ struct Loop : public Stmt {
 struct Expr {
   /// Prints the argument.
   virtual void dump() = 0;
+  virtual ~Expr() = default;
 };
 
 struct Index : Expr {

@@ -56,3 +56,5 @@ void Loop::dump(unsigned indent) {
   spaces(indent);
   std::cout << "}\n";
 }
+
+void Index::dump() { std::cout << loop_->getName(); }
