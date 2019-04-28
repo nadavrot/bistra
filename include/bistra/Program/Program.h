@@ -143,6 +143,10 @@ struct Loop : public Stmt {
   /// The letter that represents the induction variable.
   std::string c_;
 
+  Stmt *body_;
+
+  ~Loop() { delete body_; }
+
   // End index.
   unsigned end_;
   // Vectorization factor.
@@ -153,6 +157,11 @@ struct Loop : public Stmt {
   Loop(std::string name, unsigned end, unsigned vf = 0, unsigned uf = 0)
       : c_(name), end_(end), vf_(vf), uf_(uf) {}
 
+  /// \sets the body of the loop.
+  void setBody(Stmt *s) { body_ = s; }
+
+  /// \returns the body of the loop.
+  Stmt *getBody() { return body_; }
   virtual void dump(unsigned indent) override;
 };
 

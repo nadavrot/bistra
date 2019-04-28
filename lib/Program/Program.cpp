@@ -51,6 +51,8 @@ void Loop::dump(unsigned indent) {
   spaces(indent);
   std::cout << "for (" << c_ << " in 0.." << end_ << ", VF=" << vf_
             << ", UF=" << uf_ << ") {\n";
+  if (body_)
+    body_->dump(indent + 1);
   spaces(indent);
   std::cout << "}\n";
 }

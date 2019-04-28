@@ -4,15 +4,13 @@
 using namespace bistra;
 
 int main() {
-  Type x(ElemKind::Float32Ty, {1, 2, 3, 4, 5, 6});
-
-  x.dump();
-  std::cout << std::endl;
-
   Program p;
   p.addArgument("foo", {10, 32, 32, 4}, ElemKind::Float32Ty);
   p.addArgument("bar", {32, 32}, ElemKind::Float32Ty);
-  p.setBody(new Loop("i", 10, 1, 1));
+  auto *L = new Loop("i", 10, 1, 1);
+  p.setBody(L);
+  auto *K = new Loop("j", 100, 1, 1);
+  L->setBody(K);
   p.dump();
   std::cout << std::endl;
 }
