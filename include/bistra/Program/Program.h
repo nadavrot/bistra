@@ -75,6 +75,9 @@ struct Type final {
     };
     return names[(int)Ty];
   }
+
+  /// Prints the type.
+  void dump();
 };
 
 inline bool operator==(const Type &LHS, const Type &RHS) {
