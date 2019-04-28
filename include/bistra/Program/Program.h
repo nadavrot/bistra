@@ -1,6 +1,7 @@
 #ifndef BISTRA_PROGRAM_PROGRAM_H
 #define BISTRA_PROGRAM_PROGRAM_H
 
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -100,12 +101,22 @@ struct Argument final {
   void dump();
 };
 
+struct Stmt {
+  /// Prints the argument.
+  virtual void dump(unsigned indent) = 0;
+  virtual ~Stmt() = default;
+};
+
 /// This class represents a prorgam.
 class Program final {
   /// \represents the list of arguments.
   std::vector<Argument> args_;
 
+  /// Set the body of the program.
+  Stmt *body_;
+
 public:
+  ~Program() { delete body_; }
   /// Argument getter.
   const std::vector<Argument> &getArgs() { return args_; }
 
@@ -116,13 +127,14 @@ public:
   /// Adds a new argument;
   void addArgument(const Argument &arg);
 
-  /// Prints the argument.
-  void dump();
-};
+  /// \sets the body of the program.
+  void setBody(Stmt *s) { body_ = s; }
 
-struct Stmt {
-  /// Prints the argument.
-  virtual void dump() = 0;
+  /// \returns the body of the program.
+  Stmt *getBody() { return body_; }
+
+  /// Prints the program.
+  void dump();
 };
 
 /// Represents a data-parallel loop from zero to End. The loop index can be
@@ -141,7 +153,7 @@ struct Loop : public Stmt {
   Loop(std::string name, unsigned end, unsigned vf = 0, unsigned uf = 0)
       : c_(name), end_(end), vf_(vf), uf_(uf) {}
 
-  virtual void dump() override;
+  virtual void dump(unsigned indent) override;
 };
 
 struct Expr {
@@ -150,6 +162,7 @@ struct Expr {
 };
 
 struct Index : Expr {
+  // A reference to a loop (which the Index does not own).
   Loop *loop_;
   virtual void dump() override;
 };
