@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <string>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -84,12 +85,40 @@ inline bool operator==(const Type &LHS, const Type &RHS) {
   return LHS.isEqual(RHS);
 }
 
-/// This class represents an input to the program, which is a Tensor, or a typed
-/// region in memory.
-class Buffer {};
+/// This struct represents an input to the program, which is a Tensor, or a
+/// typed region in memory.
+struct Argument final {
+  /// The name of the argument.
+  std::string name_;
+
+  /// The type of the argument.
+  Type type_;
+
+  Argument(const std::string &name, const Type &t) : name_(name), type_(t) {}
+
+  /// Prints the argument.
+  void dump();
+};
 
 /// This class represents a prorgam.
-class Program {};
+class Program final {
+  /// \represents the list of arguments.
+  std::vector<Argument> args_;
+
+public:
+  /// Argument getter.
+  const std::vector<Argument> &getArgs() { return args_; }
+
+  /// Adds a new argument;
+  void addArgument(const std::string &name, std::vector<unsigned> dims,
+                   ElemKind Ty);
+
+  /// Adds a new argument;
+  void addArgument(const Argument &arg);
+
+  /// Prints the argument.
+  void dump();
+};
 
 } // namespace bistra
 

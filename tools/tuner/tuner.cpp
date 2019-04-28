@@ -8,4 +8,10 @@ int main() {
 
   x.dump();
   std::cout << std::endl;
+
+  Program p;
+  p.addArgument("foo", {10, 32, 32, 4}, ElemKind::Float32Ty);
+  p.addArgument("bar", {32, 32}, ElemKind::Float32Ty);
+  p.dump();
+  std::cout << std::endl;
 }
