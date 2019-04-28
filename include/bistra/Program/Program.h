@@ -120,6 +120,40 @@ public:
   void dump();
 };
 
+struct Stmt {
+  /// Prints the argument.
+  virtual void dump() = 0;
+};
+
+/// Represents a data-parallel loop from zero to End. The loop index can be
+/// vectorized and unrolled.
+struct Loop : public Stmt {
+  /// The letter that represents the induction variable.
+  std::string c_;
+
+  // End index.
+  unsigned end_;
+  // Vectorization factor.
+  unsigned vf_{1};
+  // Unroll factor.
+  unsigned uf_{1};
+
+  Loop(std::string name, unsigned end, unsigned vf = 0, unsigned uf = 0)
+      : c_(name), end_(end), vf_(vf), uf_(uf) {}
+
+  virtual void dump() override;
+};
+
+struct Expr {
+  /// Prints the argument.
+  virtual void dump() = 0;
+};
+
+struct Index : Expr {
+  Loop *loop_;
+  virtual void dump() override;
+};
+
 } // namespace bistra
 
 #endif // BISTRA_PROGRAM_PROGRAM_H

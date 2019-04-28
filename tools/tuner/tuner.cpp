@@ -14,4 +14,7 @@ int main() {
   p.addArgument("bar", {32, 32}, ElemKind::Float32Ty);
   p.dump();
   std::cout << std::endl;
+
+  Loop L("i", 10, 1, 1);
+  L.dump();
 }

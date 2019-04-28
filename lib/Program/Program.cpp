@@ -39,3 +39,9 @@ void Program::dump() {
   std::cout << ") {";
   std::cout << "}";
 }
+
+void Loop::dump() {
+  std::cout << "for (" << c_ << " in 0.." << end_ << ", VF=" << vf_
+            << ", UF=" << uf_ << ") {\n";
+  std::cout << "}\n";
+}
