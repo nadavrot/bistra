@@ -26,6 +26,8 @@ void Argument::dump() {
   type_.dump();
 }
 
+Program::Program() : body_(new Scope()) {}
+
 Program::~Program() { delete body_; }
 
 void Program::addArgument(const std::string &name, std::vector<unsigned> dims,
@@ -58,8 +60,7 @@ void Scope::dump(unsigned indent) {
 void Loop::dump(unsigned indent) {
   spaces(indent);
   std::cout << "for (" << c_ << " in 0.." << end_ << ", VF=" << vf_ << ") {\n";
-  if (body_)
-    body_->dump(indent + 1);
+  body_->dump(indent + 1);
   spaces(indent);
   std::cout << "}\n";
 }

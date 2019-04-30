@@ -109,36 +109,6 @@ struct Stmt {
 
 class Scope;
 
-/// This class represents a program.
-class Program final {
-  /// \represents the list of arguments.
-  std::vector<Argument> args_;
-
-  /// Set the body of the program.
-  Scope *body_;
-
-public:
-  ~Program();
-  /// Argument getter.
-  const std::vector<Argument> &getArgs() { return args_; }
-
-  /// Adds a new argument;
-  void addArgument(const std::string &name, std::vector<unsigned> dims,
-                   ElemKind Ty);
-
-  /// Adds a new argument;
-  void addArgument(const Argument &arg);
-
-  /// \sets the body of the program.
-  void setBody(Scope *s) { body_ = s; }
-
-  /// \returns the body of the program.
-  Scope *getBody() { return body_; }
-
-  /// Prints the program.
-  void dump();
-};
-
 /// Represents a list of statements that are executed sequentially.
 class Scope : public Stmt {
   /// Holds the body of the loop.
@@ -154,6 +124,9 @@ public:
     }
   }
 
+  /// Add a statement to the end of the scope.
+  void addStmt(Stmt *s) { body_.push_back(s); }
+
   /// \returns the body of the loop.
   std::vector<Stmt *> &getBody() { return body_; }
 
@@ -167,7 +140,7 @@ struct Loop : public Stmt {
   std::string c_;
 
   /// Holds the body of the loop.
-  Stmt *body_;
+  Scope *body_;
 
   // End index.
   unsigned end_;
@@ -176,18 +149,21 @@ struct Loop : public Stmt {
   unsigned vf_{1};
 
   Loop(std::string name, unsigned end, unsigned vf = 0)
-      : c_(name), end_(end), vf_(vf) {}
+      : c_(name), body_(new Scope()), end_(end), vf_(vf) {}
 
   ~Loop() { delete body_; }
 
   /// \returns the name of the induction variable.
   const std::string &getName() { return c_; }
 
+  /// Add a statement to the end of the loop scope.
+  void addStmt(Stmt *s) { body_->addStmt(s); }
+
   /// \sets the body of the loop.
-  void setBody(Stmt *s) { body_ = s; }
+  void setBody(Scope *s) { body_ = s; }
 
   /// \returns the body of the loop.
-  Stmt *getBody() { return body_; }
+  Scope *getBody() { return body_; }
   virtual void dump(unsigned indent) override;
 };
 
@@ -201,6 +177,42 @@ struct Index : Expr {
   // A reference to a loop (which the Index does not own).
   Loop *loop_;
   virtual void dump() override;
+};
+
+/// This class represents a program.
+class Program final {
+  /// \represents the list of arguments.
+  std::vector<Argument> args_;
+
+  /// Set the body of the program.
+  Scope *body_;
+
+public:
+  ~Program();
+
+  Program();
+
+  /// Argument getter.
+  const std::vector<Argument> &getArgs() { return args_; }
+
+  /// Adds a new argument;
+  void addArgument(const std::string &name, std::vector<unsigned> dims,
+                   ElemKind Ty);
+
+  /// Adds a new argument;
+  void addArgument(const Argument &arg);
+
+  /// Add a statement to the end of the program scope.
+  void addStmt(Stmt *s) { body_->addStmt(s); }
+
+  /// \sets the body of the program.
+  void setBody(Scope *s) { body_ = s; }
+
+  /// \returns the body of the program.
+  Scope *getBody() { return body_; }
+
+  /// Prints the program.
+  void dump();
 };
 
 } // namespace bistra
