@@ -30,8 +30,8 @@ Program::Program() : body_(new Scope()) {}
 
 Program::~Program() { delete body_; }
 
-void Program::addArgument(const std::string &name, std::vector<unsigned> dims,
-                          ElemKind Ty) {
+void Program::addArgument(const std::string &name,
+                          const std::vector<unsigned> &dims, ElemKind Ty) {
   Type t(Ty, dims);
   addArgument(Argument(name, t));
 }
@@ -65,4 +65,47 @@ void Loop::dump(unsigned indent) {
   std::cout << "}\n";
 }
 
-void Index::dump() { std::cout << loop_->getName(); }
+void ConstantExpr::dump() { std::cout << " " + std::to_string(val_) + " "; }
+
+void LoadExpr::dump() {
+  std::cout << arg_->getName() << "[";
+  bool first = true;
+  for (auto *I : indices_) {
+    if (!first) {
+      std::cout << ",";
+    }
+    first = false;
+    I->dump();
+  }
+  std::cout << "]";
+}
+
+void StoreStmt::dump(unsigned indent) {
+  spaces(indent);
+  std::cout << arg_->getName() << "[";
+  bool first = true;
+  for (auto *I : indices_) {
+    if (!first) {
+      std::cout << ",";
+    }
+    first = false;
+    I->dump();
+  }
+  std::cout << (accumulate_ ? "] += " : "] = ");
+  value_->dump();
+  std::cout << ";\n";
+}
+
+void IndexExpr::dump() { std::cout << loop_->getName(); }
+
+void AddExpr::dump() {
+  LHS_->dump();
+  std::cout << " + ";
+  RHS_->dump();
+}
+
+void MulExpr::dump() {
+  LHS_->dump();
+  std::cout << " * ";
+  RHS_->dump();
+}
