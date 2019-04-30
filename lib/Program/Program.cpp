@@ -26,6 +26,8 @@ void Argument::dump() {
   type_.dump();
 }
 
+Program::~Program() { delete body_; }
+
 void Program::addArgument(const std::string &name, std::vector<unsigned> dims,
                           ElemKind Ty) {
   Type t(Ty, dims);
@@ -47,10 +49,15 @@ void Program::dump() {
   std::cout << "}";
 }
 
+void Scope::dump(unsigned indent) {
+  for (auto *s : body_) {
+    s->dump(indent);
+  }
+}
+
 void Loop::dump(unsigned indent) {
   spaces(indent);
-  std::cout << "for (" << c_ << " in 0.." << end_ << ", VF=" << vf_
-            << ", UF=" << uf_ << ") {\n";
+  std::cout << "for (" << c_ << " in 0.." << end_ << ", VF=" << vf_ << ") {\n";
   if (body_)
     body_->dump(indent + 1);
   spaces(indent);
