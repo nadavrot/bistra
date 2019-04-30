@@ -25,12 +25,18 @@ struct Type final {
   /// Contains the dimensions (sizes) of the tensor. Ex: [sx, sy, sz, ...].
   std::vector<unsigned> sizes_{};
 
+  /// Contains the names of the dimensions.
+  std::vector<std::string> names_{};
+
   /// Specifies the element type of the tensor.
   ElemKind elementType_{ElemKind::Float32Ty};
 
   /// Initialize a new non-quantized type.
-  Type(ElemKind elemTy, const std::vector<unsigned> &dims)
-      : sizes_(dims), elementType_(elemTy) {}
+  Type(ElemKind elemTy, const std::vector<unsigned> &dims,
+       const std::vector<std::string> &names)
+      : sizes_(dims), names_(names), elementType_(elemTy) {
+    assert(names_.size() == sizes_.size() && "Invalid number of dims");
+  }
 
   /// An empty type.
   Type() = default;
@@ -53,7 +59,10 @@ struct Type final {
   unsigned getNumDims() { return sizes_.size(); }
 
   /// \returns the dimensions of the tensor.
-  const std::vector<unsigned> &dims() { return sizes_; }
+  const std::vector<unsigned> &getDims() { return sizes_; }
+
+  /// \returns the names of the dimensions.
+  const std::vector<std::string> &getNames() { return names_; }
 
   /// \returns the tensor element type.
   ElemKind getElementType() const { return elementType_; }
@@ -194,7 +203,7 @@ public:
 
   /// Adds a new argument;
   void addArgument(const std::string &name, const std::vector<unsigned> &dims,
-                   ElemKind Ty);
+                   const std::vector<std::string> &names, ElemKind Ty);
 
   /// Adds a new argument;
   void addArgument(const Argument &arg);

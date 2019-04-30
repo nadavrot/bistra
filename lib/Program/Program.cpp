@@ -16,7 +16,7 @@ void Type::dump() {
     if (i != 0) {
       std::cout << ",";
     }
-    std::cout << sizes_[i];
+    std::cout << names_[i] << ":" << sizes_[i];
   }
   std::cout << ">";
 }
@@ -31,8 +31,9 @@ Program::Program() : body_(new Scope()) {}
 Program::~Program() { delete body_; }
 
 void Program::addArgument(const std::string &name,
-                          const std::vector<unsigned> &dims, ElemKind Ty) {
-  Type t(Ty, dims);
+                          const std::vector<unsigned> &dims,
+                          const std::vector<std::string> &names, ElemKind Ty) {
+  Type t(Ty, dims, names);
   addArgument(Argument(name, t));
 }
 
