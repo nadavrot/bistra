@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <string>
 #include <type_traits>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -98,6 +99,8 @@ inline bool operator==(const Type &LHS, const Type &RHS) {
   return LHS.isEqual(RHS);
 }
 
+struct CloneCtx;
+
 /// This struct represents an input to the program, which is a Tensor, or a
 /// typed region in memory.
 struct Argument final {
@@ -123,6 +126,9 @@ struct Stmt {
   /// Prints the argument.
   virtual void dump(unsigned indent) = 0;
   virtual ~Stmt() = default;
+  /// \returns an unowned clone of the current node and updates \p map with the
+  /// cloned value.
+  virtual Stmt *clone(CloneCtx &map) = 0;
 };
 
 class Scope;
@@ -149,6 +155,7 @@ public:
   std::vector<Stmt *> &getBody() { return body_; }
 
   virtual void dump(unsigned indent) override;
+  virtual Stmt *clone(CloneCtx &map) override;
 };
 
 /// Represents a data-parallel loop from zero to End. The loop index can be
@@ -182,13 +189,15 @@ struct Loop : public Stmt {
 
   /// \returns the body of the loop.
   Scope *getBody() { return body_; }
+
   virtual void dump(unsigned indent) override;
+  virtual Stmt *clone(CloneCtx &map) override;
 };
 
 /// This class represents a program.
 class Program final {
   /// \represents the list of arguments.
-  std::vector<Argument> args_;
+  std::vector<Argument *> args_;
 
   /// Set the body of the program.
   Scope *body_;
@@ -198,15 +207,18 @@ public:
 
   Program();
 
+  /// Construct a new program with the body \p body and arguments \p args.
+  Program(Scope *body, const std::vector<Argument *> &args);
+
   /// Argument getter.
-  std::vector<Argument> &getArgs() { return args_; }
+  std::vector<Argument *> &getArgs() { return args_; }
 
   /// Adds a new argument;
   void addArgument(const std::string &name, const std::vector<unsigned> &dims,
                    const std::vector<std::string> &names, ElemKind Ty);
 
   /// Adds a new argument;
-  void addArgument(const Argument &arg);
+  void addArgument(Argument *arg);
 
   /// Add a statement to the end of the program scope.
   void addStmt(Stmt *s) { body_->addStmt(s); }
@@ -219,12 +231,16 @@ public:
 
   /// Prints the program.
   void dump();
+
+  Program *clone();
+  Program *clone(CloneCtx &map);
 };
 
 struct Expr {
   /// Prints the argument.
   virtual void dump() = 0;
   virtual ~Expr() = default;
+  virtual Expr *clone(CloneCtx &map) = 0;
 };
 
 /// An expression for referencing a loop index.
@@ -235,6 +251,7 @@ struct IndexExpr : Expr {
   IndexExpr(Loop *loop) : loop_(loop) {}
 
   virtual void dump() override;
+  virtual Expr *clone(CloneCtx &map) override;
 };
 
 /// A constant integer expression.
@@ -245,6 +262,7 @@ struct ConstantExpr : Expr {
   ConstantExpr(uint64_t val) : val_(val) {}
 
   virtual void dump() override;
+  virtual Expr *clone(CloneCtx &map) override;
 };
 
 /// A binary arithmetic expression.
@@ -262,16 +280,19 @@ struct BinaryExpr : Expr {
   }
 
   virtual void dump() override = 0;
+  virtual Expr *clone(CloneCtx &map) override = 0;
 };
 
 struct AddExpr : BinaryExpr {
   AddExpr(Expr *LHS, Expr *RHS) : BinaryExpr(LHS, RHS) {}
   virtual void dump() override;
+  virtual Expr *clone(CloneCtx &map) override;
 };
 
 struct MulExpr : BinaryExpr {
   MulExpr(Expr *LHS, Expr *RHS) : BinaryExpr(LHS, RHS) {}
   virtual void dump() override;
+  virtual Expr *clone(CloneCtx &map) override;
 };
 
 /// Loads some value from a buffer.
@@ -280,8 +301,6 @@ struct LoadExpr : Expr {
   Argument *arg_;
   /// The indices for indexing the buffer.
   std::vector<Expr *> indices_;
-  /// The value to store into the buffer.
-  Expr *value_;
 
   LoadExpr(Argument *arg, const std::vector<Expr *> &indices)
       : arg_(arg), indices_(indices) {
@@ -296,6 +315,7 @@ struct LoadExpr : Expr {
   }
 
   virtual void dump() override;
+  virtual Expr *clone(CloneCtx &map) override;
 };
 
 /// Stores some value to a buffer.
@@ -324,6 +344,38 @@ struct StoreStmt : Stmt {
   }
 
   virtual void dump(unsigned indent) override;
+  virtual Stmt *clone(CloneCtx &map) override;
+};
+
+struct CloneCtx {
+  // Maps arguments.
+  std::unordered_map<Argument *, Argument *> args;
+  // Maps loops.
+  std::unordered_map<Loop *, Loop *> loops;
+
+  /// Maps \p From to \p To and returns \p To.
+  Loop *map(Loop *from, Loop *to) {
+    assert(loops.count(from) == 0 && "Loop already in map");
+    loops[from] = to;
+    return to;
+  }
+  /// Maps \p From to \p To and returns \p To.
+  Argument *map(Argument *from, Argument *to) {
+    assert(args.count(from) == 0 && "Argument already in map");
+    args[from] = to;
+    return to;
+  }
+
+  /// \returns the value that \p from is mapped to. \p from must be in the map.
+  Loop *get(Loop *from) {
+    assert(loops.count(from) && "Loop is not in map");
+    return loops[from];
+  }
+  /// \returns the value that \p from is mapped to. \p from must be in the map.
+  Argument *get(Argument *from) {
+    assert(args.count(from) && "Arg is not in map");
+    return args[from];
+  }
 };
 
 } // namespace bistra
