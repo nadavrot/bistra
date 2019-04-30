@@ -107,16 +107,18 @@ struct Stmt {
   virtual ~Stmt() = default;
 };
 
-/// This class represents a prorgam.
+class Scope;
+
+/// This class represents a program.
 class Program final {
   /// \represents the list of arguments.
   std::vector<Argument> args_;
 
   /// Set the body of the program.
-  Stmt *body_;
+  Scope *body_;
 
 public:
-  ~Program() { delete body_; }
+  ~Program();
   /// Argument getter.
   const std::vector<Argument> &getArgs() { return args_; }
 
@@ -128,13 +130,34 @@ public:
   void addArgument(const Argument &arg);
 
   /// \sets the body of the program.
-  void setBody(Stmt *s) { body_ = s; }
+  void setBody(Scope *s) { body_ = s; }
 
   /// \returns the body of the program.
-  Stmt *getBody() { return body_; }
+  Scope *getBody() { return body_; }
 
   /// Prints the program.
   void dump();
+};
+
+/// Represents a list of statements that are executed sequentially.
+class Scope : public Stmt {
+  /// Holds the body of the loop.
+  std::vector<Stmt *> body_;
+
+public:
+  Scope(const std::vector<Stmt *> &body) : body_(body) {}
+  Scope() {}
+
+  ~Scope() {
+    for (auto *s : body_) {
+      delete s;
+    }
+  }
+
+  /// \returns the body of the loop.
+  std::vector<Stmt *> &getBody() { return body_; }
+
+  virtual void dump(unsigned indent) override;
 };
 
 /// Represents a data-parallel loop from zero to End. The loop index can be
@@ -143,19 +166,19 @@ struct Loop : public Stmt {
   /// The letter that represents the induction variable.
   std::string c_;
 
+  /// Holds the body of the loop.
   Stmt *body_;
-
-  ~Loop() { delete body_; }
 
   // End index.
   unsigned end_;
+
   // Vectorization factor.
   unsigned vf_{1};
-  // Unroll factor.
-  unsigned uf_{1};
 
-  Loop(std::string name, unsigned end, unsigned vf = 0, unsigned uf = 0)
-      : c_(name), end_(end), vf_(vf), uf_(uf) {}
+  Loop(std::string name, unsigned end, unsigned vf = 0)
+      : c_(name), end_(end), vf_(vf) {}
+
+  ~Loop() { delete body_; }
 
   /// \returns the name of the induction variable.
   const std::string &getName() { return c_; }
