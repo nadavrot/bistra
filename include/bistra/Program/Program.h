@@ -49,6 +49,9 @@ struct Type final {
     return true;
   }
 
+  /// \returns the number of dimensions.
+  unsigned getNumDims() { return sizes_.size(); }
+
   /// \returns the dimensions of the tensor.
   const std::vector<unsigned> &dims() { return sizes_; }
 
@@ -96,6 +99,12 @@ struct Argument final {
   Type type_;
 
   Argument(const std::string &name, const Type &t) : name_(name), type_(t) {}
+
+  /// \returns the type of the argument.
+  Type *getType() { return &type_; }
+
+  /// \returns the name of the argument.
+  std::string getName() { return name_; }
 
   /// Prints the argument.
   void dump();
@@ -167,18 +176,6 @@ struct Loop : public Stmt {
   virtual void dump(unsigned indent) override;
 };
 
-struct Expr {
-  /// Prints the argument.
-  virtual void dump() = 0;
-  virtual ~Expr() = default;
-};
-
-struct Index : Expr {
-  // A reference to a loop (which the Index does not own).
-  Loop *loop_;
-  virtual void dump() override;
-};
-
 /// This class represents a program.
 class Program final {
   /// \represents the list of arguments.
@@ -193,10 +190,10 @@ public:
   Program();
 
   /// Argument getter.
-  const std::vector<Argument> &getArgs() { return args_; }
+  std::vector<Argument> &getArgs() { return args_; }
 
   /// Adds a new argument;
-  void addArgument(const std::string &name, std::vector<unsigned> dims,
+  void addArgument(const std::string &name, const std::vector<unsigned> &dims,
                    ElemKind Ty);
 
   /// Adds a new argument;
@@ -213,6 +210,111 @@ public:
 
   /// Prints the program.
   void dump();
+};
+
+struct Expr {
+  /// Prints the argument.
+  virtual void dump() = 0;
+  virtual ~Expr() = default;
+};
+
+/// An expression for referencing a loop index.
+struct IndexExpr : Expr {
+  // A reference to a loop (not owned by this index).
+  Loop *loop_;
+
+  IndexExpr(Loop *loop) : loop_(loop) {}
+
+  virtual void dump() override;
+};
+
+/// A constant integer expression.
+struct ConstantExpr : Expr {
+  /// The value that this constant integer represents.
+  uint64_t val_;
+
+  ConstantExpr(uint64_t val) : val_(val) {}
+
+  virtual void dump() override;
+};
+
+/// A binary arithmetic expression.
+struct BinaryExpr : Expr {
+  /// Left-hand-side of the expression.
+  Expr *LHS_;
+  /// Right-hand-side of the expression.
+  Expr *RHS_;
+
+  BinaryExpr(Expr *LHS, Expr *RHS) : LHS_(LHS), RHS_(RHS) {}
+
+  ~BinaryExpr() {
+    delete LHS_;
+    delete RHS_;
+  }
+
+  virtual void dump() override = 0;
+};
+
+struct AddExpr : BinaryExpr {
+  AddExpr(Expr *LHS, Expr *RHS) : BinaryExpr(LHS, RHS) {}
+  virtual void dump() override;
+};
+
+struct MulExpr : BinaryExpr {
+  MulExpr(Expr *LHS, Expr *RHS) : BinaryExpr(LHS, RHS) {}
+  virtual void dump() override;
+};
+
+/// Loads some value from a buffer.
+struct LoadExpr : Expr {
+  /// The buffer to access.
+  Argument *arg_;
+  /// The indices for indexing the buffer.
+  std::vector<Expr *> indices_;
+  /// The value to store into the buffer.
+  Expr *value_;
+
+  LoadExpr(Argument *arg, const std::vector<Expr *> &indices)
+      : arg_(arg), indices_(indices) {
+    assert(arg->getType()->getNumDims() == indices_.size() &&
+           "Invalid number of indices");
+  }
+
+  ~LoadExpr() {
+    for (auto *exp : indices_) {
+      delete exp;
+    }
+  }
+
+  virtual void dump() override;
+};
+
+/// Stores some value to a buffer.
+struct StoreStmt : Stmt {
+  /// The buffer to access.
+  Argument *arg_;
+  /// The indices for indexing the buffer.
+  std::vector<Expr *> indices_;
+  /// The value to store into the buffer.
+  Expr *value_;
+  /// Accumulate the resule into the destination.
+  bool accumulate_;
+
+  StoreStmt(Argument *arg, const std::vector<Expr *> &indices, Expr *value,
+            bool accumulate)
+      : arg_(arg), indices_(indices), value_(value), accumulate_(accumulate) {
+    assert(arg->getType()->getNumDims() == indices_.size() &&
+           "Invalid number of indices");
+  }
+
+  StoreStmt() {
+    delete value_;
+    for (auto *exp : indices_) {
+      delete exp;
+    }
+  }
+
+  virtual void dump(unsigned indent) override;
 };
 
 } // namespace bistra
