@@ -21,6 +21,10 @@ void Type::dump() {
   std::cout << ">";
 }
 
+void ExprType::dump() {
+  std::cout << "<" << getWidth() << " x " << getElementName() << ">";
+}
+
 void Argument::dump() {
   std::cout << name_ << ":";
   type_.dump();
