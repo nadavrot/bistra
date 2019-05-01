@@ -97,53 +97,53 @@ struct Type final {
 
 /// A class that represents a type of an element.
 struct ExprType final {
-    /// Specifies the element type of the tensor.
-    ElemKind elementType_{ElemKind::Float32Ty};
+  /// Specifies the element type of the tensor.
+  ElemKind elementType_{ElemKind::Float32Ty};
 
   /// Specifies the vector width.
   unsigned width_;
 
-    /// Initialize a new non-quantized type.
-    ExprType(ElemKind elemTy, unsigned width)
-    : elementType_(elemTy), width_(width) {
-      assert(width > 0 && width < 64 && "Invalid vector width");
+  /// Initialize a new non-quantized type.
+  ExprType(ElemKind elemTy, unsigned width)
+      : elementType_(elemTy), width_(width) {
+    assert(width > 0 && width < 64 && "Invalid vector width");
+  }
+
+  /// \returns true if \p other is the same type.
+  bool isEqual(const ExprType &other) const {
+    // Element type must be the same.
+    if (elementType_ != other.elementType_) {
+      return false;
+    }
+    // Must have the same vector width.
+    if (width_ != other.width_) {
+      return false;
     }
 
-    /// \returns true if \p other is the same type.
-    bool isEqual(const ExprType &other) const {
-      // Element type must be the same.
-      if (elementType_ != other.elementType_) {
-        return false;
-      }
-      // Must have the same vector width.
-      if (width_ != other.width_) {
-        return false;
-      }
+    return true;
+  }
 
-      return true;
-    }
+  /// \returns the number of dimensions.
+  unsigned getWidth() { return width_; }
 
-    /// \returns the number of dimensions.
-    unsigned getWidth() { return width_; }
+  /// \returns the tensor element type.
+  ElemKind getElementType() const { return elementType_; }
 
-    /// \returns the tensor element type.
-    ElemKind getElementType() const { return elementType_; }
+  /// \return the textual name of the element.
+  const char *getElementName() const {
+    return Type::getElementName(elementType_);
+  }
 
-    /// \return the textual name of the element.
-    const char *getElementName() const {
-      return Type::getElementName(elementType_);
-    }
-
-    /// Prints the type.
-    void dump();
-  };
+  /// Prints the type.
+  void dump();
+};
 
 inline bool operator==(const Type &LHS, const Type &RHS) {
   return LHS.isEqual(RHS);
 }
 
 inline bool operator==(const ExprType &LHS, const ExprType &RHS) {
-    return LHS.isEqual(RHS);
+  return LHS.isEqual(RHS);
 }
 
 struct CloneCtx;
