@@ -209,7 +209,7 @@ public:
 /// vectorized and unrolled.
 struct Loop : public Stmt {
   /// The letter that represents the induction variable.
-  std::string c_;
+  std::string indexName;
 
   /// Holds the body of the loop.
   Scope *body_;
@@ -221,12 +221,12 @@ struct Loop : public Stmt {
   unsigned vf_{1};
 
   Loop(std::string name, unsigned end, unsigned vf = 0)
-      : c_(name), body_(new Scope()), end_(end), vf_(vf) {}
+      : indexName(name), body_(new Scope()), end_(end), vf_(vf) {}
 
   ~Loop() { delete body_; }
 
   /// \returns the name of the induction variable.
-  const std::string &getName() { return c_; }
+  const std::string &getName() { return indexName; }
 
   /// Add a statement to the end of the loop scope.
   void addStmt(Stmt *s) { body_->addStmt(s); }
