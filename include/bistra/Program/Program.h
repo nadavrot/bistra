@@ -213,6 +213,12 @@ public:
   /// Argument getter.
   std::vector<Argument *> &getArgs() { return args_; }
 
+  /// \returns the n'th argument.
+  Argument *getArg(unsigned idx) {
+    assert(idx < args_.size() && "Invalid arg index");
+    return args_[idx];
+  }
+
   /// Adds a new argument;
   void addArgument(const std::string &name, const std::vector<unsigned> &dims,
                    const std::vector<std::string> &names, ElemKind Ty);
