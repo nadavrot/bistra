@@ -72,7 +72,8 @@ void Scope::dump(unsigned indent) {
 
 void Loop::dump(unsigned indent) {
   spaces(indent);
-  std::cout << "for (" << c_ << " in 0.." << end_ << ", VF=" << vf_ << ") {\n";
+  std::cout << "for (" << indexName << " in 0.." << end_ << ", VF=" << vf_
+            << ") {\n";
   body_->dump(indent + 1);
   spaces(indent);
   std::cout << "}\n";
@@ -160,7 +161,7 @@ Expr *IndexExpr::clone(CloneCtx &map) {
 }
 
 Stmt *Loop::clone(CloneCtx &map) {
-  Loop *loop = new Loop(c_, end_, vf_);
+  Loop *loop = new Loop(indexName, end_, vf_);
   map.map(this, loop);
   loop->addStmt(body_->clone(map));
   return loop;
