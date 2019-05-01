@@ -13,7 +13,7 @@ int main() {
   L->addStmt(K);
   p->addStmt(L);
 
-  auto *buff = p->getArgs()[0];
+  auto *buff = p->getArg(0);
   auto *ld = new LoadExpr(buff, {new IndexExpr(K), new IndexExpr(L)});
   auto *val = new AddExpr(ld, new ConstantExpr(4));
   auto *store =
