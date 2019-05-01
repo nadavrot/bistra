@@ -18,7 +18,7 @@ struct Type;
 enum class ElemKind : unsigned char {
   Float32Ty, // 32-bit float type (float)
   Int8Ty,    // 8-bit type (int8_t)
-  Int32Ty,   // 32-bit type (int32_t)
+  IndexTy,   // The type of an index.
 };
 
 /// A class that represents a type of a tensor.
@@ -78,6 +78,9 @@ struct Type final {
     return s;
   }
 
+  /// \returns true if this type is an index/pointer type.
+  bool isIndexTy() { return elementType_ == ElemKind::IndexTy; }
+
   /// \return the textual name of the element.
   const char *getElementName() const { return getElementName(elementType_); }
 
@@ -86,7 +89,7 @@ struct Type final {
     static const char *names[] = {
         "float",
         "i8",
-        "i32",
+        "idx_t",
     };
     return names[(int)Ty];
   }
@@ -103,11 +106,13 @@ struct ExprType final {
   /// Specifies the vector width.
   unsigned width_;
 
-  /// Initialize a new non-quantized type.
-  ExprType(ElemKind elemTy, unsigned width)
+  ExprType(ElemKind elemTy, unsigned width = 1)
       : elementType_(elemTy), width_(width) {
     assert(width > 0 && width < 64 && "Invalid vector width");
   }
+
+  /// \returns true if this type is an index/pointer type.
+  bool isIndexTy() { return elementType_ == ElemKind::IndexTy; }
 
   /// \returns true if \p other is the same type.
   bool isEqual(const ExprType &other) const {
@@ -290,9 +295,28 @@ public:
 };
 
 struct Expr {
+  ExprType type_;
+
+  Expr(const ExprType &ty) : type_(ty) {}
+
+  Expr(ElemKind &kind) : type_(ExprType(kind)) {}
+
+  Expr() = delete;
+  Expr(const Expr &other) = delete;
+
+  /// \returns the type of the expression.
+  ExprType &getType() { return type_; }
+
+  /// Sets the type of the expression.
+  void setType(const ExprType &ty) { type_ = ty; }
+
   /// Prints the argument.
   virtual void dump() = 0;
+
   virtual ~Expr() = default;
+
+  /// Clone the expression recursively and return the cloned graph. Use the map
+  /// \p map to refer to the updated indices and arguments.
   virtual Expr *clone(CloneCtx &map) = 0;
 };
 
@@ -301,7 +325,7 @@ struct IndexExpr : Expr {
   // A reference to a loop (not owned by this index).
   Loop *loop_;
 
-  IndexExpr(Loop *loop) : loop_(loop) {}
+  IndexExpr(Loop *loop) : Expr(ElemKind::IndexTy), loop_(loop) {}
 
   virtual void dump() override;
   virtual Expr *clone(CloneCtx &map) override;
@@ -310,9 +334,9 @@ struct IndexExpr : Expr {
 /// A constant integer expression.
 struct ConstantExpr : Expr {
   /// The value that this constant integer represents.
-  uint64_t val_;
+  int64_t val_;
 
-  ConstantExpr(uint64_t val) : val_(val) {}
+  ConstantExpr(int64_t val) : Expr(ElemKind::IndexTy), val_(val) {}
 
   virtual void dump() override;
   virtual Expr *clone(CloneCtx &map) override;
@@ -325,7 +349,10 @@ struct BinaryExpr : Expr {
   /// Right-hand-side of the expression.
   Expr *RHS_;
 
-  BinaryExpr(Expr *LHS, Expr *RHS) : LHS_(LHS), RHS_(RHS) {}
+  BinaryExpr(Expr *LHS, Expr *RHS)
+      : Expr(LHS->getType()), LHS_(LHS), RHS_(RHS) {
+    assert(LHS->getType() == RHS->getType() && "Invalid expr type");
+  }
 
   ~BinaryExpr() {
     delete LHS_;
@@ -356,9 +383,17 @@ struct LoadExpr : Expr {
   std::vector<Expr *> indices_;
 
   LoadExpr(Argument *arg, const std::vector<Expr *> &indices)
-      : arg_(arg), indices_(indices) {
+      : Expr(ElemKind::IndexTy), arg_(arg), indices_(indices) {
+    for (auto E : indices) {
+      assert(E->getType().isIndexTy() && "Argument must be of index kind");
+    }
     assert(arg->getType()->getNumDims() == indices_.size() &&
            "Invalid number of indices");
+    // Get the element kind.
+    ElemKind EK = arg->getType()->getElementType();
+    // Get the vectorization factor.
+    unsigned FV = indices[indices.size() - 1]->getType().getWidth();
+    setType(ExprType(EK, FV));
   }
 
   ~LoadExpr() {
