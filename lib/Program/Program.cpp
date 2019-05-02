@@ -38,11 +38,14 @@ Program::~Program() {
   }
 }
 
-void Program::addArgument(const std::string &name,
-                          const std::vector<unsigned> &dims,
-                          const std::vector<std::string> &names, ElemKind Ty) {
+Argument *Program::addArgument(const std::string &name,
+                               const std::vector<unsigned> &dims,
+                               const std::vector<std::string> &names,
+                               ElemKind Ty) {
   Type t(Ty, dims, names);
-  addArgument(new Argument(name, t));
+  Argument *arg = new Argument(name, t);
+  addArgument(arg);
+  return arg;
 }
 
 void Program::addArgument(Argument *arg) { args_.push_back(arg); }
