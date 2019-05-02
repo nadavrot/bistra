@@ -8,6 +8,11 @@ using namespace bistra;
 
 const char *header = R"(
 #include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <strings.h>
+#include <time.h>
+#include <unistd.h>
 #if defined(__clang__)
 using float4 = float __attribute__((ext_vector_type(4)));
 using float8 = float __attribute__((ext_vector_type(8)));
@@ -29,6 +34,28 @@ inline size_t btr_get3(const size_t *dims, size_t x, size_t y, size_t z) {
 inline size_t btr_get2(const size_t *dims, size_t x, size_t y) {
   return (x * dims[1]) + y;
 }
+
+void s_capture(volatile char *ptr) { auto k = *ptr; }
+)";
+
+const char *benchmark = R"(
+  double time_spent = 0.0;
+  clock_t begin = clock();
+  program(C, A, B);
+  clock_t end = clock();
+  time_spent += (double)(end - begin) / CLOCKS_PER_SEC;
+  printf("Time elpased is %f seconds", time_spent);
+)";
+
+const char *benchmark_start = R"(
+double time_spent = 0.0;
+clock_t begin = clock();
+)";
+
+const char *benchmark_end = R"(
+clock_t end = clock();
+time_spent += (double)(end - begin) / CLOCKS_PER_SEC;
+printf("Time elpased is %f seconds", time_spent);
 )";
 
 class cppEmitter {
@@ -159,7 +186,39 @@ public:
 
     // Generate the body of the function.
     generate(P.getBody());
+    sb_ << "}\n";
 
+    // Emit the benchmark program:
+    sb_ << "int bench() {\n";
+
+    for (auto *p : P.getArgs()) {
+      auto elemTy = p->getType()->getElementName();
+      auto name = p->getName();
+      auto size = p->getType()->getSize();
+      sb_ << elemTy << " *" << name << " = (" << elemTy << "*) malloc(sizeof("
+          << elemTy << ") * " << std::to_string(size) << ");\n";
+
+      sb_ << "bzero(" << name << ", " << size << "* sizeof(" << elemTy
+          << "));\n";
+    }
+    sb_ << benchmark_start;
+    sb_ << "program(";
+
+    first = true;
+    for (auto *p : P.getArgs()) {
+      auto name = p->getName();
+      if (!first)
+        sb_ << ",";
+      sb_ << name;
+      first = false;
+    }
+    sb_ << ");\n";
+    for (auto *p : P.getArgs()) {
+      auto name = p->getName();
+      sb_ << "s_capture((char*)" << name << ");\n";
+      first = false;
+    }
+    sb_ << benchmark_end;
     sb_ << "}\n";
   }
 };
