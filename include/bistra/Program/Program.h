@@ -35,6 +35,9 @@ struct Argument final {
 
   /// Prints the argument.
   void dump();
+
+  /// Crash if the program is in an invalid state.
+  void verify();
 };
 
 struct Stmt {
@@ -44,6 +47,8 @@ struct Stmt {
   /// \returns an unowned clone of the current node and updates \p map with the
   /// cloned value.
   virtual Stmt *clone(CloneCtx &map) = 0;
+  /// Crash if the program is in an invalid state.
+  virtual void verify() = 0;
 };
 
 class Scope;
@@ -71,6 +76,7 @@ public:
 
   virtual void dump(unsigned indent) override;
   virtual Stmt *clone(CloneCtx &map) override;
+  virtual void verify() override;
 };
 
 /// Represents a data-parallel loop from zero to End. The loop index can be
@@ -110,6 +116,7 @@ struct Loop : public Stmt {
 
   virtual void dump(unsigned indent) override;
   virtual Stmt *clone(CloneCtx &map) override;
+  virtual void verify() override;
 };
 
 /// This class represents a program.
@@ -158,6 +165,9 @@ public:
 
   Program *clone();
   Program *clone(CloneCtx &map);
+
+  /// Crash if the program is in an invalid state.
+  void verify();
 };
 
 struct Expr {
@@ -184,6 +194,9 @@ struct Expr {
   /// Clone the expression recursively and return the cloned graph. Use the map
   /// \p map to refer to the updated indices and arguments.
   virtual Expr *clone(CloneCtx &map) = 0;
+
+  /// Crash if the program is in an invalid state.
+  virtual void verify() = 0;
 };
 
 /// An expression for referencing a loop index.
@@ -198,6 +211,7 @@ struct IndexExpr : Expr {
 
   virtual void dump() override;
   virtual Expr *clone(CloneCtx &map) override;
+  virtual void verify() override;
 };
 
 /// A constant integer expression.
@@ -212,6 +226,7 @@ struct ConstantExpr : Expr {
 
   virtual void dump() override;
   virtual Expr *clone(CloneCtx &map) override;
+  virtual void verify() override;
 };
 
 /// A constant float expression.
@@ -226,6 +241,7 @@ struct ConstantFPExpr : Expr {
 
   virtual void dump() override;
   virtual Expr *clone(CloneCtx &map) override;
+  virtual void verify() override;
 };
 
 /// A binary arithmetic expression.
@@ -249,6 +265,7 @@ struct BinaryExpr : Expr {
   Expr *getRHS() { return RHS_; }
   virtual void dump() override = 0;
   virtual Expr *clone(CloneCtx &map) override = 0;
+  virtual void verify() override;
 };
 
 struct AddExpr : BinaryExpr {
@@ -298,6 +315,7 @@ struct LoadExpr : Expr {
 
   virtual void dump() override;
   virtual Expr *clone(CloneCtx &map) override;
+  virtual void verify() override;
 };
 
 /// Stores some value to a buffer.
@@ -340,6 +358,7 @@ struct StoreStmt : Stmt {
 
   virtual void dump(unsigned indent) override;
   virtual Stmt *clone(CloneCtx &map) override;
+  virtual void verify() override;
 };
 
 struct CloneCtx {

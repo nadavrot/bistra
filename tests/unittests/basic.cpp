@@ -51,6 +51,8 @@ TEST(basic, matmul) {
   auto *st = new StoreStmt(C, {new IndexExpr(I), new IndexExpr(J)}, mul, true);
   K->addStmt(st);
 
+  p->verify();
+
   Program *pp = p->clone();
   delete p;
   pp->dump();
