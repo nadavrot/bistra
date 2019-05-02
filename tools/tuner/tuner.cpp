@@ -37,6 +37,7 @@ int main() {
   auto *st = new StoreStmt(C, {new IndexExpr(I), new IndexExpr(J)}, mul, true);
   K->addStmt(st);
 
+  p->verify();
   p->dump();
   auto cpp = emitCPP(*p);
   std::cout << cpp;

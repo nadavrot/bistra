@@ -4,6 +4,17 @@
 
 using namespace bistra;
 
+/// \returns True if \p name is a legal variable name.
+static bool isLegalName(const std::string &name) {
+  // Check that the name is a legal C name.
+  for (char c : name) {
+    if (!isalnum(c))
+      return false;
+  }
+  return true;
+}
+
+/// Prints \p t spaces to indent the program.
 static void spaces(unsigned t) {
   for (unsigned i = 0; i < t; i++) {
     std::cout << " ";
@@ -179,4 +190,80 @@ Program *Program::clone(CloneCtx &map) {
     map.map(arg, newArg);
   }
   return new Program((Scope *)body_->clone(map), newArgs);
+}
+
+void BinaryExpr::verify() {
+  assert(LHS_->getType() == RHS_->getType() && "LHS and RHS type mismatch");
+}
+
+void ConstantExpr::verify() {}
+
+void ConstantFPExpr::verify() {}
+
+void Loop::verify() {
+  body_->verify();
+  assert(end_ > 0 && "Loops must not be empty");
+  assert(end_ % vf_ == 0 &&
+         "Trip count must be divisible by vectorization factor");
+  assert(vf_ > 0 && vf_ < 64 && "Invalid vectorization factor");
+  assert(isLegalName(getName()) && "Invalid character in index name");
+}
+
+void Scope::verify() {
+  for (auto *E : body_) {
+    E->verify();
+  }
+}
+
+void IndexExpr::verify() {
+  assert(getType().isIndexTy() && "Invalid index type");
+}
+
+void LoadExpr::verify() {
+  for (auto E : indices_) {
+    assert(E->getType().isIndexTy() && "Argument must be of index kind");
+  }
+  assert(indices_.size() && "Empty argument list");
+  assert(arg_->getType()->getNumDims() == indices_.size() &&
+         "Invalid number of indices");
+
+  // Get the store element kind and vectorization factor.
+  ElemKind EK = arg_->getType()->getElementType();
+  auto lastIndex = indices_[indices_.size() - 1];
+  unsigned VF = lastIndex->getType().getWidth();
+  assert(getType().getWidth() == VF &&
+         "Loaded type does not match vectorization factor");
+  assert(getType().getElementType() == EK && "Loaded element type mismatch");
+}
+
+void StoreStmt::verify() {
+  for (auto E : indices_) {
+    assert(E->getType().isIndexTy() && "Argument must be of index kind");
+  }
+  assert(indices_.size() && "Empty argument list");
+  assert(arg_->getType()->getNumDims() == indices_.size() &&
+         "Invalid number of indices");
+
+  auto storedType = value_->getType();
+
+  // Get the store element kind and vectorization factor.
+  ElemKind EK = arg_->getType()->getElementType();
+  auto lastIndex = indices_[indices_.size() - 1];
+  unsigned VF = lastIndex->getType().getWidth();
+  assert(storedType.getWidth() == VF &&
+         "Stored type does not match vectorization factor");
+  assert(storedType.getElementType() == EK && "Stored element type mismatch");
+}
+
+void Argument::verify() {
+  assert(isLegalName(getName()) && "Invalid character in argument name");
+}
+
+void Program::verify() {
+  body_->verify();
+
+  // Verify the arguments.
+  for (auto *a : args_) {
+    a->verify();
+  }
 }
