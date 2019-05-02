@@ -144,9 +144,10 @@ public:
     return args_[idx];
   }
 
-  /// Adds a new argument;
-  void addArgument(const std::string &name, const std::vector<unsigned> &dims,
-                   const std::vector<std::string> &names, ElemKind Ty);
+  /// Adds a new argument. \returns the newly created argument.
+  Argument *addArgument(const std::string &name,
+                        const std::vector<unsigned> &dims,
+                        const std::vector<std::string> &names, ElemKind Ty);
 
   /// Adds a new argument;
   void addArgument(Argument *arg);

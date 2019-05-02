@@ -58,3 +58,24 @@ TEST(basic, matmul) {
   pp->dump();
   delete pp;
 }
+
+TEST(basic, memcpy) {
+  // DEST[i] = SRC[i];
+  Program *p = new Program();
+  auto *dest = p->addArgument("DEST", {256}, {"len"}, ElemKind::Float32Ty);
+  auto *src = p->addArgument("SRC", {256}, {"len"}, ElemKind::Float32Ty);
+
+  auto *I = new Loop("i", 256, 1);
+
+  p->addStmt(I);
+
+  auto *ld = new LoadExpr(src, {new IndexExpr(I)});
+  auto *st = new StoreStmt(dest, {new IndexExpr(I)}, ld, false);
+  I->addStmt(st);
+
+  p->verify();
+  Program *pp = p->clone();
+  delete p;
+  pp->dump();
+  delete pp;
+}
