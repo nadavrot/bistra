@@ -19,9 +19,12 @@ int main() {
   auto *I = new Loop("i", 128, 1);
   auto *J = new Loop("j", 32, 1);
   auto *K = new Loop("k", 64, 1);
+  auto *zero = new StoreStmt(C, {new IndexExpr(I), new IndexExpr(J)},
+                             new ConstantExpr(0), false);
 
   p->addStmt(I);
   I->addStmt(J);
+  J->addStmt(zero);
   J->addStmt(K);
 
   auto *ldA = new LoadExpr(A, {new IndexExpr(I), new IndexExpr(K)});
@@ -31,4 +34,6 @@ int main() {
   K->addStmt(st);
 
   p->dump();
+  auto cpp = emitCPP(*p);
+  std::cout << cpp;
 }

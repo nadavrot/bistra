@@ -88,8 +88,8 @@ struct Type final {
   static const char *getElementName(ElemKind Ty) {
     static const char *names[] = {
         "float",
-        "i8",
-        "idx_t",
+        "int8_t",
+        "size_t",
     };
     return names[(int)Ty];
   }
@@ -233,6 +233,9 @@ struct Loop : public Stmt {
   /// \returns the name of the induction variable.
   const std::string &getName() { return indexName; }
 
+  /// \returns the end point of the loop.
+  unsigned getEnd() { return end_; }
+
   /// Add a statement to the end of the loop scope.
   void addStmt(Stmt *s) { body_->addStmt(s); }
 
@@ -327,6 +330,9 @@ struct IndexExpr : Expr {
 
   IndexExpr(Loop *loop) : Expr(ElemKind::IndexTy), loop_(loop) {}
 
+  /// \returns the loop that this expression indexes.
+  Loop *getLoop() { return loop_; }
+
   virtual void dump() override;
   virtual Expr *clone(CloneCtx &map) override;
 };
@@ -337,6 +343,9 @@ struct ConstantExpr : Expr {
   int64_t val_;
 
   ConstantExpr(int64_t val) : Expr(ElemKind::IndexTy), val_(val) {}
+
+  /// \returns the value stored by this constant.
+  int64_t getValue() { return val_; }
 
   virtual void dump() override;
   virtual Expr *clone(CloneCtx &map) override;
@@ -359,6 +368,8 @@ struct BinaryExpr : Expr {
     delete RHS_;
   }
 
+  Expr *getLHS() { return LHS_; }
+  Expr *getRHS() { return RHS_; }
   virtual void dump() override = 0;
   virtual Expr *clone(CloneCtx &map) override = 0;
 };
@@ -381,6 +392,12 @@ struct LoadExpr : Expr {
   Argument *arg_;
   /// The indices for indexing the buffer.
   std::vector<Expr *> indices_;
+
+  /// \returns the buffer destination of the instruction.
+  Argument *getDest() { return arg_; }
+
+  /// \returns the indices indexing into the array.
+  const std::vector<Expr *> &getIndices() { return indices_; }
 
   LoadExpr(Argument *arg, const std::vector<Expr *> &indices)
       : Expr(ElemKind::IndexTy), arg_(arg), indices_(indices) {
@@ -416,6 +433,19 @@ struct StoreStmt : Stmt {
   Expr *value_;
   /// Accumulate the resule into the destination.
   bool accumulate_;
+
+  /// \returns the write destination of the store instruction.
+  Argument *getDest() { return arg_; }
+
+  /// \returns the indices indexing into the array.
+  const std::vector<Expr *> &getIndices() { return indices_; }
+
+  /// \returns the stored value.
+  Expr *getValue() { return value_; }
+
+  /// \returns true if this store statement accumulates into the stored
+  /// destination.
+  bool isAccumulate() { return accumulate_; }
 
   StoreStmt(Argument *arg, const std::vector<Expr *> &indices, Expr *value,
             bool accumulate)
