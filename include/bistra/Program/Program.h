@@ -214,6 +214,20 @@ struct ConstantExpr : Expr {
   virtual Expr *clone(CloneCtx &map) override;
 };
 
+/// A constant float expression.
+struct ConstantFPExpr : Expr {
+  /// The value that this constant integer represents.
+  float val_;
+
+  ConstantFPExpr(int64_t val) : Expr(ElemKind::Float32Ty), val_(val) {}
+
+  /// \returns the value stored by this constant.
+  float getValue() { return val_; }
+
+  virtual void dump() override;
+  virtual Expr *clone(CloneCtx &map) override;
+};
+
 /// A binary arithmetic expression.
 struct BinaryExpr : Expr {
   /// Left-hand-side of the expression.

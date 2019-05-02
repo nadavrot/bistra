@@ -66,6 +66,8 @@ void Loop::dump(unsigned indent) {
 
 void ConstantExpr::dump() { std::cout << " " + std::to_string(val_) + " "; }
 
+void ConstantFPExpr::dump() { std::cout << " " + std::to_string(val_) + " "; }
+
 void LoadExpr::dump() {
   std::cout << arg_->getName() << "[";
   bool first = true;
@@ -111,6 +113,10 @@ void MulExpr::dump() {
 
 Expr *ConstantExpr::clone(CloneCtx &map) {
   return new ConstantExpr(this->val_);
+}
+
+Expr *ConstantFPExpr::clone(CloneCtx &map) {
+  return new ConstantFPExpr(this->val_);
 }
 
 Expr *AddExpr::clone(CloneCtx &map) {
