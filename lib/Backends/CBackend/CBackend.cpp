@@ -1,4 +1,5 @@
-#include "bistra/CodeGen/CodeGen.h"
+#include "bistra/Backends/CBackend/CBackend.h"
+#include "bistra/Backends/Backend.h"
 #include "bistra/Program/Program.h"
 
 #include <sstream>
@@ -229,7 +230,7 @@ public:
   }
 };
 
-std::string bistra::emitCPP(Program &P) {
+std::string CBackend::emitCode(Program &P) {
   cppEmitter ee;
 
   ee.generate(P);
