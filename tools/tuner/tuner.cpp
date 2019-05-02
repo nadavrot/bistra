@@ -6,19 +6,23 @@
 using namespace bistra;
 
 int main() {
+  const int sizeM = 128;
+  const int sizeN = 256;
+  const int sizeV = 1024;
+
   // C[i, j] = A[i, k] * B[k, j];
   Program *p = new Program();
-  p->addArgument("C", {128, 32}, {"I", "J"}, ElemKind::Float32Ty);
-  p->addArgument("A", {128, 64}, {"I", "K"}, ElemKind::Float32Ty);
-  p->addArgument("B", {64, 32}, {"K", "J"}, ElemKind::Float32Ty);
+  p->addArgument("C", {sizeM, sizeN}, {"I", "J"}, ElemKind::Float32Ty);
+  p->addArgument("A", {sizeM, sizeV}, {"I", "K"}, ElemKind::Float32Ty);
+  p->addArgument("B", {sizeV, sizeN}, {"K", "J"}, ElemKind::Float32Ty);
 
   auto *C = p->getArg(0);
   auto *A = p->getArg(1);
   auto *B = p->getArg(2);
 
-  auto *I = new Loop("i", 128, 1);
-  auto *J = new Loop("j", 32, 1);
-  auto *K = new Loop("k", 64, 1);
+  auto *I = new Loop("i", sizeM, 1);
+  auto *J = new Loop("j", sizeN, 1);
+  auto *K = new Loop("k", sizeV, 1);
   auto *zero = new StoreStmt(C, {new IndexExpr(I), new IndexExpr(J)},
                              new ConstantExpr(0), false);
 

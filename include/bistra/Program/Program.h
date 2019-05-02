@@ -62,6 +62,16 @@ struct Type final {
   /// \returns the dimensions of the tensor.
   const std::vector<unsigned> &getDims() { return sizes_; }
 
+  /// \returns the number of scalars in the tensor.
+  unsigned getSize() {
+    unsigned size = 1;
+    // Multiply all of the dimensions.
+    for (auto d : sizes_) {
+      size *= d;
+    }
+    return size;
+  }
+
   /// \returns the names of the dimensions.
   const std::vector<std::string> &getNames() { return names_; }
 
