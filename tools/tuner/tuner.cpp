@@ -1,4 +1,5 @@
-#include "bistra/CodeGen/CodeGen.h"
+#include "bistra/Backends/Backend.h"
+#include "bistra/Backends/Backends.h"
 #include "bistra/Program/Program.h"
 
 #include <iostream>
@@ -39,6 +40,8 @@ int main() {
 
   p->verify();
   p->dump();
-  auto cpp = emitCPP(*p);
+
+  Backend *CB = getBackend("C");
+  auto cpp = CB->emitCode(*p);
   std::cout << cpp;
 }

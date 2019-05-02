@@ -4,7 +4,7 @@ add_executable(tuner
 
 target_link_libraries(tuner
                       PUBLIC
-                        CodeGen
+                        Backends
                         Program
                         )
 
