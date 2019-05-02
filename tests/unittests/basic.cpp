@@ -16,7 +16,7 @@ TEST(basic, builder) {
 
   auto *buff = p->getArg(0);
   auto *ld = new LoadExpr(buff, {new IndexExpr(K), new IndexExpr(L)});
-  auto *val = new AddExpr(ld, new ConstantExpr(4));
+  auto *val = new AddExpr(ld, new ConstantFPExpr(4));
   auto *store =
       new StoreStmt(buff, {new IndexExpr(K), new IndexExpr(L)}, val, true);
   K->addStmt(store);

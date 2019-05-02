@@ -78,6 +78,12 @@ public:
       return;
     }
 
+    // Handle float-constant expressions.
+    if (ConstantFPExpr *cc = dynamic_cast<ConstantFPExpr *>(exp)) {
+      sb_ << "(" << cc->getValue() << ")";
+      return;
+    }
+
     // Handle binary expressions.
     if (BinaryExpr *bin = dynamic_cast<BinaryExpr *>(exp)) {
       std::string op;

@@ -24,7 +24,7 @@ int main() {
   auto *J = new Loop("j", sizeN, 1);
   auto *K = new Loop("k", sizeV, 1);
   auto *zero = new StoreStmt(C, {new IndexExpr(I), new IndexExpr(J)},
-                             new ConstantExpr(0), false);
+                             new ConstantFPExpr(0), false);
 
   p->addStmt(I);
   I->addStmt(J);
