@@ -21,11 +21,11 @@ const char *header = R"(
 #include <time.h>
 #include <unistd.h>
 #if defined(__clang__)
-using float4 = float __attribute__((ext_vector_type(4)));
-using float8 = float __attribute__((ext_vector_type(8)));
+typedef float __attribute__((ext_vector_type(4))) float4;
+typedef float __attribute__((ext_vector_type(8))) float8;
 #elif defined(__GNUC__) || defined(__GNUG__)
-using float4 = float __attribute__((vector_size(16)));
-using float8 = float __attribute__((vector_size(32)));
+typedef float __attribute__((vector_size(16))) float4;
+typedef float __attribute__((vector_size(32))) float8;
 #endif
 /// \returns the index of the element at x,y,z,w.
 inline size_t btr_get4(const size_t *dims, size_t x, size_t y, size_t z,
@@ -41,17 +41,10 @@ inline size_t btr_get3(const size_t *dims, size_t x, size_t y, size_t z) {
 inline size_t btr_get2(const size_t *dims, size_t x, size_t y) {
   return (x * dims[1]) + y;
 }
+/// \returns the index of the element at x.
+inline size_t btr_get1(const size_t *dims, size_t x) { return x; }
 
-void s_capture(volatile char *ptr) { auto k = *ptr; }
-)";
-
-const char *benchmark = R"(
-  double time_spent = 0.0;
-  clock_t begin = clock();
-  program(C, A, B);
-  clock_t end = clock();
-  time_spent += (double)(end - begin) / CLOCKS_PER_SEC;
-  printf("Time elpased is %f seconds", time_spent);
+void s_capture(volatile char *ptr) { char k = *ptr; }
 )";
 
 const char *benchmark_start = R"(
@@ -62,7 +55,8 @@ clock_t begin = clock();
 const char *benchmark_end = R"(
 clock_t end = clock();
 time_spent += (double)(end - begin) / CLOCKS_PER_SEC;
-printf("Time elpased is %f seconds", time_spent);
+printf("%f seconds elpased running %d iterations.", time_spent,
+       benchmark_iterations);
 )";
 
 class cppEmitter {
@@ -205,6 +199,7 @@ public:
   // Emit the benchmark for program \p P. Run \p iter iterations.
   void generateBenchmark(Program *P, unsigned iter) {
     sb_ << "int main() {\n";
+    sb_ << "unsigned benchmark_iterations = " << iter << ";\n";
     for (auto *p : P->getArgs()) {
       auto elemTy = p->getType()->getElementName();
       auto name = p->getName();
@@ -257,7 +252,8 @@ static std::string shellExec(const std::string &cmd) {
   std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"),
                                                 pclose);
   if (!pipe) {
-    throw std::runtime_error("popen() failed!");
+    std::cout << "popen() failed!\n";
+    abort();
   }
   while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
     result += buffer.data();
@@ -273,13 +269,14 @@ double CBackend::evaluateCode(Program *p, unsigned iter) {
   out << content;
   out.close();
 
-  std::cout << shellExec(std::string("clang -Ofast ") + tmpSrcName + " -o " +
-                         tmpBinName);
+  // Compile:
+  shellExec(std::string("clang -Ofast ") + tmpSrcName + " -o " + tmpBinName);
 
-  clock_t begin = clock();
+  // Execute:
+  std::string timeReport = shellExec(tmpBinName);
 
-  std::cout << shellExec(std::string("") + tmpBinName);
-
-  clock_t end = clock();
-  return (double)(end - begin) / CLOCKS_PER_SEC;
+  std::string::size_type sz;
+  double timeInSeconds = std::stod(timeReport, &sz);
+  // Return the time in sec that the program measured internally and reported.
+  return timeInSeconds;
 }

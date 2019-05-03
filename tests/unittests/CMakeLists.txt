@@ -7,6 +7,7 @@ target_link_libraries(
     basic_test
     gtest_main
     Program
+    Backends
     )
 
 add_test(
