@@ -42,6 +42,7 @@ int main() {
   p->dump();
 
   auto CB = getBackend("C");
-  auto cpp = CB->emitCode(*p);
+  auto cpp = CB->emitProgramCode(p);
   std::cout << cpp;
+  CB->evaluateCode(p, 100);
 }

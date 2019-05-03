@@ -8,11 +8,11 @@ namespace bistra {
 
 class CBackend : public Backend {
 public:
-  virtual std::string emitCode(Program &p) override;
+  virtual std::string emitProgramCode(Program *p) override;
 
-  virtual unsigned evaluateCode(Program &p, unsigned iter) override {
-    assert(false && "Unimplemented");
-  }
+  virtual std::string emitBenchmarkCode(Program *p, unsigned iter) override;
+
+  virtual double evaluateCode(Program *p, unsigned iter) override;
 };
 
 } // namespace bistra
