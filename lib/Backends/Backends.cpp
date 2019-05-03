@@ -3,4 +3,6 @@
 #include "bistra/Backends/CBackend/CBackend.h"
 using namespace bistra;
 
-Backend *bistra::getBackend(const std::string &name) { return new CBackend(); }
+std::unique_ptr<Backend> bistra::getBackend(const std::string &name) {
+  return std::make_unique<CBackend>();
+}
