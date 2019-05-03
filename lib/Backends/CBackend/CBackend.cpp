@@ -2,7 +2,13 @@
 #include "bistra/Backends/Backend.h"
 #include "bistra/Program/Program.h"
 
+#include <array>
+#include <cstdio>
+#include <fstream>
+#include <iostream>
+#include <memory>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 
 using namespace bistra;
@@ -162,14 +168,14 @@ public:
     assert(false && "Unknown statement");
   }
 
-  void generate(Program &P) {
+  void generate(Program *P) {
     sb_ << header;
 
     // Print the function decleration and argument list.
     // Example:      void proogram(float *C, float* A, float* B) {
     sb_ << "void program(";
     bool first = true;
-    for (auto *p : P.getArgs()) {
+    for (auto *p : P->getArgs()) {
       if (!first) {
         sb_ << ",";
       }
@@ -182,7 +188,7 @@ public:
     // Example:
     //  static size_t C_dims[] = { 128, 32};
     //  static size_t A_dims[] = { 128, 64};
-    for (auto *p : P.getArgs()) {
+    for (auto *p : P->getArgs()) {
       sb_ << "static size_t " << p->getName() << "_dims[] = {";
       auto shape = p->getType()->getDims();
       for (auto d : shape) {
@@ -192,13 +198,14 @@ public:
     }
 
     // Generate the body of the function.
-    generate(P.getBody());
+    generate(P->getBody());
     sb_ << "}\n";
+  }
 
-    // Emit the benchmark program:
-    sb_ << "int bench() {\n";
-
-    for (auto *p : P.getArgs()) {
+  // Emit the benchmark for program \p P. Run \p iter iterations.
+  void generateBenchmark(Program *P, unsigned iter) {
+    sb_ << "int main() {\n";
+    for (auto *p : P->getArgs()) {
       auto elemTy = p->getType()->getElementName();
       auto name = p->getName();
       auto size = p->getType()->getSize();
@@ -209,10 +216,11 @@ public:
           << "));\n";
     }
     sb_ << benchmark_start;
-    sb_ << "program(";
+    sb_ << "for(int i = 0; i < " << iter << "; i++)";
+    sb_ << "  program(";
 
-    first = true;
-    for (auto *p : P.getArgs()) {
+    bool first = true;
+    for (auto *p : P->getArgs()) {
       auto name = p->getName();
       if (!first)
         sb_ << ",";
@@ -220,7 +228,7 @@ public:
       first = false;
     }
     sb_ << ");\n";
-    for (auto *p : P.getArgs()) {
+    for (auto *p : P->getArgs()) {
       auto name = p->getName();
       sb_ << "s_capture((char*)" << name << ");\n";
       first = false;
@@ -230,9 +238,48 @@ public:
   }
 };
 
-std::string CBackend::emitCode(Program &P) {
+std::string CBackend::emitProgramCode(Program *P) {
   cppEmitter ee;
-
   ee.generate(P);
   return ee.getOutput();
+}
+
+std::string CBackend::emitBenchmarkCode(Program *p, unsigned iter) {
+  cppEmitter ee;
+  ee.generate(p);
+  ee.generateBenchmark(p, iter);
+  return ee.getOutput();
+}
+
+static std::string shellExec(const std::string &cmd) {
+  std::array<char, 1024> buffer;
+  std::string result;
+  std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"),
+                                                pclose);
+  if (!pipe) {
+    throw std::runtime_error("popen() failed!");
+  }
+  while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+    result += buffer.data();
+  }
+  return result;
+}
+
+double CBackend::evaluateCode(Program *p, unsigned iter) {
+  std::string tmpSrcName = std::string(std::tmpnam(nullptr)) + ".cpp";
+  std::string tmpBinName = std::string(std::tmpnam(nullptr)) + ".bin";
+  auto content = emitBenchmarkCode(p, iter);
+  std::ofstream out(tmpSrcName);
+  out << content;
+  out.close();
+
+  std::cout << shellExec(std::string("clang -Ofast ") + tmpSrcName + " -o " +
+                         tmpBinName);
+
+  clock_t begin = clock();
+
+  std::cout << shellExec(std::string("") + tmpBinName);
+
+  clock_t end = clock();
+  return (double)(end - begin) / CLOCKS_PER_SEC;
 }
