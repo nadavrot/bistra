@@ -270,3 +270,44 @@ void Program::verify() {
     a->verify();
   }
 }
+
+void Program::visit(NodeVisitor *visitor) { body_->visit(visitor); }
+
+void BinaryExpr::visit(NodeVisitor *visitor) {
+  visitor->handle(this);
+  LHS_->visit(visitor);
+  RHS_->visit(visitor);
+}
+
+void ConstantExpr::visit(NodeVisitor *visitor) { visitor->handle(this); }
+
+void ConstantFPExpr::visit(NodeVisitor *visitor) { visitor->handle(this); }
+
+void IndexExpr::visit(NodeVisitor *visitor) { visitor->handle(this); }
+
+void Scope::visit(NodeVisitor *visitor) {
+  visitor->handle(this);
+  for (auto *s : body_) {
+    s->visit(visitor);
+  }
+}
+
+void Loop::visit(NodeVisitor *visitor) {
+  visitor->handle(this);
+  body_->visit(visitor);
+}
+
+void StoreStmt::visit(NodeVisitor *visitor) {
+  visitor->handle(this);
+  for (auto *ii : this->getIndices()) {
+    ii->visit(visitor);
+  }
+  value_->visit(visitor);
+}
+
+void LoadExpr::visit(NodeVisitor *visitor) {
+  visitor->handle(this);
+  for (auto *ii : this->getIndices()) {
+    ii->visit(visitor);
+  }
+}

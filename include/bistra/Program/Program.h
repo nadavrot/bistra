@@ -16,6 +16,18 @@ namespace bistra {
 
 struct CloneCtx;
 
+struct Expr;
+struct Stmt;
+
+/// A visitor class that visits all nodes in the program.
+struct NodeVisitor {
+  virtual ~NodeVisitor() = default;
+  // Called when we find a statement.
+  virtual void handle(Stmt *) = 0;
+  // Called when we find an expression.
+  virtual void handle(Expr *) = 0;
+};
+
 /// This struct represents an input to the program, which is a Tensor, or a
 /// typed region in memory.
 struct Argument final {
@@ -49,6 +61,8 @@ struct Stmt {
   virtual Stmt *clone(CloneCtx &map) = 0;
   /// Crash if the program is in an invalid state.
   virtual void verify() = 0;
+  /// A node visitor that visits all of the nodes in the program.
+  virtual void visit(NodeVisitor *visitor) = 0;
 };
 
 class Scope;
@@ -77,6 +91,7 @@ public:
   virtual void dump(unsigned indent) override;
   virtual Stmt *clone(CloneCtx &map) override;
   virtual void verify() override;
+  virtual void visit(NodeVisitor *visitor) override;
 };
 
 /// Represents a data-parallel loop from zero to End. The loop index can be
@@ -117,6 +132,7 @@ struct Loop : public Stmt {
   virtual void dump(unsigned indent) override;
   virtual Stmt *clone(CloneCtx &map) override;
   virtual void verify() override;
+  virtual void visit(NodeVisitor *visitor) override;
 };
 
 /// This class represents a program.
@@ -169,6 +185,9 @@ public:
 
   /// Crash if the program is in an invalid state.
   void verify();
+
+  /// A node visitor that visits all of the nodes in the program.
+  void visit(NodeVisitor *visitor);
 };
 
 struct Expr {
@@ -198,6 +217,9 @@ struct Expr {
 
   /// Crash if the program is in an invalid state.
   virtual void verify() = 0;
+
+  /// A node visitor that visits all of the nodes in the program.
+  virtual void visit(NodeVisitor *visitor) = 0;
 };
 
 /// An expression for referencing a loop index.
@@ -213,6 +235,7 @@ struct IndexExpr : Expr {
   virtual void dump() override;
   virtual Expr *clone(CloneCtx &map) override;
   virtual void verify() override;
+  virtual void visit(NodeVisitor *visitor) override;
 };
 
 /// A constant integer expression.
@@ -228,6 +251,7 @@ struct ConstantExpr : Expr {
   virtual void dump() override;
   virtual Expr *clone(CloneCtx &map) override;
   virtual void verify() override;
+  virtual void visit(NodeVisitor *visitor) override;
 };
 
 /// A constant float expression.
@@ -243,6 +267,7 @@ struct ConstantFPExpr : Expr {
   virtual void dump() override;
   virtual Expr *clone(CloneCtx &map) override;
   virtual void verify() override;
+  virtual void visit(NodeVisitor *visitor) override;
 };
 
 /// A binary arithmetic expression.
@@ -267,6 +292,7 @@ struct BinaryExpr : Expr {
   virtual void dump() override = 0;
   virtual Expr *clone(CloneCtx &map) override = 0;
   virtual void verify() override;
+  virtual void visit(NodeVisitor *visitor) override;
 };
 
 struct AddExpr : BinaryExpr {
@@ -317,6 +343,7 @@ struct LoadExpr : Expr {
   virtual void dump() override;
   virtual Expr *clone(CloneCtx &map) override;
   virtual void verify() override;
+  virtual void visit(NodeVisitor *visitor) override;
 };
 
 /// Stores some value to a buffer.
@@ -360,6 +387,7 @@ struct StoreStmt : Stmt {
   virtual void dump(unsigned indent) override;
   virtual Stmt *clone(CloneCtx &map) override;
   virtual void verify() override;
+  virtual void visit(NodeVisitor *visitor) override;
 };
 
 struct CloneCtx {
