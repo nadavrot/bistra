@@ -6,8 +6,9 @@
 namespace bistra {
 
 class Backend {
-
 public:
+  virtual ~Backend() = default;
+
   /// Generate code for the program \p p and return its string representation.
   virtual std::string emitCode(Program &p) = 0;
   /// Compile and evaluate the performance of the program \p p.

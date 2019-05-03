@@ -3,11 +3,15 @@
 
 #include "bistra/Program/Program.h"
 
+#include <memory>
+
 namespace bistra {
 
 class Backend;
 
-Backend *getBackend(const std::string &name);
+/// \returns a compiler backend that is defined by \p name. The name of the
+/// compiler backend must be valid.
+std::unique_ptr<Backend> getBackend(const std::string &name);
 
 } // namespace bistra
 

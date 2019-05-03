@@ -41,7 +41,7 @@ int main() {
   p->verify();
   p->dump();
 
-  Backend *CB = getBackend("C");
+  auto CB = getBackend("C");
   auto cpp = CB->emitCode(*p);
   std::cout << cpp;
 }
