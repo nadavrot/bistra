@@ -22,7 +22,7 @@ static void spaces(unsigned t) {
   }
 }
 
-void Argument::dump() {
+void Argument::dump() const {
   std::cout << name_ << ":";
   type_.dump();
 }
@@ -64,13 +64,13 @@ void Program::dump() {
   std::cout << "}\n";
 }
 
-void Scope::dump(unsigned indent) {
+void Scope::dump(unsigned indent) const {
   for (auto *s : body_) {
     s->dump(indent);
   }
 }
 
-void Loop::dump(unsigned indent) {
+void Loop::dump(unsigned indent) const {
   spaces(indent);
   std::cout << "for (" << indexName << " in 0.." << end_ << ", VF=" << vf_
             << ") {\n";
@@ -79,11 +79,15 @@ void Loop::dump(unsigned indent) {
   std::cout << "}\n";
 }
 
-void ConstantExpr::dump() { std::cout << " " + std::to_string(val_) + " "; }
+void ConstantExpr::dump() const {
+  std::cout << " " + std::to_string(val_) + " ";
+}
 
-void ConstantFPExpr::dump() { std::cout << " " + std::to_string(val_) + " "; }
+void ConstantFPExpr::dump() const {
+  std::cout << " " + std::to_string(val_) + " ";
+}
 
-void LoadExpr::dump() {
+void LoadExpr::dump() const {
   std::cout << arg_->getName() << "[";
   bool first = true;
   for (auto &I : indices_) {
@@ -96,7 +100,7 @@ void LoadExpr::dump() {
   std::cout << "]";
 }
 
-void StoreStmt::dump(unsigned indent) {
+void StoreStmt::dump(unsigned indent) const {
   spaces(indent);
   std::cout << arg_->getName() << "[";
   bool first = true;
@@ -112,15 +116,15 @@ void StoreStmt::dump(unsigned indent) {
   std::cout << ";\n";
 }
 
-void IndexExpr::dump() { std::cout << loop_->getName(); }
+void IndexExpr::dump() const { std::cout << loop_->getName(); }
 
-void AddExpr::dump() {
+void AddExpr::dump() const {
   LHS_->dump();
   std::cout << " + ";
   RHS_->dump();
 }
 
-void MulExpr::dump() {
+void MulExpr::dump() const {
   LHS_->dump();
   std::cout << " * ";
   RHS_->dump();
@@ -142,7 +146,7 @@ Expr *MulExpr::clone(CloneCtx &map) {
 }
 
 Expr *LoadExpr::clone(CloneCtx &map) {
-  Argument *arg = map.args[arg_];
+  Argument *arg = map.get(arg_);
   std::vector<Expr *> indices;
   for (auto &E : indices_) {
     indices.push_back(E->clone(map));
@@ -152,7 +156,7 @@ Expr *LoadExpr::clone(CloneCtx &map) {
 }
 
 Stmt *StoreStmt::clone(CloneCtx &map) {
-  Argument *arg = map.args[arg_];
+  Argument *arg = map.get(arg_);
   verify();
   std::vector<Expr *> indices;
   for (auto &E : indices_) {
@@ -198,15 +202,15 @@ Program *Program::clone(CloneCtx &map) {
   return new Program((Scope *)body_->clone(map), newArgs);
 }
 
-void BinaryExpr::verify() {
+void BinaryExpr::verify() const {
   assert(LHS_->getType() == RHS_->getType() && "LHS and RHS type mismatch");
 }
 
-void ConstantExpr::verify() {}
+void ConstantExpr::verify() const {}
 
-void ConstantFPExpr::verify() {}
+void ConstantFPExpr::verify() const {}
 
-void Loop::verify() {
+void Loop::verify() const {
   body_->verify();
   assert(end_ > 0 && "Loops must not be empty");
   assert(end_ % vf_ == 0 &&
@@ -215,17 +219,17 @@ void Loop::verify() {
   assert(isLegalName(getName()) && "Invalid character in index name");
 }
 
-void Scope::verify() {
+void Scope::verify() const {
   for (auto *E : body_) {
     E->verify();
   }
 }
 
-void IndexExpr::verify() {
+void IndexExpr::verify() const {
   assert(getType().isIndexTy() && "Invalid index type");
 }
 
-void LoadExpr::verify() {
+void LoadExpr::verify() const {
   for (auto &E : indices_) {
     E.verify();
     assert(E->getType().isIndexTy() && "Argument must be of index kind");
@@ -243,7 +247,7 @@ void LoadExpr::verify() {
   assert(getType().getElementType() == EK && "Loaded element type mismatch");
 }
 
-void StoreStmt::verify() {
+void StoreStmt::verify() const {
   for (auto &E : indices_) {
     E.verify();
     assert(E->getType().isIndexTy() && "Argument must be of index kind");
@@ -263,7 +267,7 @@ void StoreStmt::verify() {
   assert(storedType.getElementType() == EK && "Stored element type mismatch");
 }
 
-void Argument::verify() {
+void Argument::verify() const {
   assert(isLegalName(getName()) && "Invalid character in argument name");
 }
 

@@ -57,13 +57,13 @@ struct Type final {
   }
 
   /// \returns the number of dimensions.
-  unsigned getNumDims() { return sizes_.size(); }
+  unsigned getNumDims() const { return sizes_.size(); }
 
   /// \returns the dimensions of the tensor.
-  const std::vector<unsigned> &getDims() { return sizes_; }
+  const std::vector<unsigned> &getDims() const { return sizes_; }
 
   /// \returns the number of scalars in the tensor.
-  unsigned getSize() {
+  unsigned getSize() const {
     unsigned size = 1;
     // Multiply all of the dimensions.
     for (auto d : sizes_) {
@@ -73,7 +73,7 @@ struct Type final {
   }
 
   /// \returns the names of the dimensions.
-  const std::vector<std::string> &getNames() { return names_; }
+  const std::vector<std::string> &getNames() const { return names_; }
 
   /// \returns the tensor element type.
   ElemKind getElementType() const { return elementType_; }
@@ -89,7 +89,7 @@ struct Type final {
   }
 
   /// \returns true if this type is an index/pointer type.
-  bool isIndexTy() { return elementType_ == ElemKind::IndexTy; }
+  bool isIndexTy() const { return elementType_ == ElemKind::IndexTy; }
 
   /// \return the textual name of the element.
   const char *getElementName() const { return getElementName(elementType_); }
@@ -105,7 +105,7 @@ struct Type final {
   }
 
   /// Prints the type.
-  void dump();
+  void dump() const;
 };
 
 /// A class that represents a type of an element.
@@ -122,7 +122,7 @@ struct ExprType final {
   }
 
   /// \returns true if this type is an index/pointer type.
-  bool isIndexTy() { return elementType_ == ElemKind::IndexTy; }
+  bool isIndexTy() const { return elementType_ == ElemKind::IndexTy; }
 
   /// \returns true if \p other is the same type.
   bool isEqual(const ExprType &other) const {
@@ -139,7 +139,7 @@ struct ExprType final {
   }
 
   /// \returns the number of dimensions.
-  unsigned getWidth() { return width_; }
+  unsigned getWidth() const { return width_; }
 
   /// \returns the tensor element type.
   ElemKind getElementType() const { return elementType_; }
@@ -150,7 +150,7 @@ struct ExprType final {
   }
 
   /// Prints the type.
-  void dump();
+  void dump() const;
 };
 
 inline bool operator==(const Type &LHS, const Type &RHS) {
