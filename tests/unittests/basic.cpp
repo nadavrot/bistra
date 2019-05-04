@@ -1,6 +1,7 @@
 #include "bistra/Backends/Backend.h"
 #include "bistra/Backends/Backends.h"
 #include "bistra/Program/Program.h"
+#include "bistra/Program/Utils.h"
 
 #include "gtest/gtest.h"
 
@@ -87,8 +88,8 @@ TEST(basic, memcpy) {
 struct NodeCounter : public NodeVisitor {
   unsigned stmt{0};
   unsigned expr{0};
-  virtual void handle(Stmt *) { stmt++; }
-  virtual void handle(Expr *) { expr++; }
+  virtual void handle(Stmt *S) { stmt++; }
+  virtual void handle(Expr *E) { expr++; }
 };
 
 TEST(basic, visitor_collect_indices) {
