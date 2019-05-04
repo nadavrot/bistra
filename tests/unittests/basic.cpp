@@ -116,6 +116,13 @@ TEST(basic, visitor_collect_indices) {
   auto *ldA = new LoadExpr(A, {new IndexExpr(K), new IndexExpr(J)});
   auto *mul = new MulExpr(ldA, ldB);
   auto *st = new StoreStmt(C, {new IndexExpr(I), new IndexExpr(J)}, mul, true);
+
+  // Check that the ownership of the node is correct.
+  EXPECT_EQ(mul->getLHS()->getUser(), mul);
+  EXPECT_EQ(mul->getRHS()->getUser(), mul);
+  EXPECT_EQ(mul->getUser(), st);
+  EXPECT_EQ(ldB->getUser(), mul);
+
   K->addStmt(st);
   p->verify();
 
