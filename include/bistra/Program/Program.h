@@ -218,6 +218,9 @@ public:
   /// \returns the end point of the loop.
   unsigned getEnd() const { return end_; }
 
+  /// Sets the trip count;
+  void setEnd(unsigned tc) { end_ = tc; }
+
   /// Add a statement to the end of the loop scope.
   void addStmt(Stmt *s) { body_->addStmt(s); }
 
@@ -351,6 +354,7 @@ public:
   BinaryExpr(Expr *LHS, Expr *RHS)
       : Expr(LHS->getType()), LHS_(LHS), RHS_(RHS) {
     assert(LHS->getType() == RHS->getType() && "Invalid expr type");
+    assert(LHS != RHS && "Invalid ownership of operands");
   }
 
   ~BinaryExpr() = default;

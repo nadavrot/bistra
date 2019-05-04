@@ -320,3 +320,7 @@ void LoadExpr::visit(NodeVisitor *visitor) {
     ii.get()->visit(visitor);
   }
 }
+
+void Expr::replaceUserWith(Expr *other) {
+  user_->set(other);
+}

@@ -1,4 +1,5 @@
 #include "bistra/Backends/Backend.h"
+#include "bistra/Transforms/Transforms.h"
 #include "bistra/Backends/Backends.h"
 #include "bistra/Program/Program.h"
 
@@ -39,6 +40,9 @@ int main() {
   K->addStmt(st);
 
   p->verify();
+  p->dump();
+
+  tile(p, J, 32);
   p->dump();
 
   auto CB = getBackend("C");

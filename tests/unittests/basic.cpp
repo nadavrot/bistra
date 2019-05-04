@@ -1,6 +1,7 @@
 #include "bistra/Backends/Backend.h"
 #include "bistra/Backends/Backends.h"
 #include "bistra/Program/Program.h"
+#include "bistra/Transforms/Transforms.h"
 #include "bistra/Program/Utils.h"
 
 #include "gtest/gtest.h"
@@ -161,4 +162,37 @@ TEST(basic, time_simple_loop) {
 
   EXPECT_GT(timeInSeconds, 0.1);
   delete pp;
+}
+
+TEST(basic, tile_loop) {
+  Program *p = new Program();
+  p->addArgument("A", {125}, {"X"}, ElemKind::Float32Ty);
+  p->addArgument("B", {125}, {"X"}, ElemKind::Float32Ty);
+
+  auto *B = p->getArg(0);
+  auto *A = p->getArg(1);
+
+  auto *I = new Loop("i", 125, 1);
+
+  p->addStmt(I);
+
+  auto *ldB = new LoadExpr(B, {new IndexExpr(I)});
+  auto *cf = new ConstantFPExpr(1.5);
+  auto *mul = new MulExpr(ldB, cf);
+  auto *st = new StoreStmt(A, {new IndexExpr(I)}, mul, true);
+  I->addStmt(st);
+
+  p->verify();
+
+  ::tile(p, I, 5);
+
+  p->dump();
+
+  NodeCounter counter;
+  p->visit(&counter);
+
+  EXPECT_EQ(counter.stmt, 6);
+  EXPECT_EQ(counter.expr, 13);
+  delete p->clone();
+  delete p;
 }
