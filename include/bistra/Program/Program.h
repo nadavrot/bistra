@@ -45,7 +45,15 @@ public:
   void verify() const;
 };
 
-class Stmt {
+class ASTNode {
+public:
+  /// Crash if the program is in an invalid state.
+  virtual void verify() const = 0;
+  /// A node visitor that visits all of the nodes in the program.
+  virtual void visit(NodeVisitor *visitor) = 0;
+};
+
+class Stmt : public ASTNode {
 public:
   /// Prints the argument.
   virtual void dump(unsigned indent) const = 0;
@@ -53,15 +61,11 @@ public:
   /// \returns an unowned clone of the current node and updates \p map with the
   /// cloned value.
   virtual Stmt *clone(CloneCtx &map) = 0;
-  /// Crash if the program is in an invalid state.
-  virtual void verify() const = 0;
-  /// A node visitor that visits all of the nodes in the program.
-  virtual void visit(NodeVisitor *visitor) = 0;
 };
 
 class ExprHandle;
 
-class Expr {
+class Expr : public ASTNode {
   friend ExprHandle;
   /// The type of the expression.
   ExprType type_;
@@ -76,8 +80,11 @@ public:
   /// Replaces the handle that references this expression with \p other.
   void replaceUserWith(Expr *other);
 
-  /// \returns the user of this expression.
-  ExprHandle *getUser() { return user_; }
+  /// \returns the use handle of this expression.
+  ExprHandle *getUse() { return user_; }
+
+  /// \returns the user node of this expression.
+  ASTNode *getUser();
 
   /// \returns the type of the expression.
   const ExprType &getType() const { return type_; }
@@ -94,25 +101,24 @@ public:
   /// \p map to refer to the updated indices and arguments.
   virtual Expr *clone(CloneCtx &map) = 0;
 
-  /// Crash if the program is in an invalid state.
-  virtual void verify() const = 0;
-
-  /// A node visitor that visits all of the nodes in the program.
-  virtual void visit(NodeVisitor *visitor) = 0;
-
   Expr() = delete;
   Expr(const Expr &other) = delete;
 };
 
 class ExprHandle final {
+  /// The expression that this handle manages.
   Expr *ref_{nullptr};
+  /// A reference to the ast node that owns this handle.
+  ASTNode *parent_;
 
 public:
-  ExprHandle() = default;
-  ExprHandle(Expr *ref) { set(ref); }
+  ExprHandle(Expr *ref, ASTNode *owner) : parent_(owner) { setReference(ref); }
   ~ExprHandle() { delete ref_; }
 
-  void set(Expr *ref) {
+  /// \returns the ASTNode that holds this handle.
+  ASTNode *getParent() const { return parent_; }
+
+  void setReference(Expr *ref) {
     // Unregister the previous expression.
     if (ref_) {
       ref_->user_ = nullptr;
@@ -122,7 +128,7 @@ public:
     ref_ = ref;
     if (ref_) {
       // Reset the old handle.
-      if (auto *EH = ref_->getUser()) {
+      if (auto *EH = ref_->getUse()) {
         EH->ref_ = nullptr;
       }
       // Register this as the new handle.
@@ -148,18 +154,18 @@ public:
 
   void verify() const {
     assert(ref_ == nullptr ||
-           ref_->getUser() == this && "The handle pointes to an unowned expr.");
+           ref_->getUse() == this && "The handle pointes to an unowned expr.");
   }
 
   operator Expr *() { return ref_; }
 
   ExprHandle(const ExprHandle &other) = delete;
-  ExprHandle(const ExprHandle &&other) { set(other.ref_); }
-  ExprHandle &operator=(ExprHandle &other) = delete;
-  ExprHandle &operator=(ExprHandle &&other) {
-    set(other.ref_);
-    return *this;
+  ExprHandle(const ExprHandle &&other) {
+    parent_ = other.parent_;
+    setReference(other.ref_);
   }
+  ExprHandle &operator=(ExprHandle &other) = delete;
+  ExprHandle &operator=(ExprHandle &&other) = delete;
 };
 
 class Scope;
@@ -352,7 +358,7 @@ protected:
 
 public:
   BinaryExpr(Expr *LHS, Expr *RHS)
-      : Expr(LHS->getType()), LHS_(LHS), RHS_(RHS) {
+      : Expr(LHS->getType()), LHS_(LHS, this), RHS_(RHS, this) {
     assert(LHS->getType() == RHS->getType() && "Invalid expr type");
     assert(LHS != RHS && "Invalid ownership of operands");
   }
@@ -399,7 +405,7 @@ public:
       : Expr(ElemKind::IndexTy), arg_(arg), indices_() {
     for (auto *E : indices) {
       assert(E->getType().isIndexTy() && "Argument must be of index kind");
-      indices_.emplace_back(E);
+      indices_.emplace_back(E, this);
     }
     assert(arg->getType()->getNumDims() == indices_.size() &&
            "Invalid number of indices");
@@ -445,12 +451,12 @@ public:
 
   StoreStmt(Argument *arg, const std::vector<Expr *> &indices, Expr *value,
             bool accumulate)
-      : arg_(arg), indices_(), value_(value), accumulate_(accumulate) {
+      : arg_(arg), indices_(), value_(value, this), accumulate_(accumulate) {
     assert(arg->getType()->getNumDims() == indices.size() &&
            "Invalid number of indices");
     for (auto *E : indices) {
       assert(E->getType().isIndexTy() && "Argument must be of index kind");
-      indices_.emplace_back(E);
+      indices_.emplace_back(E, this);
     }
   }
 

@@ -204,6 +204,8 @@ Program *Program::clone(CloneCtx &map) {
 
 void BinaryExpr::verify() const {
   assert(LHS_->getType() == RHS_->getType() && "LHS and RHS type mismatch");
+  assert(LHS_.getParent() == this && "Invalid handle owner pointer");
+  assert(RHS_.getParent() == this && "Invalid handle owner pointer");
 }
 
 void ConstantExpr::verify() const {}
@@ -232,6 +234,7 @@ void IndexExpr::verify() const {
 void LoadExpr::verify() const {
   for (auto &E : indices_) {
     E.verify();
+    assert(E.getParent() == this && "Invalid handle owner pointer");
     assert(E->getType().isIndexTy() && "Argument must be of index kind");
   }
   assert(indices_.size() && "Empty argument list");
@@ -250,11 +253,14 @@ void LoadExpr::verify() const {
 void StoreStmt::verify() const {
   for (auto &E : indices_) {
     E.verify();
+    assert(E.getParent() == this && "Invalid handle owner pointer");
     assert(E->getType().isIndexTy() && "Argument must be of index kind");
   }
   assert(indices_.size() && "Empty argument list");
   assert(arg_->getType()->getNumDims() == indices_.size() &&
          "Invalid number of indices");
+
+  assert(value_.getParent() == this && "Invalid handle owner pointer");
 
   auto storedType = value_->getType();
 
@@ -321,4 +327,6 @@ void LoadExpr::visit(NodeVisitor *visitor) {
   }
 }
 
-void Expr::replaceUserWith(Expr *other) { user_->set(other); }
+void Expr::replaceUserWith(Expr *other) { user_->setReference(other); }
+
+ASTNode *Expr::getUser() { return getUse()->getParent(); }
