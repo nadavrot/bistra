@@ -2,6 +2,7 @@
 #define BISTRA_PROGRAM_PROGRAM_H
 
 #include "bistra/Program/Types.h"
+#include "bistra/Program/UseDef.h"
 
 #include <cassert>
 #include <cstddef>
@@ -53,6 +54,9 @@ public:
   virtual void visit(NodeVisitor *visitor) = 0;
 };
 
+using ExprHandle = ASTHandle<Expr, ASTNode>;
+using StmtHandle = ASTHandle<Stmt, ASTNode>;
+
 class Stmt : public ASTNode {
 public:
   /// Prints the argument.
@@ -63,13 +67,10 @@ public:
   virtual Stmt *clone(CloneCtx &map) = 0;
 };
 
-class ExprHandle;
-
 class Expr : public ASTNode {
-  friend ExprHandle;
   /// The type of the expression.
   ExprType type_;
-  /// A pointer to a handle that may contain this expression.
+  /// A nullable pointer to the handle that may contain this expression.
   ExprHandle *user_{nullptr};
 
 public:
@@ -82,6 +83,9 @@ public:
 
   /// \returns the use handle of this expression.
   ExprHandle *getUse() { return user_; }
+
+  /// \reset the pointer to the owning handle.
+  void resetUse(ExprHandle *handle = nullptr) { user_ = handle; }
 
   /// \returns the user node of this expression.
   ASTNode *getUser();
@@ -103,69 +107,6 @@ public:
 
   Expr() = delete;
   Expr(const Expr &other) = delete;
-};
-
-class ExprHandle final {
-  /// The expression that this handle manages.
-  Expr *ref_{nullptr};
-  /// A reference to the ast node that owns this handle.
-  ASTNode *parent_;
-
-public:
-  ExprHandle(Expr *ref, ASTNode *owner) : parent_(owner) { setReference(ref); }
-  ~ExprHandle() { delete ref_; }
-
-  /// \returns the ASTNode that holds this handle.
-  ASTNode *getParent() const { return parent_; }
-
-  void setReference(Expr *ref) {
-    // Unregister the previous expression.
-    if (ref_) {
-      ref_->user_ = nullptr;
-    }
-
-    // Register the new expression.
-    ref_ = ref;
-    if (ref_) {
-      // Reset the old handle.
-      if (auto *EH = ref_->getUse()) {
-        EH->ref_ = nullptr;
-      }
-      // Register this as the new handle.
-      ref_->user_ = this;
-    }
-    verify();
-  }
-
-  Expr *get() const {
-    verify();
-    return ref_;
-  }
-
-  Expr *operator->() {
-    verify();
-    return ref_;
-  }
-
-  const Expr *operator->() const {
-    verify();
-    return ref_;
-  }
-
-  void verify() const {
-    assert(ref_ == nullptr ||
-           ref_->getUse() == this && "The handle pointes to an unowned expr.");
-  }
-
-  operator Expr *() { return ref_; }
-
-  ExprHandle(const ExprHandle &other) = delete;
-  ExprHandle(const ExprHandle &&other) {
-    parent_ = other.parent_;
-    setReference(other.ref_);
-  }
-  ExprHandle &operator=(ExprHandle &other) = delete;
-  ExprHandle &operator=(ExprHandle &&other) = delete;
 };
 
 class Scope;
