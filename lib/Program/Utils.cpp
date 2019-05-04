@@ -16,7 +16,7 @@ struct IndexCollector : public NodeVisitor {
 };
 } // namespace
 
-void collectIndices(Stmt *S, std::vector<IndexExpr *> &indices) {
+void bistra::collectIndices(Stmt *S, std::vector<IndexExpr *> &indices) {
   IndexCollector IC(indices);
   S->visit(&IC);
 }
