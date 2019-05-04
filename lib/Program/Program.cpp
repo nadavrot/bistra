@@ -86,7 +86,7 @@ void ConstantFPExpr::dump() { std::cout << " " + std::to_string(val_) + " "; }
 void LoadExpr::dump() {
   std::cout << arg_->getName() << "[";
   bool first = true;
-  for (auto *I : indices_) {
+  for (auto &I : indices_) {
     if (!first) {
       std::cout << ",";
     }
@@ -100,7 +100,7 @@ void StoreStmt::dump(unsigned indent) {
   spaces(indent);
   std::cout << arg_->getName() << "[";
   bool first = true;
-  for (auto *I : indices_) {
+  for (auto &I : indices_) {
     if (!first) {
       std::cout << ",";
     }
@@ -144,7 +144,7 @@ Expr *MulExpr::clone(CloneCtx &map) {
 Expr *LoadExpr::clone(CloneCtx &map) {
   Argument *arg = map.args[arg_];
   std::vector<Expr *> indices;
-  for (auto *E : indices_) {
+  for (auto &E : indices_) {
     indices.push_back(E->clone(map));
   }
 
@@ -153,8 +153,9 @@ Expr *LoadExpr::clone(CloneCtx &map) {
 
 Stmt *StoreStmt::clone(CloneCtx &map) {
   Argument *arg = map.args[arg_];
+  verify();
   std::vector<Expr *> indices;
-  for (auto *E : indices_) {
+  for (auto &E : indices_) {
     indices.push_back(E->clone(map));
   }
 
@@ -187,6 +188,7 @@ Program *Program::clone() {
 }
 
 Program *Program::clone(CloneCtx &map) {
+  verify();
   std::vector<Argument *> newArgs;
   for (auto *arg : args_) {
     Argument *newArg = new Argument(*arg);
@@ -224,7 +226,8 @@ void IndexExpr::verify() {
 }
 
 void LoadExpr::verify() {
-  for (auto E : indices_) {
+  for (auto &E : indices_) {
+    E.verify();
     assert(E->getType().isIndexTy() && "Argument must be of index kind");
   }
   assert(indices_.size() && "Empty argument list");
@@ -233,7 +236,7 @@ void LoadExpr::verify() {
 
   // Get the store element kind and vectorization factor.
   ElemKind EK = arg_->getType()->getElementType();
-  auto lastIndex = indices_[indices_.size() - 1];
+  auto &lastIndex = indices_[indices_.size() - 1];
   unsigned VF = lastIndex->getType().getWidth();
   assert(getType().getWidth() == VF &&
          "Loaded type does not match vectorization factor");
@@ -241,7 +244,8 @@ void LoadExpr::verify() {
 }
 
 void StoreStmt::verify() {
-  for (auto E : indices_) {
+  for (auto &E : indices_) {
+    E.verify();
     assert(E->getType().isIndexTy() && "Argument must be of index kind");
   }
   assert(indices_.size() && "Empty argument list");
@@ -252,7 +256,7 @@ void StoreStmt::verify() {
 
   // Get the store element kind and vectorization factor.
   ElemKind EK = arg_->getType()->getElementType();
-  auto lastIndex = indices_[indices_.size() - 1];
+  auto &lastIndex = indices_[indices_.size() - 1];
   unsigned VF = lastIndex->getType().getWidth();
   assert(storedType.getWidth() == VF &&
          "Stored type does not match vectorization factor");
@@ -300,15 +304,15 @@ void Loop::visit(NodeVisitor *visitor) {
 
 void StoreStmt::visit(NodeVisitor *visitor) {
   visitor->handle(this);
-  for (auto *ii : this->getIndices()) {
-    ii->visit(visitor);
+  for (auto &ii : this->getIndices()) {
+    ii.get()->visit(visitor);
   }
   value_->visit(visitor);
 }
 
 void LoadExpr::visit(NodeVisitor *visitor) {
   visitor->handle(this);
-  for (auto *ii : this->getIndices()) {
-    ii->visit(visitor);
+  for (auto &ii : this->getIndices()) {
+    ii.get()->visit(visitor);
   }
 }

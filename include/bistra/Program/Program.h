@@ -57,6 +57,104 @@ struct Stmt {
   virtual void visit(NodeVisitor *visitor) = 0;
 };
 
+class ExprHandle;
+
+struct Expr {
+  friend ExprHandle;
+  /// The type of the expression.
+  ExprType type_;
+
+  /// A pointer to a handle that may contain this expression.
+  ExprHandle *user_{nullptr};
+
+  Expr(const ExprType &ty) : type_(ty) {}
+
+  Expr(ElemKind &kind) : type_(ExprType(kind)) {}
+
+  /// Replaces the handle that references this expression with \p other.
+  void replaceUserWith(Expr *other);
+
+  /// \returns the user of this expression.
+  ExprHandle *getUser() { return user_; }
+
+  /// \returns the type of the expression.
+  ExprType &getType() { return type_; }
+
+  /// Sets the type of the expression.
+  void setType(const ExprType &ty) { type_ = ty; }
+
+  /// Prints the argument.
+  virtual void dump() = 0;
+
+  virtual ~Expr() = default;
+
+  /// Clone the expression recursively and return the cloned graph. Use the map
+  /// \p map to refer to the updated indices and arguments.
+  virtual Expr *clone(CloneCtx &map) = 0;
+
+  /// Crash if the program is in an invalid state.
+  virtual void verify() = 0;
+
+  /// A node visitor that visits all of the nodes in the program.
+  virtual void visit(NodeVisitor *visitor) = 0;
+
+  Expr() = delete;
+  Expr(const Expr &other) = delete;
+};
+
+class ExprHandle {
+  Expr *ref_{nullptr};
+
+public:
+  ExprHandle() = default;
+  ExprHandle(Expr *ref) { set(ref); }
+  ~ExprHandle() { delete ref_; }
+
+  void set(Expr *ref) {
+    // Unregister the previous expression.
+    if (ref_) {
+      ref_->user_ = nullptr;
+    }
+
+    // Register the new expression.
+    ref_ = ref;
+    if (ref_) {
+      // Reset the old handle.
+      if (auto *EH = ref_->getUser()) {
+        EH->ref_ = nullptr;
+      }
+      // Register this as the new handle.
+      ref_->user_ = this;
+    }
+    verify();
+  }
+
+  Expr *get() const {
+    verify();
+    return ref_;
+  }
+
+  Expr *operator->() {
+    verify();
+    return ref_;
+  }
+
+  void verify() const {
+    assert(ref_ == nullptr ||
+           ref_->getUser() == this && "The handle pointes to an unowned expr.");
+  }
+
+  operator Expr *() { return ref_; }
+
+  ExprHandle(const ExprHandle &other) = delete;
+  ExprHandle(const ExprHandle &&other) { set(other.ref_); }
+  ExprHandle &operator=(ExprHandle &other) = delete;
+  ExprHandle &operator=(ExprHandle &&other) {
+    set(other.ref_);
+    return *this;
+  }
+};
+
 class Scope;
 
 /// Represents a list of statements that are executed sequentially.
@@ -182,38 +280,6 @@ public:
   void visit(NodeVisitor *visitor);
 };
 
-struct Expr {
-  ExprType type_;
-
-  Expr(const ExprType &ty) : type_(ty) {}
-
-  Expr(ElemKind &kind) : type_(ExprType(kind)) {}
-
-  Expr() = delete;
-  Expr(const Expr &other) = delete;
-
-  /// \returns the type of the expression.
-  ExprType &getType() { return type_; }
-
-  /// Sets the type of the expression.
-  void setType(const ExprType &ty) { type_ = ty; }
-
-  /// Prints the argument.
-  virtual void dump() = 0;
-
-  virtual ~Expr() = default;
-
-  /// Clone the expression recursively and return the cloned graph. Use the map
-  /// \p map to refer to the updated indices and arguments.
-  virtual Expr *clone(CloneCtx &map) = 0;
-
-  /// Crash if the program is in an invalid state.
-  virtual void verify() = 0;
-
-  /// A node visitor that visits all of the nodes in the program.
-  virtual void visit(NodeVisitor *visitor) = 0;
-};
-
 /// An expression for referencing a loop index.
 struct IndexExpr : Expr {
   // A reference to a loop (not owned by this index).
@@ -265,19 +331,16 @@ struct ConstantFPExpr : Expr {
 /// A binary arithmetic expression.
 struct BinaryExpr : Expr {
   /// Left-hand-side of the expression.
-  Expr *LHS_;
+  ExprHandle LHS_;
   /// Right-hand-side of the expression.
-  Expr *RHS_;
+  ExprHandle RHS_;
 
   BinaryExpr(Expr *LHS, Expr *RHS)
       : Expr(LHS->getType()), LHS_(LHS), RHS_(RHS) {
     assert(LHS->getType() == RHS->getType() && "Invalid expr type");
   }
 
-  ~BinaryExpr() {
-    delete LHS_;
-    delete RHS_;
-  }
+  ~BinaryExpr() = default;
 
   Expr *getLHS() { return LHS_; }
   Expr *getRHS() { return RHS_; }
@@ -304,18 +367,19 @@ struct LoadExpr : Expr {
   /// The buffer to access.
   Argument *arg_;
   /// The indices for indexing the buffer.
-  std::vector<Expr *> indices_;
+  std::vector<ExprHandle> indices_;
 
   /// \returns the buffer destination of the instruction.
   Argument *getDest() { return arg_; }
 
   /// \returns the indices indexing into the array.
-  const std::vector<Expr *> &getIndices() { return indices_; }
+  const std::vector<ExprHandle> &getIndices() { return indices_; }
 
   LoadExpr(Argument *arg, const std::vector<Expr *> &indices)
-      : Expr(ElemKind::IndexTy), arg_(arg), indices_(indices) {
-    for (auto E : indices) {
+      : Expr(ElemKind::IndexTy), arg_(arg), indices_() {
+    for (auto *E : indices) {
       assert(E->getType().isIndexTy() && "Argument must be of index kind");
+      indices_.emplace_back(E);
     }
     assert(arg->getType()->getNumDims() == indices_.size() &&
            "Invalid number of indices");
@@ -326,11 +390,7 @@ struct LoadExpr : Expr {
     setType(ExprType(EK, FV));
   }
 
-  ~LoadExpr() {
-    for (auto *exp : indices_) {
-      delete exp;
-    }
-  }
+  ~LoadExpr() = default;
 
   virtual void dump() override;
   virtual Expr *clone(CloneCtx &map) override;
@@ -343,9 +403,9 @@ struct StoreStmt : Stmt {
   /// The buffer to access.
   Argument *arg_;
   /// The indices for indexing the buffer.
-  std::vector<Expr *> indices_;
+  std::vector<ExprHandle> indices_;
   /// The value to store into the buffer.
-  Expr *value_;
+  ExprHandle value_;
   /// Accumulate the resule into the destination.
   bool accumulate_;
 
@@ -353,10 +413,10 @@ struct StoreStmt : Stmt {
   Argument *getDest() { return arg_; }
 
   /// \returns the indices indexing into the array.
-  const std::vector<Expr *> &getIndices() { return indices_; }
+  const std::vector<ExprHandle> &getIndices() { return indices_; }
 
   /// \returns the stored value.
-  Expr *getValue() { return value_; }
+  ExprHandle &getValue() { return value_; }
 
   /// \returns true if this store statement accumulates into the stored
   /// destination.
@@ -364,16 +424,14 @@ struct StoreStmt : Stmt {
 
   StoreStmt(Argument *arg, const std::vector<Expr *> &indices, Expr *value,
             bool accumulate)
-      : arg_(arg), indices_(indices), value_(value), accumulate_(accumulate) {
-    assert(arg->getType()->getNumDims() == indices_.size() &&
+      : arg_(arg), indices_(), value_(value), accumulate_(accumulate) {
+    assert(arg->getType()->getNumDims() == indices.size() &&
            "Invalid number of indices");
-  }
-
-  StoreStmt() {
-    delete value_;
-    for (auto *exp : indices_) {
-      delete exp;
+    for (auto *E : indices) {
+      assert(E->getType().isIndexTy() && "Argument must be of index kind");
+      indices_.emplace_back(E);
     }
+    verify();
   }
 
   virtual void dump(unsigned indent) override;
