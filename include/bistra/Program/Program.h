@@ -14,59 +14,61 @@
 
 namespace bistra {
 
-struct CloneCtx;
+class CloneCtx;
 
-struct Expr;
-struct Stmt;
-struct NodeVisitor;
+class Expr;
+class Stmt;
+class NodeVisitor;
 
 /// This struct represents an input to the program, which is a Tensor, or a
 /// typed region in memory.
-struct Argument final {
+class Argument final {
   /// The name of the argument.
   std::string name_;
 
   /// The type of the argument.
   Type type_;
 
+public:
   Argument(const std::string &name, const Type &t) : name_(name), type_(t) {}
 
   /// \returns the type of the argument.
-  Type *getType() { return &type_; }
+  const Type *getType() const { return &type_; }
 
   /// \returns the name of the argument.
-  std::string getName() { return name_; }
+  std::string getName() const { return name_; }
 
   /// Prints the argument.
-  void dump();
+  void dump() const;
 
   /// Crash if the program is in an invalid state.
-  void verify();
+  void verify() const;
 };
 
-struct Stmt {
+class Stmt {
+public:
   /// Prints the argument.
-  virtual void dump(unsigned indent) = 0;
+  virtual void dump(unsigned indent) const = 0;
   virtual ~Stmt() = default;
   /// \returns an unowned clone of the current node and updates \p map with the
   /// cloned value.
   virtual Stmt *clone(CloneCtx &map) = 0;
   /// Crash if the program is in an invalid state.
-  virtual void verify() = 0;
+  virtual void verify() const = 0;
   /// A node visitor that visits all of the nodes in the program.
   virtual void visit(NodeVisitor *visitor) = 0;
 };
 
 class ExprHandle;
 
-struct Expr {
+class Expr {
   friend ExprHandle;
   /// The type of the expression.
   ExprType type_;
-
   /// A pointer to a handle that may contain this expression.
   ExprHandle *user_{nullptr};
 
+public:
   Expr(const ExprType &ty) : type_(ty) {}
 
   Expr(ElemKind &kind) : type_(ExprType(kind)) {}
@@ -78,13 +80,13 @@ struct Expr {
   ExprHandle *getUser() { return user_; }
 
   /// \returns the type of the expression.
-  ExprType &getType() { return type_; }
+  const ExprType &getType() const { return type_; }
 
   /// Sets the type of the expression.
   void setType(const ExprType &ty) { type_ = ty; }
 
   /// Prints the argument.
-  virtual void dump() = 0;
+  virtual void dump() const = 0;
 
   virtual ~Expr() = default;
 
@@ -93,7 +95,7 @@ struct Expr {
   virtual Expr *clone(CloneCtx &map) = 0;
 
   /// Crash if the program is in an invalid state.
-  virtual void verify() = 0;
+  virtual void verify() const = 0;
 
   /// A node visitor that visits all of the nodes in the program.
   virtual void visit(NodeVisitor *visitor) = 0;
@@ -139,6 +141,11 @@ public:
     return ref_;
   }
 
+  const Expr *operator->() const {
+    verify();
+    return ref_;
+  }
+
   void verify() const {
     assert(ref_ == nullptr ||
            ref_->getUser() == this && "The handle pointes to an unowned expr.");
@@ -178,15 +185,15 @@ public:
   /// \returns the body of the loop.
   std::vector<Stmt *> &getBody() { return body_; }
 
-  virtual void dump(unsigned indent) override;
+  virtual void dump(unsigned indent) const override;
   virtual Stmt *clone(CloneCtx &map) override;
-  virtual void verify() override;
+  virtual void verify() const override;
   virtual void visit(NodeVisitor *visitor) override;
 };
 
 /// Represents a data-parallel loop from zero to End. The loop index can be
 /// vectorized and unrolled.
-struct Loop : public Stmt {
+class Loop : public Stmt {
   /// The letter that represents the induction variable.
   std::string indexName;
 
@@ -199,16 +206,17 @@ struct Loop : public Stmt {
   // Vectorization factor.
   unsigned vf_{1};
 
+public:
   Loop(std::string name, unsigned end, unsigned vf = 0)
       : indexName(name), body_(new Scope()), end_(end), vf_(vf) {}
 
   ~Loop() { delete body_; }
 
   /// \returns the name of the induction variable.
-  const std::string &getName() { return indexName; }
+  const std::string &getName() const { return indexName; }
 
   /// \returns the end point of the loop.
-  unsigned getEnd() { return end_; }
+  unsigned getEnd() const { return end_; }
 
   /// Add a statement to the end of the loop scope.
   void addStmt(Stmt *s) { body_->addStmt(s); }
@@ -217,11 +225,11 @@ struct Loop : public Stmt {
   void setBody(Scope *s) { body_ = s; }
 
   /// \returns the body of the loop.
-  Scope *getBody() { return body_; }
+  Scope *getBody() const { return body_; }
 
-  virtual void dump(unsigned indent) override;
+  virtual void dump(unsigned indent) const override;
   virtual Stmt *clone(CloneCtx &map) override;
-  virtual void verify() override;
+  virtual void verify() const override;
   virtual void visit(NodeVisitor *visitor) override;
 };
 
@@ -281,60 +289,65 @@ public:
 };
 
 /// An expression for referencing a loop index.
-struct IndexExpr : Expr {
+class IndexExpr : public Expr {
   // A reference to a loop (not owned by this index).
   Loop *loop_;
 
+public:
   IndexExpr(Loop *loop) : Expr(ElemKind::IndexTy), loop_(loop) {}
 
   /// \returns the loop that this expression indexes.
-  Loop *getLoop() { return loop_; }
+  Loop *getLoop() const { return loop_; }
 
-  virtual void dump() override;
+  virtual void dump() const override;
   virtual Expr *clone(CloneCtx &map) override;
-  virtual void verify() override;
+  virtual void verify() const override;
   virtual void visit(NodeVisitor *visitor) override;
 };
 
 /// A constant integer expression.
-struct ConstantExpr : Expr {
+class ConstantExpr : public Expr {
   /// The value that this constant integer represents.
   int64_t val_;
 
+public:
   ConstantExpr(int64_t val) : Expr(ElemKind::IndexTy), val_(val) {}
 
   /// \returns the value stored by this constant.
-  int64_t getValue() { return val_; }
+  int64_t getValue() const { return val_; }
 
-  virtual void dump() override;
+  virtual void dump() const override;
   virtual Expr *clone(CloneCtx &map) override;
-  virtual void verify() override;
+  virtual void verify() const override;
   virtual void visit(NodeVisitor *visitor) override;
 };
 
 /// A constant float expression.
-struct ConstantFPExpr : Expr {
+class ConstantFPExpr : public Expr {
   /// The value that this constant integer represents.
   float val_;
 
+public:
   ConstantFPExpr(int64_t val) : Expr(ElemKind::Float32Ty), val_(val) {}
 
   /// \returns the value stored by this constant.
-  float getValue() { return val_; }
+  float getValue() const { return val_; }
 
-  virtual void dump() override;
+  virtual void dump() const override;
   virtual Expr *clone(CloneCtx &map) override;
-  virtual void verify() override;
+  virtual void verify() const override;
   virtual void visit(NodeVisitor *visitor) override;
 };
 
 /// A binary arithmetic expression.
-struct BinaryExpr : Expr {
+class BinaryExpr : public Expr {
+protected:
   /// Left-hand-side of the expression.
   ExprHandle LHS_;
   /// Right-hand-side of the expression.
   ExprHandle RHS_;
 
+public:
   BinaryExpr(Expr *LHS, Expr *RHS)
       : Expr(LHS->getType()), LHS_(LHS), RHS_(RHS) {
     assert(LHS->getType() == RHS->getType() && "Invalid expr type");
@@ -344,31 +357,34 @@ struct BinaryExpr : Expr {
 
   Expr *getLHS() { return LHS_; }
   Expr *getRHS() { return RHS_; }
-  virtual void dump() override = 0;
+  virtual void dump() const override = 0;
   virtual Expr *clone(CloneCtx &map) override = 0;
-  virtual void verify() override;
+  virtual void verify() const override;
   virtual void visit(NodeVisitor *visitor) override;
 };
 
-struct AddExpr : BinaryExpr {
+class AddExpr : public BinaryExpr {
+public:
   AddExpr(Expr *LHS, Expr *RHS) : BinaryExpr(LHS, RHS) {}
-  virtual void dump() override;
+  virtual void dump() const override;
   virtual Expr *clone(CloneCtx &map) override;
 };
 
-struct MulExpr : BinaryExpr {
+class MulExpr : public BinaryExpr {
+public:
   MulExpr(Expr *LHS, Expr *RHS) : BinaryExpr(LHS, RHS) {}
-  virtual void dump() override;
+  virtual void dump() const override;
   virtual Expr *clone(CloneCtx &map) override;
 };
 
 /// Loads some value from a buffer.
-struct LoadExpr : Expr {
+class LoadExpr : public Expr {
   /// The buffer to access.
   Argument *arg_;
   /// The indices for indexing the buffer.
   std::vector<ExprHandle> indices_;
 
+public:
   /// \returns the buffer destination of the instruction.
   Argument *getDest() { return arg_; }
 
@@ -392,14 +408,14 @@ struct LoadExpr : Expr {
 
   ~LoadExpr() = default;
 
-  virtual void dump() override;
+  virtual void dump() const override;
   virtual Expr *clone(CloneCtx &map) override;
-  virtual void verify() override;
+  virtual void verify() const override;
   virtual void visit(NodeVisitor *visitor) override;
 };
 
 /// Stores some value to a buffer.
-struct StoreStmt : Stmt {
+class StoreStmt : public Stmt {
   /// The buffer to access.
   Argument *arg_;
   /// The indices for indexing the buffer.
@@ -409,6 +425,7 @@ struct StoreStmt : Stmt {
   /// Accumulate the resule into the destination.
   bool accumulate_;
 
+public:
   /// \returns the write destination of the store instruction.
   Argument *getDest() { return arg_; }
 
@@ -434,18 +451,19 @@ struct StoreStmt : Stmt {
     verify();
   }
 
-  virtual void dump(unsigned indent) override;
+  virtual void dump(unsigned indent) const override;
   virtual Stmt *clone(CloneCtx &map) override;
-  virtual void verify() override;
+  virtual void verify() const override;
   virtual void visit(NodeVisitor *visitor) override;
 };
 
-struct CloneCtx {
+class CloneCtx final {
   // Maps arguments.
   std::unordered_map<Argument *, Argument *> args;
   // Maps loops.
   std::unordered_map<Loop *, Loop *> loops;
 
+public:
   /// Maps \p From to \p To and returns \p To.
   Loop *map(Loop *from, Loop *to) {
     assert(loops.count(from) == 0 && "Loop already in map");

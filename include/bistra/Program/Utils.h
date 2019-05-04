@@ -12,12 +12,13 @@
 
 namespace bistra {
 
-struct Stmt;
-struct Expr;
-struct IndexExpr;
+class Stmt;
+class Expr;
+class IndexExpr;
 
 /// A visitor class that visits all nodes in the program.
-struct NodeVisitor {
+class NodeVisitor {
+public:
   virtual ~NodeVisitor() = default;
   // Called when we find a statement.
   virtual void handle(Stmt *S){};

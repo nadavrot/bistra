@@ -4,7 +4,7 @@
 
 using namespace bistra;
 
-void Type::dump() {
+void Type::dump() const {
   std::cout << getElementName() << "<";
   for (int i = 0, e = sizes_.size(); i < e; i++) {
     if (i != 0) {
@@ -15,6 +15,6 @@ void Type::dump() {
   std::cout << ">";
 }
 
-void ExprType::dump() {
+void ExprType::dump() const {
   std::cout << "<" << getWidth() << " x " << getElementName() << ">";
 }
