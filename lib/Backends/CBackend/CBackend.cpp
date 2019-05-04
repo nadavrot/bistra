@@ -120,11 +120,11 @@ public:
   /// Generate the indexing expression into som buffer. Example:
   ///  C[btr_getXY(C_dims, i, j)]
   void emitBudderIndex(const std::string &varName,
-                       const std::vector<Expr *> &indices) {
+                       const std::vector<ExprHandle> &indices) {
     sb_ << varName << "[btr_get" << indices.size() << "(" << varName << "_dims";
-    for (auto *E : indices) {
+    for (auto &E : indices) {
       sb_ << ",";
-      generate(E);
+      generate(E.get());
     }
     sb_ << ")]";
   }
