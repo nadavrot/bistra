@@ -226,7 +226,6 @@ public:
     for (auto *p : P->getArgs()) {
       auto name = p->getName();
       sb_ << "s_capture((char*)" << name << ");\n";
-      first = false;
     }
     sb_ << benchmark_end;
     sb_ << "}\n";

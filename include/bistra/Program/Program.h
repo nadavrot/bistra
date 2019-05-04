@@ -104,7 +104,7 @@ public:
   Expr(const Expr &other) = delete;
 };
 
-class ExprHandle {
+class ExprHandle final {
   Expr *ref_{nullptr};
 
 public:
@@ -165,7 +165,7 @@ public:
 class Scope;
 
 /// Represents a list of statements that are executed sequentially.
-class Scope : public Stmt {
+class Scope final : public Stmt {
   /// Holds the body of the loop.
   std::vector<Stmt *> body_;
 
@@ -193,7 +193,7 @@ public:
 
 /// Represents a data-parallel loop from zero to End. The loop index can be
 /// vectorized and unrolled.
-class Loop : public Stmt {
+class Loop final : public Stmt {
   /// The letter that represents the induction variable.
   std::string indexName;
 
@@ -289,7 +289,7 @@ public:
 };
 
 /// An expression for referencing a loop index.
-class IndexExpr : public Expr {
+class IndexExpr final : public Expr {
   // A reference to a loop (not owned by this index).
   Loop *loop_;
 
@@ -306,7 +306,7 @@ public:
 };
 
 /// A constant integer expression.
-class ConstantExpr : public Expr {
+class ConstantExpr final : public Expr {
   /// The value that this constant integer represents.
   int64_t val_;
 
@@ -323,7 +323,7 @@ public:
 };
 
 /// A constant float expression.
-class ConstantFPExpr : public Expr {
+class ConstantFPExpr final : public Expr {
   /// The value that this constant integer represents.
   float val_;
 
@@ -363,7 +363,7 @@ public:
   virtual void visit(NodeVisitor *visitor) override;
 };
 
-class AddExpr : public BinaryExpr {
+class AddExpr final : public BinaryExpr {
 public:
   AddExpr(Expr *LHS, Expr *RHS) : BinaryExpr(LHS, RHS) {}
   virtual void dump() const override;
@@ -378,7 +378,7 @@ public:
 };
 
 /// Loads some value from a buffer.
-class LoadExpr : public Expr {
+class LoadExpr final : public Expr {
   /// The buffer to access.
   Argument *arg_;
   /// The indices for indexing the buffer.
@@ -415,7 +415,7 @@ public:
 };
 
 /// Stores some value to a buffer.
-class StoreStmt : public Stmt {
+class StoreStmt final : public Stmt {
   /// The buffer to access.
   Argument *arg_;
   /// The indices for indexing the buffer.
@@ -448,7 +448,6 @@ public:
       assert(E->getType().isIndexTy() && "Argument must be of index kind");
       indices_.emplace_back(E);
     }
-    verify();
   }
 
   virtual void dump(unsigned indent) const override;
