@@ -8,6 +8,7 @@ target_link_libraries(
     gtest_main
     Program
     Backends
+    Transforms
     )
 
 add_test(

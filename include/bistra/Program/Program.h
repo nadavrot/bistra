@@ -18,15 +18,7 @@ struct CloneCtx;
 
 struct Expr;
 struct Stmt;
-
-/// A visitor class that visits all nodes in the program.
-struct NodeVisitor {
-  virtual ~NodeVisitor() = default;
-  // Called when we find a statement.
-  virtual void handle(Stmt *) = 0;
-  // Called when we find an expression.
-  virtual void handle(Expr *) = 0;
-};
+struct NodeVisitor;
 
 /// This struct represents an input to the program, which is a Tensor, or a
 /// typed region in memory.
