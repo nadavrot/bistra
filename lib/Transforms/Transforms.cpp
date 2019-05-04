@@ -6,7 +6,8 @@ using namespace bistra;
 
 bool bistra::tile(Program *P, Loop *L, unsigned blockSize) {
   // Trip count must divide the block size.
-  if (L->getEnd() % blockSize) return false;
+  if (L->getEnd() % blockSize)
+    return false;
 
   auto *B = new Loop(L->getName() + "_tile_" + std::to_string(blockSize),
                      blockSize, 1);
@@ -21,7 +22,6 @@ bool bistra::tile(Program *P, Loop *L, unsigned blockSize) {
   L->getBody()->getBody().clear();
   L->addStmt(B);
 
-
   std::vector<IndexExpr *> indices;
   collectIndices(L, indices);
 
@@ -35,11 +35,6 @@ bool bistra::tile(Program *P, Loop *L, unsigned blockSize) {
   return true;
 }
 
-
 /// Sink the loop \p L lower in the program.
 /// Return True if the transform worked.
-bool bistra::sinkLoop(Program *P, Loop *L) {
-
-
-  return true;
-}
+bool bistra::sinkLoop(Program *P, Loop *L) { return true; }
