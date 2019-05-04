@@ -328,7 +328,7 @@ class ConstantFPExpr final : public Expr {
   float val_;
 
 public:
-  ConstantFPExpr(int64_t val) : Expr(ElemKind::Float32Ty), val_(val) {}
+  ConstantFPExpr(float val) : Expr(ElemKind::Float32Ty), val_(val) {}
 
   /// \returns the value stored by this constant.
   float getValue() const { return val_; }
