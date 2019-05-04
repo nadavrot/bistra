@@ -82,10 +82,10 @@ public:
   void replaceUserWith(Expr *other);
 
   /// \returns the use handle of this expression.
-  ExprHandle *getUse() { return user_; }
+  ExprHandle *getOwnerHandle() { return user_; }
 
   /// \reset the pointer to the owning handle.
-  void resetUse(ExprHandle *handle = nullptr) { user_ = handle; }
+  void resetOwnerHandle(ExprHandle *handle = nullptr) { user_ = handle; }
 
   /// \returns the user node of this expression.
   ASTNode *getUser();

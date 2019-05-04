@@ -21,18 +21,18 @@ public:
   void setReference(RefTy *ref) {
     // Unregister the previous reference.
     if (ref_) {
-      ref_->resetUse();
+      ref_->resetOwnerHandle();
     }
 
     // Register the new reference.
     ref_ = ref;
     if (ref_) {
       // Reset the old handle.
-      if (auto *EH = ref_->getUse()) {
+      if (auto *EH = ref_->getOwnerHandle()) {
         EH->ref_ = nullptr;
       }
       // Register this as the new handle.
-      ref_->resetUse(this);
+      ref_->resetOwnerHandle(this);
     }
     verify();
   }
@@ -53,8 +53,8 @@ public:
   }
 
   void verify() const {
-    assert(ref_ == nullptr ||
-           ref_->getUse() == this && "The handle pointes to an unowned ref.");
+    assert(ref_ == nullptr || ref_->getOwnerHandle() == this &&
+                                  "The handle pointes to an unowned ref.");
   }
 
   operator RefTy *() { return ref_; }

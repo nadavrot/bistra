@@ -329,4 +329,4 @@ void LoadExpr::visit(NodeVisitor *visitor) {
 
 void Expr::replaceUserWith(Expr *other) { user_->setReference(other); }
 
-ASTNode *Expr::getUser() { return getUse()->getParent(); }
+ASTNode *Expr::getUser() { return getOwnerHandle()->getParent(); }
