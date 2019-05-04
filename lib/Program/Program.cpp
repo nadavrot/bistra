@@ -9,7 +9,7 @@ using namespace bistra;
 static bool isLegalName(const std::string &name) {
   // Check that the name is a legal C name.
   for (char c : name) {
-    if (!isalnum(c))
+    if (!isalnum(c) && c != '_')
       return false;
   }
   return true;
