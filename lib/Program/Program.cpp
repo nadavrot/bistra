@@ -321,6 +321,4 @@ void LoadExpr::visit(NodeVisitor *visitor) {
   }
 }
 
-void Expr::replaceUserWith(Expr *other) {
-  user_->set(other);
-}
+void Expr::replaceUserWith(Expr *other) { user_->set(other); }
