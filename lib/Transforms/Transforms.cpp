@@ -48,7 +48,6 @@ static void insertLoopIntoLoop(Loop *L, Loop *old, Stmt *stmt) {
     if (idx->getLoop() != old)
       continue;
     idx->replaceUseWith(new IndexExpr(newLoop));
-    delete idx;
   }
 
   newLoop->takeContent(L);
@@ -86,6 +85,43 @@ bool bistra::sinkLoop(Loop *L) {
 
   // Insert the new loops before the original loop.
   for (auto *newLoop : loopedChildren) {
+    parent->insertBeforeStmt(newLoop, L);
+  }
+  parent->removeStmt(L);
+  return true;
+}
+
+bool bistra::unrollLoop(Loop *L, unsigned maxTripCount) {
+  Scope *parent = dynamic_cast<Scope *>(L->getParent());
+  assert(parent && "Unexpected parent shape");
+
+  if (L->getEnd() > maxTripCount)
+    return false;
+
+  std::vector<Stmt *> unrolledBodies;
+
+  // For each unroll iteration:
+  for (unsigned iter = 0; iter < L->getEnd(); iter++) {
+    // For each statement in the body of the loop:
+    for (auto &ST : L->getBody()) {
+      // Copy the body.
+      CloneCtx map;
+      auto *newSt = ST->clone(map);
+      // Collect the indices.
+      std::vector<IndexExpr *> indices;
+      collectIndices(newSt, indices);
+      // Update the indices to the constant iter number.
+      for (auto *IE : indices) {
+        IE->replaceUseWith(new ConstantExpr(iter));
+      }
+      // Save the unrolled loop body and paste it later instead of the original
+      // loop.
+      unrolledBodies.push_back(newSt);
+    }
+  }
+
+  // Insert the new loops before the original loop.
+  for (auto *newLoop : unrolledBodies) {
     parent->insertBeforeStmt(newLoop, L);
   }
   parent->removeStmt(L);

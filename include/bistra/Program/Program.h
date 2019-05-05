@@ -91,6 +91,7 @@ public:
   Expr(ElemKind &kind) : type_(ExprType(kind)) {}
 
   /// Replaces the handle that references this expression with \p other.
+  /// Delete this expression since no one is using it.
   void replaceUseWith(Expr *other);
 
   /// \returns the use handle of this expression.
@@ -403,6 +404,11 @@ public:
   virtual void visit(NodeVisitor *visitor) override;
 };
 
+/// This context is used when cloning programs or parts of programs. Values that
+/// are stored in this map will be replaced when indexed by some expressions.
+/// We use this context to replace things such as loop indices and arguments.
+/// External values that are not in the map will not be replaced and the
+/// original values will be used by the cloner.
 class CloneCtx final {
   // Maps arguments.
   std::unordered_map<Argument *, Argument *> args;
@@ -423,15 +429,23 @@ public:
     return to;
   }
 
-  /// \returns the value that \p from is mapped to. \p from must be in the map.
+  /// \returns the value that \p from is mapped to, or \p from if the value is
+  /// not in the map.
   Loop *get(Loop *from) {
-    assert(loops.count(from) && "Loop is not in map");
-    return loops[from];
+    auto it = loops.find(from);
+    if (it != loops.end()) {
+      return it->second;
+    }
+    return from;
   }
-  /// \returns the value that \p from is mapped to. \p from must be in the map.
+  /// \returns the value that \p from is mapped to, or \p from if the value is
+  /// not in the map.
   Argument *get(Argument *from) {
-    assert(args.count(from) && "Arg is not in map");
-    return args[from];
+    auto it = args.find(from);
+    if (it != args.end()) {
+      return it->second;
+    }
+    return from;
   }
 };
 

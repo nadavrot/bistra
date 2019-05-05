@@ -343,7 +343,10 @@ void LoadExpr::visit(NodeVisitor *visitor) {
   }
 }
 
-void Expr::replaceUseWith(Expr *other) { user_->setReference(other); }
+void Expr::replaceUseWith(Expr *other) {
+  user_->setReference(other);
+  delete this;
+}
 
 ASTNode *Expr::getParent() { return getOwnerHandle()->getParent(); }
 
