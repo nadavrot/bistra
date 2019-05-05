@@ -368,6 +368,6 @@ void Expr::replaceUseWith(Expr *other) {
   delete this;
 }
 
-ASTNode *Expr::getParent() { return getOwnerHandle()->getParent(); }
+ASTNode *Expr::getParent() const { return getOwnerHandle()->getParent(); }
 
-ASTNode *Stmt::getParent() { return getOwnerHandle()->getParent(); }
+ASTNode *Stmt::getParent() const { return getOwnerHandle()->getParent(); }
