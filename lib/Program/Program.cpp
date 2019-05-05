@@ -68,20 +68,37 @@ void Scope::dump(unsigned indent) const {
   }
 }
 
-void Scope::clear() { body_.clear(); }
+void Scope::clear() {
+  for (auto &SH : body_) {
+    // Reset to unregister the handle.
+    SH.setReference(nullptr);
+  }
+  body_.clear();
+}
 
 void Scope::takeContent(Scope *other) {
+  assert(this != other && "Taking from self");
   for (auto &SH : other->body_) {
-    body_.emplace_back(SH.get(), this);
+    // Reset to unregister the handle.
+    auto *stms = SH.get();
+    SH.setReference(nullptr);
+    body_.emplace_back(stms, this);
   }
-  other->body_.clear();
+  other->clear();
 }
 
 void Scope::addStmt(Stmt *s) { body_.emplace_back(s, this); }
 
 void Scope::removeStmt(Stmt *s) {
+  // Reset to unregister the handle.
+  for (auto &SH : body_) {
+    if (SH.get() == s) {
+      SH.setReference(nullptr);
+    }
+  }
+
   body_.erase(std::remove_if(body_.begin(), body_.end(),
-                             [&](StmtHandle &SH) { return SH.get() == s; }),
+                             [&](StmtHandle &SH) { return SH.get() == nullptr; }),
               body_.end());
 }
 
@@ -226,6 +243,8 @@ void BinaryExpr::verify() const {
   assert(LHS_->getType() == RHS_->getType() && "LHS and RHS type mismatch");
   assert(LHS_.getParent() == this && "Invalid handle owner pointer");
   assert(RHS_.getParent() == this && "Invalid handle owner pointer");
+  assert(LHS_.get() && "Invalid operand");
+  assert(RHS_.get() && "Invalid operand");
 }
 
 void ConstantExpr::verify() const {}
@@ -243,6 +262,7 @@ void Loop::verify() const {
 
 void Scope::verify() const {
   for (auto &EH : body_) {
+    assert(EH.get() && "Invalid operand");
     EH->verify();
   }
 }
