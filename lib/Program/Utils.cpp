@@ -8,7 +8,7 @@ namespace {
 struct IndexCollector : public NodeVisitor {
   std::vector<IndexExpr *> &indices_;
   IndexCollector(std::vector<IndexExpr *> &indices) : indices_(indices) {}
-  virtual void handle(Expr *E) {
+  virtual void enter(Expr *E) override {
     if (IndexExpr *IE = dynamic_cast<IndexExpr *>(E)) {
       indices_.push_back(IE);
     }
@@ -21,7 +21,7 @@ namespace {
 struct LoopCollector : public NodeVisitor {
   std::vector<Loop *> &loops_;
   LoopCollector(std::vector<Loop *> &loops) : loops_(loops) {}
-  virtual void handle(Stmt *E) {
+  virtual void enter(Stmt *E) override {
     if (Loop *L = dynamic_cast<Loop *>(E)) {
       loops_.push_back(L);
     }
