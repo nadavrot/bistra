@@ -21,10 +21,14 @@ class Loop;
 class NodeVisitor {
 public:
   virtual ~NodeVisitor() = default;
-  // Called when we find a statement.
-  virtual void handle(Stmt *S){};
-  // Called when we find an expression.
-  virtual void handle(Expr *E){};
+  // Called when we enter a statement.
+  virtual void enter(Stmt *S) {}
+  // Called when we enter an expression.
+  virtual void enter(Expr *E) {}
+  // Called when we leave a statement.
+  virtual void leave(Stmt *S) {}
+  // Called when we leave an expression.
+  virtual void leave(Expr *E) {}
 };
 
 /// Collect all of the indices under statement \p S into \p indices;

@@ -98,8 +98,8 @@ TEST(basic, memcpy) {
 struct NodeCounter : public NodeVisitor {
   unsigned stmt{0};
   unsigned expr{0};
-  virtual void handle(Stmt *S) { stmt++; }
-  virtual void handle(Expr *E) { expr++; }
+  virtual void enter(Stmt *S) override { stmt++; }
+  virtual void enter(Expr *E) override { expr++; }
 };
 
 TEST(basic, visitor_collect_indices) {

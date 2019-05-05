@@ -328,39 +328,52 @@ void Program::verify() const {
 void Program::visit(NodeVisitor *visitor) { Scope::visit(visitor); }
 
 void BinaryExpr::visit(NodeVisitor *visitor) {
-  visitor->handle(this);
+  visitor->enter(this);
   LHS_->visit(visitor);
   RHS_->visit(visitor);
+  visitor->leave(this);
 }
 
-void ConstantExpr::visit(NodeVisitor *visitor) { visitor->handle(this); }
+void ConstantExpr::visit(NodeVisitor *visitor) {
+  visitor->enter(this);
+  visitor->leave(this);
+}
 
-void ConstantFPExpr::visit(NodeVisitor *visitor) { visitor->handle(this); }
+void ConstantFPExpr::visit(NodeVisitor *visitor) {
+  visitor->enter(this);
+  visitor->leave(this);
+}
 
-void IndexExpr::visit(NodeVisitor *visitor) { visitor->handle(this); }
+void IndexExpr::visit(NodeVisitor *visitor) {
+  visitor->enter(this);
+  visitor->leave(this);
+}
 
 void Scope::visit(NodeVisitor *visitor) {
-  visitor->handle(this);
+  visitor->enter(this);
   for (auto &sh : body_) {
     sh->visit(visitor);
   }
+  visitor->leave(this);
 }
 
 void Loop::visit(NodeVisitor *visitor) { Scope::visit(visitor); }
 
 void StoreStmt::visit(NodeVisitor *visitor) {
-  visitor->handle(this);
+  visitor->enter(this);
   for (auto &ii : this->getIndices()) {
     ii.get()->visit(visitor);
   }
   value_->visit(visitor);
+  visitor->leave(this);
 }
 
 void LoadExpr::visit(NodeVisitor *visitor) {
-  visitor->handle(this);
+  visitor->enter(this);
   for (auto &ii : this->getIndices()) {
     ii.get()->visit(visitor);
   }
+  visitor->leave(this);
 }
 
 void Expr::replaceUseWith(Expr *other) {
