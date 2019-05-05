@@ -280,3 +280,31 @@ TEST(basic, unroll_loop) {
   delete p->clone();
   delete p;
 }
+
+TEST(basic, peel_loop) {
+  // DEST[i] = SRC[i];
+  Program *p = new Program();
+  auto *dest = p->addArgument("DEST", {260}, {"len"}, ElemKind::Float32Ty);
+  auto *src = p->addArgument("SRC", {260}, {"len"}, ElemKind::Float32Ty);
+
+  auto *I = new Loop("i", 260, 1);
+
+  p->addStmt(I);
+
+  auto *ld = new LoadExpr(src, {new IndexExpr(I)});
+  auto *st = new StoreStmt(dest, {new IndexExpr(I)}, ld, false);
+  I->addStmt(st);
+
+  p->verify();
+  p->dump();
+  ::peelLoop(I, 256);
+  p->dump();
+
+  NodeCounter counter;
+  p->visit(&counter);
+
+  EXPECT_EQ(counter.stmt, 5);
+  EXPECT_EQ(counter.expr, 10);
+  delete p->clone();
+  delete p;
+}

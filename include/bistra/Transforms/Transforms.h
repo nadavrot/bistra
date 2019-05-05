@@ -18,6 +18,10 @@ bool sinkLoop(Loop *L);
 /// Return True if the transform worked.
 bool unrollLoop(Loop *L, unsigned maxTripCount);
 
+/// Splits the loop into two consecutive loops in the ranges [0..k], [k..n];
+/// Return True if the transform worked.
+bool peelLoop(Loop *L, unsigned k);
+
 } // namespace bistra
 
 #endif // BISTRA_TRANSFORMS_TRANSFORMS_H

@@ -108,9 +108,16 @@ void Scope::insertBeforeStmt(Stmt *s, Stmt *where) {
   body_.emplace(iter, s, this);
 }
 
+void Scope::insertAfterStmt(Stmt *s, Stmt *where) {
+  auto iter = std::find(body_.begin(), body_.end(), where);
+  assert(iter != body_.end() && "Can't find the insertion point");
+  iter++;
+  body_.emplace(iter, s, this);
+}
+
 void Loop::dump(unsigned indent) const {
   spaces(indent);
-  std::cout << "for (" << indexName << " in 0.." << end_ << ", VF=" << vf_
+  std::cout << "for (" << indexName_ << " in 0.." << end_ << ", VF=" << vf_
             << ") {\n";
   Scope::dump(indent + 1);
   spaces(indent);
@@ -210,7 +217,7 @@ Expr *IndexExpr::clone(CloneCtx &map) {
 }
 
 Stmt *Loop::clone(CloneCtx &map) {
-  Loop *loop = new Loop(indexName, end_, vf_);
+  Loop *loop = new Loop(indexName_, end_, vf_);
   map.map(this, loop);
   for (auto &MH : body_) {
     loop->addStmt(MH->clone(map));
