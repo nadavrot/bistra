@@ -200,7 +200,7 @@ TEST(basic, tile_loop) {
 
   p->verify();
 
-  ::tile(p, I, 5);
+  ::tile(I, 5);
 
   p->dump();
 

@@ -6,13 +6,13 @@
 
 namespace bistra {
 
-/// Tile the execution of loop \p L in program \p P with \p blockSize
-/// iterations. Return True if the transform worked.
-bool tile(Program *P, Loop *L, unsigned blockSize);
+/// Tile the execution of loop \p L with \p blockSize iterations. Return True
+/// if the transform worked.
+bool tile(Loop *L, unsigned blockSize);
 
 /// Sink the loop \p L lower in the program.
 /// Return True if the transform worked.
-bool sinkLoop(Program *P, Loop *L);
+bool sinkLoop(Loop *L);
 
 } // namespace bistra
 

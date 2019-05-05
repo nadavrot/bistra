@@ -4,7 +4,7 @@
 
 using namespace bistra;
 
-bool bistra::tile(Program *P, Loop *L, unsigned blockSize) {
+bool bistra::tile(Loop *L, unsigned blockSize) {
   // Trip count must divide the block size.
   if (L->getEnd() % blockSize)
     return false;
@@ -37,4 +37,4 @@ bool bistra::tile(Program *P, Loop *L, unsigned blockSize) {
 
 /// Sink the loop \p L lower in the program.
 /// Return True if the transform worked.
-bool bistra::sinkLoop(Program *P, Loop *L) { return true; }
+bool bistra::sinkLoop(Loop *L) { return true; }
