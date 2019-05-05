@@ -91,7 +91,7 @@ public:
   Expr(ElemKind &kind) : type_(ExprType(kind)) {}
 
   /// Replaces the handle that references this expression with \p other.
-  void replaceUserWith(Expr *other);
+  void replaceUseWith(Expr *other);
 
   /// \returns the use handle of this expression.
   ExprHandle *getOwnerHandle() { return user_; }
@@ -139,13 +139,20 @@ public:
   Scope() = default;
 
   /// Empties the body of the scope.
-  void clear(Scope *other);
+  void clear();
 
   /// Moves the statements from \p other to this scope.
   void takeContent(Scope *other);
 
   /// Add a statement to the end of the scope.
-  void addStmt(Stmt *s) { body_.emplace_back(s, this); }
+  void addStmt(Stmt *s);
+
+  /// \remove the statement \p s, if it is in the body.
+  void removeStmt(Stmt *s);
+
+  /// Insert the statement \p s right before \p where. \p where must be in the
+  /// body.
+  void insertBeforeStmt(Stmt *s, Stmt *where);
 
   /// \returns the body of the loop.
   std::vector<StmtHandle> &getBody() { return body_; }
@@ -179,6 +186,9 @@ public:
 
   /// Sets the trip count;
   void setEnd(unsigned tc) { end_ = tc; }
+
+  /// \returns the vectorization factor.
+  unsigned getVF() const { return vf_; }
 
   virtual void dump(unsigned indent) const override;
   virtual Stmt *clone(CloneCtx &map) override;

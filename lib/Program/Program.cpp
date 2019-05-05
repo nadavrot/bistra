@@ -68,13 +68,27 @@ void Scope::dump(unsigned indent) const {
   }
 }
 
-void Scope::clear(Scope *other) { body_.clear(); }
+void Scope::clear() { body_.clear(); }
 
 void Scope::takeContent(Scope *other) {
   for (auto &SH : other->body_) {
     body_.emplace_back(SH.get(), this);
   }
   other->body_.clear();
+}
+
+void Scope::addStmt(Stmt *s) { body_.emplace_back(s, this); }
+
+void Scope::removeStmt(Stmt *s) {
+  body_.erase(std::remove_if(body_.begin(), body_.end(),
+                             [&](StmtHandle &SH) { return SH.get() == s; }),
+              body_.end());
+}
+
+void Scope::insertBeforeStmt(Stmt *s, Stmt *where) {
+  auto iter = std::find(body_.begin(), body_.end(), where);
+  assert(iter != body_.end() && "Can't find the insertion point");
+  body_.emplace(iter, s, this);
 }
 
 void Loop::dump(unsigned indent) const {
@@ -329,7 +343,7 @@ void LoadExpr::visit(NodeVisitor *visitor) {
   }
 }
 
-void Expr::replaceUserWith(Expr *other) { user_->setReference(other); }
+void Expr::replaceUseWith(Expr *other) { user_->setReference(other); }
 
 ASTNode *Expr::getParent() { return getOwnerHandle()->getParent(); }
 

@@ -212,3 +212,45 @@ TEST(basic, tile_loop) {
   delete p->clone();
   delete p;
 }
+
+TEST(basic, sink_loop) {
+  Program *p = new Program();
+  p->addArgument("A", {60, 60}, {"X", "Y"}, ElemKind::Float32Ty);
+  p->addArgument("B", {60, 60}, {"X", "Y"}, ElemKind::Float32Ty);
+  p->addArgument("C", {60, 60}, {"X", "Y"}, ElemKind::Float32Ty);
+
+  auto *A = p->getArg(0);
+  auto *B = p->getArg(1);
+  auto *C = p->getArg(2);
+
+  auto *I = new Loop("i", 60, 1);
+  auto *J1 = new Loop("j1", 60, 1);
+  auto *J2 = new Loop("j2", 60, 1);
+
+  p->addStmt(I);
+  I->addStmt(J1);
+  I->addStmt(J2);
+
+  auto *ldB = new LoadExpr(B, {new IndexExpr(I), new IndexExpr(J1)});
+  auto *st1 =
+      new StoreStmt(A, {new IndexExpr(I), new IndexExpr(J1)}, ldB, false);
+  J1->addStmt(st1);
+
+  auto *ldC = new LoadExpr(C, {new IndexExpr(I), new IndexExpr(J2)});
+  auto *st2 =
+      new StoreStmt(A, {new IndexExpr(I), new IndexExpr(J2)}, ldC, false);
+  J2->addStmt(st2);
+
+  p->verify();
+  p->dump();
+  ::sinkLoop(I);
+  p->dump();
+
+  NodeCounter counter;
+  p->visit(&counter);
+
+  EXPECT_EQ(counter.stmt, 7);
+  EXPECT_EQ(counter.expr, 10);
+  delete p->clone();
+  delete p;
+}

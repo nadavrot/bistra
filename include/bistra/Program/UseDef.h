@@ -65,7 +65,11 @@ public:
     setReference(other.ref_);
   }
   ASTHandle &operator=(ASTHandle &other) = delete;
-  ASTHandle &operator=(ASTHandle &&other) = delete;
+  ASTHandle &operator=(ASTHandle &&other) {
+    parent_ = other.parent_;
+    setReference(other.ref_);
+    return *this;
+  }
 };
 
 } // namespace bistra
