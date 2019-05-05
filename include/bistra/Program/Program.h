@@ -48,6 +48,8 @@ public:
 
 class ASTNode {
 public:
+  /// \returns the parent expression that holds the node of this expression.
+  virtual ASTNode *getParent() const = 0;
   /// Crash if the program is in an invalid state.
   virtual void verify() const = 0;
   /// A node visitor that visits all of the nodes in the program.
@@ -69,14 +71,13 @@ public:
   /// cloned value.
   virtual Stmt *clone(CloneCtx &map) = 0;
 
-  /// \returns the parent expression that holds the node of this expression.
-  ASTNode *getParent();
-
   /// \returns the use handle of this expression.
-  StmtHandle *getOwnerHandle() { return user_; }
+  StmtHandle *getOwnerHandle() const { return user_; }
 
   /// \reset the pointer to the owning handle.
   void resetOwnerHandle(StmtHandle *handle = nullptr) { user_ = handle; }
+
+  ASTNode *getParent() const override;
 };
 
 class Expr : public ASTNode {
@@ -95,13 +96,12 @@ public:
   void replaceUseWith(Expr *other);
 
   /// \returns the use handle of this expression.
-  ExprHandle *getOwnerHandle() { return user_; }
+  ExprHandle *getOwnerHandle() const { return user_; }
 
   /// \reset the pointer to the owning handle.
   void resetOwnerHandle(ExprHandle *handle = nullptr) { user_ = handle; }
 
-  /// \returns the parent expression that holds the node of this expression.
-  ASTNode *getParent();
+  ASTNode *getParent() const override;
 
   /// \returns the type of the expression.
   const ExprType &getType() const { return type_; }
@@ -121,8 +121,6 @@ public:
   Expr() = delete;
   Expr(const Expr &other) = delete;
 };
-
-class Scope;
 
 /// Represents a list of statements that are executed sequentially.
 class Scope : public Stmt {
