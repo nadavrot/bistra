@@ -149,9 +149,11 @@ public:
   /// \remove the statement \p s, if it is in the body.
   void removeStmt(Stmt *s);
 
-  /// Insert the statement \p s right before \p where. \p where must be in the
-  /// body.
+  /// Insert the statement \p s before \p where. \p where must be in the body.
   void insertBeforeStmt(Stmt *s, Stmt *where);
+
+  /// Insert the statement \p s after \p where. \p where must be in the body.
+  void insertAfterStmt(Stmt *s, Stmt *where);
 
   /// \returns the body of the loop.
   std::vector<StmtHandle> &getBody() { return body_; }
@@ -165,7 +167,7 @@ public:
 /// vectorized and unrolled.
 class Loop final : public Scope {
   /// The letter that represents the induction variable.
-  std::string indexName;
+  std::string indexName_;
 
   // End index.
   unsigned end_;
@@ -175,10 +177,13 @@ class Loop final : public Scope {
 
 public:
   Loop(std::string name, unsigned end, unsigned vf = 0)
-      : indexName(name), end_(end), vf_(vf) {}
+      : indexName_(name), end_(end), vf_(vf) {}
 
   /// \returns the name of the induction variable.
-  const std::string &getName() const { return indexName; }
+  const std::string &getName() const { return indexName_; }
+
+  /// \returns the name of the induction variable.
+  void setName(const std::string &name) { indexName_ = name; }
 
   /// \returns the end point of the loop.
   unsigned getEnd() const { return end_; }

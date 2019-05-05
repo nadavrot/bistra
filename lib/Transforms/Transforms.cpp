@@ -127,3 +127,31 @@ bool bistra::unrollLoop(Loop *L, unsigned maxTripCount) {
   parent->removeStmt(L);
   return true;
 }
+
+bool bistra::peelLoop(Loop *L, unsigned k) {
+  unsigned origTripCount = L->getEnd();
+  // Trip count must be smaller than the partition size.
+  if (origTripCount < k)
+    return false;
+
+  CloneCtx map;
+  Loop *L2 = (Loop *)L->clone(map);
+
+  // Update the new and original-loop's trip count.
+  L->setEnd(k);
+  L2->setEnd(origTripCount - k);
+  L2->setName(L->getName() + "_peeled");
+
+  // Update all of the indices in the program to refer to the combination of
+  // two indices of the two loops.
+  std::vector<IndexExpr *> indices;
+  collectIndices(L2, indices);
+  for (auto *idx : indices) {
+    auto *expr = new AddExpr(new ConstantExpr(k), new IndexExpr(L2));
+    idx->replaceUseWith(expr);
+  }
+
+  // Insert the peeled loop after the original loop.
+  ((Scope *)L->getParent())->insertAfterStmt(L2, L);
+  return true;
+}
