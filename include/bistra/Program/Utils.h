@@ -31,6 +31,25 @@ public:
   virtual void leave(Expr *E) {}
 };
 
+class Scope;
+
+/// A visitor that collects the hot statements in the program.
+struct HotScopeCollector : public NodeVisitor {
+  /// Counts the number of times the statement is expected to be called.
+  uint64_t frequency_{1};
+  /// Maps statements to their execution frequencies.
+  std::vector<std::pair<Scope *, uint64_t>> freqPairs_;
+
+  /// \returns the frequency of the valid scope \p S;
+  uint64_t getFrequency(Scope *S);
+
+  /// \returns the hottest scope;
+  std::pair<Scope *, uint64_t> getMaxScope();
+
+  virtual void enter(Stmt *E) override;
+  virtual void leave(Stmt *E) override;
+};
+
 /// Collect all of the indices under statement \p S into \p indices;
 void collectIndices(Stmt *S, std::vector<IndexExpr *> &indices);
 
