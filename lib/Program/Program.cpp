@@ -276,6 +276,14 @@ void Scope::verify() const {
 
 void IndexExpr::verify() const {
   assert(getType().isIndexTy() && "Invalid index type");
+  const ASTNode *parent = this;
+  ASTNode *loop = getLoop();
+  while (loop != parent) {
+    parent = parent->getParent();
+    assert(parent && "Reached the top of the program without finding the loop. "
+                     "This means that the index is not contained within it's "
+                     "loop scope.");
+  }
 }
 
 void LoadExpr::verify() const {
