@@ -254,3 +254,29 @@ TEST(basic, sink_loop) {
   delete p->clone();
   delete p;
 }
+
+TEST(basic, unroll_loop) {
+  Program *p = new Program();
+  p->addArgument("A", {10}, {"X"}, ElemKind::Float32Ty);
+
+  auto *A = p->getArg(0);
+
+  auto *I = new Loop("i", 10, 1);
+  p->addStmt(I);
+  auto *st1 =
+      new StoreStmt(A, {new IndexExpr(I)}, new ConstantFPExpr(0.1), false);
+  I->addStmt(st1);
+
+  p->verify();
+  p->dump();
+  ::unrollLoop(I, 20);
+  p->dump();
+
+  NodeCounter counter;
+  p->visit(&counter);
+
+  EXPECT_EQ(counter.stmt, 11);
+  EXPECT_EQ(counter.expr, 20);
+  delete p->clone();
+  delete p;
+}

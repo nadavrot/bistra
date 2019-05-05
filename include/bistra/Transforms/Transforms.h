@@ -14,6 +14,10 @@ bool tile(Loop *L, unsigned blockSize);
 /// Return True if the transform worked.
 bool sinkLoop(Loop *L);
 
+/// Unroll the loop \p L by copying its body up to \p maxTripCount times.
+/// Return True if the transform worked.
+bool unrollLoop(Loop *L, unsigned maxTripCount);
+
 } // namespace bistra
 
 #endif // BISTRA_TRANSFORMS_TRANSFORMS_H
