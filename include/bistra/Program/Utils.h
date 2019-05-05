@@ -15,6 +15,7 @@ namespace bistra {
 class Stmt;
 class Expr;
 class IndexExpr;
+class Loop;
 
 /// A visitor class that visits all nodes in the program.
 class NodeVisitor {
@@ -28,6 +29,9 @@ public:
 
 /// Collect all of the indices under statement \p S into \p indices;
 void collectIndices(Stmt *S, std::vector<IndexExpr *> &indices);
+
+/// Collect all of the loops under statement \p S into \p loops;
+void collectLoops(Stmt *S, std::vector<Loop *> &loops);
 
 } // namespace bistra
 
