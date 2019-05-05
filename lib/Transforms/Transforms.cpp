@@ -9,15 +9,19 @@ bool bistra::tile(Program *P, Loop *L, unsigned blockSize) {
   if (L->getEnd() % blockSize)
     return false;
 
-  // Update the original loop trip count.
+  // Update the original-loop's trip count.
   L->setEnd(L->getEnd() / blockSize);
 
+  // Create a new loop.
   auto *B = new Loop(L->getName() + "_tile_" + std::to_string(blockSize),
                      blockSize, 1);
 
+  // Insert the new loop by moving the content of the original loop.
   B->takeContent(L);
   L->addStmt(B);
 
+  // Update all of the indices in the program to refer to the combination of
+  // two indices of the two loops.
   std::vector<IndexExpr *> indices;
   collectIndices(L, indices);
 
