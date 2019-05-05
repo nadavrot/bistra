@@ -58,6 +58,9 @@ using ExprHandle = ASTHandle<Expr, ASTNode>;
 using StmtHandle = ASTHandle<Stmt, ASTNode>;
 
 class Stmt : public ASTNode {
+  /// A nullable pointer to the handle that may contain this statement.
+  StmtHandle *user_{nullptr};
+
 public:
   /// Prints the argument.
   virtual void dump(unsigned indent) const = 0;
@@ -65,6 +68,15 @@ public:
   /// \returns an unowned clone of the current node and updates \p map with the
   /// cloned value.
   virtual Stmt *clone(CloneCtx &map) = 0;
+
+  /// \returns the parent expression that holds the node of this expression.
+  ASTNode *getParent();
+
+  /// \returns the use handle of this expression.
+  StmtHandle *getOwnerHandle() { return user_; }
+
+  /// \reset the pointer to the owning handle.
+  void resetOwnerHandle(StmtHandle *handle = nullptr) { user_ = handle; }
 };
 
 class Expr : public ASTNode {
@@ -87,8 +99,8 @@ public:
   /// \reset the pointer to the owning handle.
   void resetOwnerHandle(ExprHandle *handle = nullptr) { user_ = handle; }
 
-  /// \returns the user node of this expression.
-  ASTNode *getUser();
+  /// \returns the parent expression that holds the node of this expression.
+  ASTNode *getParent();
 
   /// \returns the type of the expression.
   const ExprType &getType() const { return type_; }
@@ -112,40 +124,42 @@ public:
 class Scope;
 
 /// Represents a list of statements that are executed sequentially.
-class Scope final : public Stmt {
+class Scope : public Stmt {
+protected:
   /// Holds the body of the loop.
-  std::vector<Stmt *> body_;
+  std::vector<StmtHandle> body_;
 
 public:
-  Scope(const std::vector<Stmt *> &body) : body_(body) {}
-  Scope() {}
-
-  ~Scope() {
-    for (auto *s : body_) {
-      delete s;
+  Scope(const std::vector<Stmt *> &body) : body_() {
+    for (auto *stmt : body) {
+      body_.emplace_back(stmt, this);
     }
   }
 
+  Scope() = default;
+
+  /// Empties the body of the scope.
+  void clear(Scope *other);
+
+  /// Moves the statements from \p other to this scope.
+  void takeContent(Scope *other);
+
   /// Add a statement to the end of the scope.
-  void addStmt(Stmt *s) { body_.push_back(s); }
+  void addStmt(Stmt *s) { body_.emplace_back(s, this); }
 
   /// \returns the body of the loop.
-  std::vector<Stmt *> &getBody() { return body_; }
+  std::vector<StmtHandle> &getBody() { return body_; }
 
   virtual void dump(unsigned indent) const override;
-  virtual Stmt *clone(CloneCtx &map) override;
   virtual void verify() const override;
   virtual void visit(NodeVisitor *visitor) override;
 };
 
 /// Represents a data-parallel loop from zero to End. The loop index can be
 /// vectorized and unrolled.
-class Loop final : public Stmt {
+class Loop final : public Scope {
   /// The letter that represents the induction variable.
   std::string indexName;
-
-  /// Holds the body of the loop.
-  Scope *body_;
 
   // End index.
   unsigned end_;
@@ -155,9 +169,7 @@ class Loop final : public Stmt {
 
 public:
   Loop(std::string name, unsigned end, unsigned vf = 0)
-      : indexName(name), body_(new Scope()), end_(end), vf_(vf) {}
-
-  ~Loop() { delete body_; }
+      : indexName(name), end_(end), vf_(vf) {}
 
   /// \returns the name of the induction variable.
   const std::string &getName() const { return indexName; }
@@ -168,15 +180,6 @@ public:
   /// Sets the trip count;
   void setEnd(unsigned tc) { end_ = tc; }
 
-  /// Add a statement to the end of the loop scope.
-  void addStmt(Stmt *s) { body_->addStmt(s); }
-
-  /// \sets the body of the loop.
-  void setBody(Scope *s) { body_ = s; }
-
-  /// \returns the body of the loop.
-  Scope *getBody() const { return body_; }
-
   virtual void dump(unsigned indent) const override;
   virtual Stmt *clone(CloneCtx &map) override;
   virtual void verify() const override;
@@ -184,20 +187,17 @@ public:
 };
 
 /// This class represents a program.
-class Program final {
+class Program final : public Scope {
   /// \represents the list of arguments.
   std::vector<Argument *> args_;
-
-  /// Set the body of the program.
-  Scope *body_;
 
 public:
   ~Program();
 
-  Program();
+  Program() = default;
 
   /// Construct a new program with the body \p body and arguments \p args.
-  Program(Scope *body, const std::vector<Argument *> &args);
+  Program(const std::vector<Stmt *> &body, const std::vector<Argument *> &args);
 
   /// Argument getter.
   std::vector<Argument *> &getArgs() { return args_; }
@@ -216,26 +216,12 @@ public:
   /// Adds a new argument;
   void addArgument(Argument *arg);
 
-  /// Add a statement to the end of the program scope.
-  void addStmt(Stmt *s) { body_->addStmt(s); }
-
-  /// \sets the body of the program.
-  void setBody(Scope *s) { body_ = s; }
-
-  /// \returns the body of the program.
-  Scope *getBody() { return body_; }
-
-  /// Prints the program.
-  void dump();
-
   Program *clone();
-  Program *clone(CloneCtx &map);
-
-  /// Crash if the program is in an invalid state.
-  void verify();
-
-  /// A node visitor that visits all of the nodes in the program.
-  void visit(NodeVisitor *visitor);
+  void dump() const { dump(0); }
+  virtual void dump(unsigned indent) const override;
+  virtual Stmt *clone(CloneCtx &map) override;
+  virtual void verify() const override;
+  virtual void visit(NodeVisitor *visitor) override;
 };
 
 /// An expression for referencing a loop index.

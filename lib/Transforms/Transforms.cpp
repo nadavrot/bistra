@@ -9,17 +9,13 @@ bool bistra::tile(Program *P, Loop *L, unsigned blockSize) {
   if (L->getEnd() % blockSize)
     return false;
 
-  auto *B = new Loop(L->getName() + "_tile_" + std::to_string(blockSize),
-                     blockSize, 1);
-
   // Update the original loop trip count.
   L->setEnd(L->getEnd() / blockSize);
 
-  // Move the content of the loop into the body of the new loop.
-  for (auto *st : L->getBody()->getBody()) {
-    B->addStmt(st);
-  }
-  L->getBody()->getBody().clear();
+  auto *B = new Loop(L->getName() + "_tile_" + std::to_string(blockSize),
+                     blockSize, 1);
+
+  B->takeContent(L);
   L->addStmt(B);
 
   std::vector<IndexExpr *> indices;

@@ -27,13 +27,11 @@ void Argument::dump() const {
   type_.dump();
 }
 
-Program::Program() : body_(new Scope()) {}
-
-Program::Program(Scope *body, const std::vector<Argument *> &args)
-    : args_(args), body_(body) {}
+Program::Program(const std::vector<Stmt *> &body,
+                 const std::vector<Argument *> &args)
+    : Scope(body), args_(args) {}
 
 Program::~Program() {
-  delete body_;
   for (auto *arg : args_) {
     delete arg;
   }
@@ -51,7 +49,7 @@ Argument *Program::addArgument(const std::string &name,
 
 void Program::addArgument(Argument *arg) { args_.push_back(arg); }
 
-void Program::dump() {
+void Program::dump(unsigned indent) const {
   std::cout << "Program (";
   for (int i = 0, e = args_.size(); i < e; i++) {
     if (i != 0) {
@@ -60,21 +58,30 @@ void Program::dump() {
     args_[i]->dump();
   }
   std::cout << ") {\n";
-  body_->dump(1);
+  Scope::dump(1);
   std::cout << "}\n";
 }
 
 void Scope::dump(unsigned indent) const {
-  for (auto *s : body_) {
-    s->dump(indent);
+  for (auto &SH : body_) {
+    SH->dump(indent);
   }
+}
+
+void Scope::clear(Scope *other) { body_.clear(); }
+
+void Scope::takeContent(Scope *other) {
+  for (auto &SH : other->body_) {
+    body_.emplace_back(SH.get(), this);
+  }
+  other->body_.clear();
 }
 
 void Loop::dump(unsigned indent) const {
   spaces(indent);
   std::cout << "for (" << indexName << " in 0.." << end_ << ", VF=" << vf_
             << ") {\n";
-  body_->dump(indent + 1);
+  Scope::dump(indent + 1);
   spaces(indent);
   std::cout << "}\n";
 }
@@ -174,32 +181,31 @@ Expr *IndexExpr::clone(CloneCtx &map) {
 Stmt *Loop::clone(CloneCtx &map) {
   Loop *loop = new Loop(indexName, end_, vf_);
   map.map(this, loop);
-  loop->addStmt(body_->clone(map));
-  return loop;
-}
-
-Stmt *Scope::clone(CloneCtx &map) {
-  Scope *s = new Scope();
-  for (auto *m : body_) {
-    s->addStmt(m->clone(map));
+  for (auto &MH : body_) {
+    loop->addStmt(MH->clone(map));
   }
-  return s;
+  return loop;
 }
 
 Program *Program::clone() {
   CloneCtx ctx;
-  return clone(ctx);
+
+  return (Program *)clone(ctx);
 }
 
-Program *Program::clone(CloneCtx &map) {
+Stmt *Program::clone(CloneCtx &map) {
   verify();
+  Program *np = new Program();
   std::vector<Argument *> newArgs;
   for (auto *arg : args_) {
     Argument *newArg = new Argument(*arg);
-    newArgs.push_back(newArg);
+    np->addArgument(newArg);
     map.map(arg, newArg);
+  };
+  for (auto &MH : body_) {
+    np->addStmt(MH->clone(map));
   }
-  return new Program((Scope *)body_->clone(map), newArgs);
+  return np;
 }
 
 void BinaryExpr::verify() const {
@@ -213,17 +219,17 @@ void ConstantExpr::verify() const {}
 void ConstantFPExpr::verify() const {}
 
 void Loop::verify() const {
-  body_->verify();
   assert(end_ > 0 && "Loops must not be empty");
   assert(end_ % vf_ == 0 &&
          "Trip count must be divisible by vectorization factor");
   assert(vf_ > 0 && vf_ < 64 && "Invalid vectorization factor");
   assert(isLegalName(getName()) && "Invalid character in index name");
+  Scope::verify();
 }
 
 void Scope::verify() const {
-  for (auto *E : body_) {
-    E->verify();
+  for (auto &EH : body_) {
+    EH->verify();
   }
 }
 
@@ -277,16 +283,15 @@ void Argument::verify() const {
   assert(isLegalName(getName()) && "Invalid character in argument name");
 }
 
-void Program::verify() {
-  body_->verify();
-
+void Program::verify() const {
   // Verify the arguments.
   for (auto *a : args_) {
     a->verify();
   }
+  Scope::verify();
 }
 
-void Program::visit(NodeVisitor *visitor) { body_->visit(visitor); }
+void Program::visit(NodeVisitor *visitor) { Scope::visit(visitor); }
 
 void BinaryExpr::visit(NodeVisitor *visitor) {
   visitor->handle(this);
@@ -302,15 +307,12 @@ void IndexExpr::visit(NodeVisitor *visitor) { visitor->handle(this); }
 
 void Scope::visit(NodeVisitor *visitor) {
   visitor->handle(this);
-  for (auto *s : body_) {
-    s->visit(visitor);
+  for (auto &sh : body_) {
+    sh->visit(visitor);
   }
 }
 
-void Loop::visit(NodeVisitor *visitor) {
-  visitor->handle(this);
-  body_->visit(visitor);
-}
+void Loop::visit(NodeVisitor *visitor) { Scope::visit(visitor); }
 
 void StoreStmt::visit(NodeVisitor *visitor) {
   visitor->handle(this);
@@ -329,4 +331,6 @@ void LoadExpr::visit(NodeVisitor *visitor) {
 
 void Expr::replaceUserWith(Expr *other) { user_->setReference(other); }
 
-ASTNode *Expr::getUser() { return getOwnerHandle()->getParent(); }
+ASTNode *Expr::getParent() { return getOwnerHandle()->getParent(); }
+
+ASTNode *Stmt::getParent() { return getOwnerHandle()->getParent(); }

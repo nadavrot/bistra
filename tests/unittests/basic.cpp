@@ -25,6 +25,15 @@ TEST(basic, builder) {
   auto *store =
       new StoreStmt(buff, {new IndexExpr(K), new IndexExpr(L)}, val, true);
   K->addStmt(store);
+  p->dump();
+
+  // Check the ownership of the nodes in the graph.
+  EXPECT_EQ(L->getParent(), p);
+  EXPECT_EQ(K->getParent(), L);
+  EXPECT_EQ(store->getParent(), K);
+  EXPECT_EQ(ld->getParent(), val);
+  EXPECT_EQ(val->getParent(), store);
+
   Program *pp = p->clone();
   delete p;
   pp->dump();
@@ -118,10 +127,10 @@ TEST(basic, visitor_collect_indices) {
   auto *st = new StoreStmt(C, {new IndexExpr(I), new IndexExpr(J)}, mul, true);
 
   // Check that the ownership of the node is correct.
-  EXPECT_EQ(mul->getLHS()->getUser(), mul);
-  EXPECT_EQ(mul->getRHS()->getUser(), mul);
-  EXPECT_EQ(mul->getUser(), st);
-  EXPECT_EQ(ldB->getUser(), mul);
+  EXPECT_EQ(mul->getLHS()->getParent(), mul);
+  EXPECT_EQ(mul->getRHS()->getParent(), mul);
+  EXPECT_EQ(mul->getParent(), st);
+  EXPECT_EQ(ldB->getParent(), mul);
 
   K->addStmt(st);
   p->verify();
@@ -129,7 +138,7 @@ TEST(basic, visitor_collect_indices) {
   NodeCounter counter;
   p->visit(&counter);
 
-  EXPECT_EQ(counter.stmt, 8);
+  EXPECT_EQ(counter.stmt, 5);
   EXPECT_EQ(counter.expr, 9);
   delete p;
 }
@@ -198,7 +207,7 @@ TEST(basic, tile_loop) {
   NodeCounter counter;
   p->visit(&counter);
 
-  EXPECT_EQ(counter.stmt, 6);
+  EXPECT_EQ(counter.stmt, 4);
   EXPECT_EQ(counter.expr, 13);
   delete p->clone();
   delete p;

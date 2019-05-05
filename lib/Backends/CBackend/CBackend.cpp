@@ -130,21 +130,15 @@ public:
   }
 
   void generate(Stmt *stmt) {
-    // Handle 'Scope'.
-    if (Scope *scp = dynamic_cast<Scope *>(stmt)) {
-      // Generate all of the statements in the scope.
-      for (auto *s : scp->getBody()) {
-        generate(s);
-      }
-      return;
-    }
-
     // Handle 'Loop'.
     if (Loop *l = dynamic_cast<Loop *>(stmt)) {
       auto name = l->getName();
       sb_ << "for (size_t " << name << " = 0; " << name << " < " << l->getEnd()
           << "; " << name << "++) {\n";
-      generate(l->getBody());
+      // Generate all of the statements in the scope.
+      for (auto &SH : l->getBody()) {
+        generate(SH.get());
+      }
       sb_ << "}\n";
       return;
     }
@@ -191,8 +185,10 @@ public:
       sb_ << "};\n";
     }
 
-    // Generate the body of the function.
-    generate(P->getBody());
+    // Generate all of the statements in the program.
+    for (auto &SH : P->getBody()) {
+      generate(SH.get());
+    }
     sb_ << "}\n";
   }
 
