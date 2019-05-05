@@ -1,6 +1,8 @@
 #include "bistra/Program/Utils.h"
 #include "bistra/Program/Program.h"
 
+#include <vector>
+
 using namespace bistra;
 
 namespace {
@@ -28,6 +30,42 @@ struct LoopCollector : public NodeVisitor {
   }
 };
 } // namespace
+
+uint64_t HotScopeCollector::getFrequency(Scope *S) {
+  for (auto &p : freqPairs_) {
+    if (p.first == S)
+      return p.second;
+  }
+  return 0;
+}
+
+std::pair<Scope *, uint64_t> HotScopeCollector::getMaxScope() {
+  unsigned idx = 0;
+  for (unsigned i = 1, e = freqPairs_.size(); i < e; i++) {
+    if (freqPairs_[i].second > freqPairs_[idx].second) {
+      idx = i;
+    }
+  }
+  return freqPairs_[idx];
+}
+
+void HotScopeCollector::enter(Stmt *E) {
+  if (auto *S = dynamic_cast<Scope *>(E)) {
+    freqPairs_.push_back({S, frequency_});
+  }
+  // The inner part will be executed more times, based on the trip count.
+  if (Loop *L = dynamic_cast<Loop *>(E)) {
+    frequency_ *= L->getEnd();
+  }
+}
+
+void HotScopeCollector::leave(Stmt *E) {
+  // When the loop is done we divide the frequency to match the frequency of the
+  // outer scope. See the implementation of 'enter'.
+  if (Loop *L = dynamic_cast<Loop *>(E)) {
+    frequency_ /= L->getEnd();
+  }
+}
 
 void bistra::collectIndices(Stmt *S, std::vector<IndexExpr *> &indices) {
   IndexCollector IC(indices);
