@@ -13,7 +13,12 @@ template <class RefTy, class OwnerTy> class ASTHandle final {
 
 public:
   ASTHandle(RefTy *ref, OwnerTy *owner) : parent_(owner) { setReference(ref); }
-  ~ASTHandle() { delete ref_; }
+  ~ASTHandle() {
+    if (ref_) {
+      ref_->resetOwnerHandle();
+      delete ref_;
+    }
+  }
 
   /// \returns the ASTNode that holds this handle.
   OwnerTy *getParent() const { return parent_; }
