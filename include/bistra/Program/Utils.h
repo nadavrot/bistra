@@ -16,6 +16,7 @@ class Stmt;
 class Expr;
 class IndexExpr;
 class Loop;
+class ASTNode;
 
 /// A visitor class that visits all nodes in the program.
 class NodeVisitor {
@@ -50,8 +51,8 @@ struct HotScopeCollector : public NodeVisitor {
   virtual void leave(Stmt *E) override;
 };
 
-/// Collect all of the indices under statement \p S into \p indices;
-void collectIndices(Stmt *S, std::vector<IndexExpr *> &indices);
+/// Collect all of the indices in \p S into \p indices;
+void collectIndices(ASTNode *S, std::vector<IndexExpr *> &indices);
 
 /// Collect all of the loops under statement \p S into \p loops;
 void collectLoops(Stmt *S, std::vector<Loop *> &loops);
