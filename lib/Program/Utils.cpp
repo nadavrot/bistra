@@ -67,7 +67,7 @@ void HotScopeCollector::leave(Stmt *E) {
   }
 }
 
-void bistra::collectIndices(Stmt *S, std::vector<IndexExpr *> &indices) {
+void bistra::collectIndices(ASTNode *S, std::vector<IndexExpr *> &indices) {
   IndexCollector IC(indices);
   S->visit(&IC);
 }
