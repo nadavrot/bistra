@@ -23,10 +23,26 @@ const char *header = R"(
 #if defined(__clang__)
 typedef float __attribute__((ext_vector_type(4))) float4;
 typedef float __attribute__((ext_vector_type(8))) float8;
+typedef float __attribute__((ext_vector_type(16))) float16;
 #elif defined(__GNUC__) || defined(__GNUG__)
 typedef float __attribute__((vector_size(16))) float4;
 typedef float __attribute__((vector_size(32))) float8;
+typedef float __attribute__((vector_size(64))) float16;
 #endif
+
+#define defineVectorFunctions(SCALARTY, VECTORTY) \
+inline VECTORTY Load_##VECTORTY(const SCALARTY *p) { \
+        VECTORTY res; memcpy(&res, p, sizeof(VECTORTY)); return res; } \
+inline void Store_##VECTORTY(SCALARTY *p,VECTORTY v) {\
+        memcpy(p, &v, sizeof(VECTORTY)); } \
+inline void Add_##VECTORTY(SCALARTY *p, VECTORTY v) {\
+        Store_##VECTORTY(p, Load_##VECTORTY(p) + v);} \
+inline VECTORTY Broadcast_##VECTORTY(SCALARTY s) { return (VECTORTY) s; }
+
+defineVectorFunctions(float, float4)
+defineVectorFunctions(float, float8)
+defineVectorFunctions(float, float16)
+
 /// \returns the index of the element at x,y,z,w.
 inline size_t btr_get4(const size_t *dims, size_t x, size_t y, size_t z,
                           size_t w) {
@@ -114,6 +130,14 @@ public:
       sb_ << ")";
       return;
     }
+
+    // Handle broadcast expressions.
+    if (BroadcastExpr *bb = dynamic_cast<BroadcastExpr *>(exp)) {
+      sb_ << "Broadcast_" << bb->getType().getTypename() << "(";
+      generate(bb->getValue());
+      sb_ << ")";
+      return;
+    }
     assert(false && "Unknown expression");
   }
 
@@ -145,6 +169,20 @@ public:
 
     // Handle store statements.
     if (StoreStmt *st = dynamic_cast<StoreStmt *>(stmt)) {
+      auto Ty = st->getValue()->getType();
+
+      if (st->getValue()->getType().isVector()) {
+        sb_ << (st->isAccumulate() ? " Add_" : "Store_");
+        sb_ << Ty.getTypename();
+        sb_ << "(&";
+        auto *buffer = st->getDest();
+        emitBudderIndex(buffer->getName(), st->getIndices());
+        sb_ << ", ";
+        generate(st->getValue());
+        sb_ << ");\n";
+        return;
+      }
+
       auto *buffer = st->getDest();
       emitBudderIndex(buffer->getName(), st->getIndices());
       sb_ << (st->isAccumulate() ? " +=" : "=");
