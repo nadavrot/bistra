@@ -18,3 +18,7 @@ void Type::dump() const {
 void ExprType::dump() const {
   std::cout << "<" << getWidth() << " x " << getElementName() << ">";
 }
+
+std::string ExprType::getTypename() const {
+  return std::string(getElementName()) + std::to_string(width_);
+}
