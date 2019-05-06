@@ -12,6 +12,7 @@ using namespace bistra;
 TEST(basic, builder) {
   Program *p = new Program();
   p->addArgument("bar", {32, 32}, {"X", "Y"}, ElemKind::Float32Ty);
+  p->addArgument("input", {32, 32}, {"X", "Y"}, ElemKind::Float32Ty);
   p->addArgument("foo", {10, 32, 32, 4}, {"N", "H", "W", "C"},
                  ElemKind::Float32Ty);
   auto *L = new Loop("i", 10, 1);
@@ -19,11 +20,13 @@ TEST(basic, builder) {
   L->addStmt(K);
   p->addStmt(L);
 
-  auto *buff = p->getArg(0);
-  auto *ld = new LoadExpr(buff, {new IndexExpr(K), new IndexExpr(L)});
+  auto *A = p->getArg(0);
+  auto *B = p->getArg(1);
+
+  auto *ld = new LoadExpr(A, {new IndexExpr(K), new IndexExpr(L)});
   auto *val = new AddExpr(ld, new ConstantFPExpr(4));
   auto *store =
-      new StoreStmt(buff, {new IndexExpr(K), new IndexExpr(L)}, val, true);
+      new StoreStmt(B, {new IndexExpr(K), new IndexExpr(L)}, val, true);
   K->addStmt(store);
   p->dump();
 
