@@ -345,3 +345,28 @@ TEST(basic, vectorize_memcpy_loop) {
   delete p->clone();
   delete p;
 }
+
+TEST(basic, vectorize_memset) {
+  // DEST[i] = 0;
+  Program *p = new Program();
+  auto *dest = p->addArgument("DEST", {128}, {"len"}, ElemKind::Float32Ty);
+  auto *I = new Loop("i", 128, 1);
+  p->addStmt(I);
+
+  auto *st =
+      new StoreStmt(dest, {new IndexExpr(I)}, new ConstantFPExpr(0.1), false);
+  I->addStmt(st);
+
+  p->dump();
+  auto res = ::vectorize(I, 8);
+  EXPECT_TRUE(res);
+  p->dump();
+
+  NodeCounter counter;
+  p->visit(&counter);
+
+  EXPECT_EQ(counter.stmt, 3);
+  EXPECT_EQ(counter.expr, 3);
+  delete p->clone();
+  delete p;
+}

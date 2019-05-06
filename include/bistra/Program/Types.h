@@ -147,7 +147,7 @@ struct ExprType final {
   /// \returns the current type with a wider vector width.
   ExprType asVector(unsigned vf) const {
     assert(width_ == 1 && "Can't vectorize a vector type");
-    return ExprType(elementType_, width_);
+    return ExprType(elementType_, vf);
   }
 
   /// \returns the tensor element type.
