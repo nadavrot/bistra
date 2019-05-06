@@ -134,11 +134,11 @@ bool bistra::peelLoop(Loop *L, unsigned k) {
   if (origTripCount < k)
     return false;
 
-  CloneCtx map;
-  Loop *L2 = (Loop *)L->clone(map);
-
   // Update the new and original-loop's trip count.
   L->setEnd(k);
+
+  CloneCtx map;
+  Loop *L2 = (Loop *)L->clone(map);
   L2->setEnd(origTripCount - k);
   L2->setName(L->getName() + "_peeled");
 
@@ -147,11 +147,173 @@ bool bistra::peelLoop(Loop *L, unsigned k) {
   std::vector<IndexExpr *> indices;
   collectIndices(L2, indices);
   for (auto *idx : indices) {
-    auto *expr = new AddExpr(new ConstantExpr(k), new IndexExpr(L2));
-    idx->replaceUseWith(expr);
+    if (idx->getLoop() == L2) {
+      auto *expr = new AddExpr(new ConstantExpr(k), new IndexExpr(L2));
+      idx->replaceUseWith(expr);
+    }
   }
 
   // Insert the peeled loop after the original loop.
   ((Scope *)L->getParent())->insertAfterStmt(L2, L);
+  return true;
+}
+
+//--------------------------   Vectorization   -------------------------------//
+
+static bool mayVectorizeLastIndex(Expr *E, Loop *L) {
+  // A list of expressions to process.
+  std::vector<Expr *> worklist = {E};
+
+  // Count the number of times that the index is used. (must be 1!)
+  unsigned loopIndexFound = 0;
+
+  while (worklist.size()) {
+    Expr *E = worklist.back();
+    worklist.pop_back();
+
+    // It is okay to access the loop index.
+    if (IndexExpr *IE = dynamic_cast<IndexExpr *>(E)) {
+      if (IE->getLoop() == L) {
+        loopIndexFound++;
+        continue;
+      }
+      // Other indices are okay to access as long as they are scalar.
+      if (IE->getLoop()->getVF() != 1)
+        return false;
+    }
+
+    // Addition expressions are okay because they don't scale the index.
+    if (AddExpr *AE = dynamic_cast<AddExpr *>(E)) {
+      worklist.push_back(AE->getLHS());
+      worklist.push_back(AE->getRHS());
+      continue;
+    }
+    // Unknown expression. Aborting.
+    return false;
+  }
+  return true;
+}
+
+/// Check if we can vectorize a load/store access for a coordinate that is
+/// not the last consecutive one. Rule: must not use the vectorized loop index.
+static bool mayVectorizeNonLastIndex(Expr *E, Loop *L) {
+  std::vector<IndexExpr *> collected;
+  collectIndices(E, collected);
+  // Check that the non-consecutive dims don't access the vectorized index.
+  for (auto &idx : collected) {
+    assert(idx->getLoop()->getVF() == 1 && "vectorizing on the wrong dim");
+    if (idx->getLoop() == L)
+      return false;
+  }
+
+  return true;
+}
+
+/// \returns True if it is legal to vectorize some load/store with the indices
+/// \p indices when vectorizing the loop \p L.
+static bool mayVectorizeLoadStoreAccess(const std::vector<ExprHandle> &indices,
+                                        Loop *L) {
+  // Iterate over all of the indices except for the last index.
+  for (int i = 0, e = indices.size() - 1; i < e; i++) {
+    std::vector<IndexExpr *> collected;
+    collectIndices(indices[i].get(), collected);
+    if (!mayVectorizeNonLastIndex(indices[i].get(), L))
+      return false;
+  }
+
+  // Check the last "consecutive" index.
+  if (!mayVectorizeLastIndex(indices[indices.size() - 1].get(), L))
+    return false;
+
+  return true;
+}
+
+/// \returns True if it is possible to vectorize the expression \p E, which can
+/// be a value to be stored, when vectorizing the dimension \p L.
+static bool mayVectorizeExpr(Expr *E, Loop *L) {
+  if (IndexExpr *IE = dynamic_cast<IndexExpr *>(E)) {
+    return true;
+  }
+
+  // We can vectorize add/mul expressions if we can vectorize both sides.
+  if (BinaryExpr *AE = dynamic_cast<BinaryExpr *>(E)) {
+    return (mayVectorizeExpr(AE->getLHS(), L) &&
+            mayVectorizeExpr(AE->getRHS(), L));
+  }
+
+  // Check that the load remains consecutive when vectorizing \p L.
+  if (LoadExpr *LE = dynamic_cast<LoadExpr *>(E)) {
+    return mayVectorizeLoadStoreAccess(LE->getIndices(), L);
+  }
+
+  if (dynamic_cast<ConstantExpr *>(E) || dynamic_cast<ConstantFPExpr *>(E)) {
+    return true;
+  }
+
+  return false;
+}
+
+/// Collect the store instructions that use the indices.
+/// \returns True if all roots were detected or False if there was a problem
+/// analyzing the function.
+/// TODO: add support for non-store uses of index, such as if-conditions.
+static bool collectStoreSites(std::set<StoreStmt *> &stores,
+                              const std::vector<IndexExpr *> &indices) {
+  for (auto *index : indices) {
+    ASTNode *parent = index;
+    // Look up the use-chain and look for the stores that uses this index.
+    while (true) {
+      if (StoreStmt *ST = dynamic_cast<StoreStmt *>(parent)) {
+        stores.insert(ST);
+        break;
+      }
+      parent = parent->getParent();
+      if (!parent)
+        return false;
+    }
+  }
+
+  return true;
+}
+
+/// \returns True if the store statement is vectorizable on index \p L.
+static bool mayVectorizeStore(StoreStmt *S, Loop *L) {
+  // Can't vectorize already vectorized stores.
+  if (S->getValue()->getType().isVector())
+    return false;
+  // We must be able to vectorize the stored value.
+  if (!mayVectorizeExpr(S->getValue(), L))
+    return false;
+  // Check if the indices allow us to vectorize the loop.
+  return mayVectorizeLoadStoreAccess(S->getIndices(), L);
+}
+
+/// Vectorize the store statement on the index \p L.
+static bool vectorizeStore(StoreStmt *, Loop *L) { assert(false); }
+
+bool bistra::vectorize(Loop *L, unsigned vf) {
+  // The vectorization factor must divide the loop trip count.
+  if (L->getEnd() % vf) {
+    return false;
+  }
+
+  std::vector<IndexExpr *> indices;
+  collectIndices(L, indices);
+
+  std::set<StoreStmt *> stores;
+  bool collected = collectStoreSites(stores, indices);
+  if (!collected)
+    return false;
+
+  for (auto *S : stores) {
+    if (!mayVectorizeStore(S, L)) {
+      return false;
+    }
+  }
+
+  for (auto *S : stores) {
+    vectorizeStore(S, L);
+  }
+
   return true;
 }
