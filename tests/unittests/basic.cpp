@@ -221,48 +221,6 @@ TEST(basic, tile_loop) {
   delete p;
 }
 
-TEST(basic, sink_loop) {
-  Program *p = new Program();
-  p->addArgument("A", {60, 60}, {"X", "Y"}, ElemKind::Float32Ty);
-  p->addArgument("B", {60, 60}, {"X", "Y"}, ElemKind::Float32Ty);
-  p->addArgument("C", {60, 60}, {"X", "Y"}, ElemKind::Float32Ty);
-
-  auto *A = p->getArg(0);
-  auto *B = p->getArg(1);
-  auto *C = p->getArg(2);
-
-  auto *I = new Loop("i", 60, 1);
-  auto *J1 = new Loop("j1", 60, 1);
-  auto *J2 = new Loop("j2", 60, 1);
-
-  p->addStmt(I);
-  I->addStmt(J1);
-  I->addStmt(J2);
-
-  auto *ldB = new LoadExpr(B, {new IndexExpr(I), new IndexExpr(J1)});
-  auto *st1 =
-      new StoreStmt(A, {new IndexExpr(I), new IndexExpr(J1)}, ldB, false);
-  J1->addStmt(st1);
-
-  auto *ldC = new LoadExpr(C, {new IndexExpr(I), new IndexExpr(J2)});
-  auto *st2 =
-      new StoreStmt(A, {new IndexExpr(I), new IndexExpr(J2)}, ldC, false);
-  J2->addStmt(st2);
-
-  p->verify();
-  p->dump();
-  ::sinkLoop(I);
-  p->dump();
-
-  NodeCounter counter;
-  p->visit(&counter);
-
-  EXPECT_EQ(counter.stmt, 7);
-  EXPECT_EQ(counter.expr, 10);
-  delete p->clone();
-  delete p;
-}
-
 TEST(basic, unroll_loop) {
   Program *p = new Program();
   p->addArgument("A", {10}, {"X"}, ElemKind::Float32Ty);
@@ -313,6 +271,77 @@ TEST(basic, peel_loop) {
 
   EXPECT_EQ(counter.stmt, 5);
   EXPECT_EQ(counter.expr, 10);
+  delete p->clone();
+  delete p;
+}
+
+TEST(basic, peel_loop2) {
+  Program *p = new Program();
+  p->addArgument("A", {60, 60}, {"X", "Y"}, ElemKind::Float32Ty);
+  p->addArgument("B", {60, 60}, {"X", "Y"}, ElemKind::Float32Ty);
+  p->addArgument("C", {60, 60}, {"X", "Y"}, ElemKind::Float32Ty);
+
+  auto *A = p->getArg(0);
+  auto *B = p->getArg(1);
+  auto *C = p->getArg(2);
+
+  auto *I = new Loop("i", 60, 1);
+  auto *J1 = new Loop("j1", 60, 1);
+  auto *J2 = new Loop("j2", 60, 1);
+
+  p->addStmt(I);
+  I->addStmt(J1);
+  I->addStmt(J2);
+
+  auto *ldB = new LoadExpr(B, {new IndexExpr(I), new IndexExpr(J1)});
+  auto *st1 =
+      new StoreStmt(A, {new IndexExpr(I), new IndexExpr(J1)}, ldB, false);
+  J1->addStmt(st1);
+
+  auto *ldC = new LoadExpr(C, {new IndexExpr(I), new IndexExpr(J2)});
+  auto *st2 =
+      new StoreStmt(A, {new IndexExpr(I), new IndexExpr(J2)}, ldC, false);
+  J2->addStmt(st2);
+
+  p->verify();
+  p->dump();
+  ::peelLoop(J1, 15);
+  p->dump();
+
+  NodeCounter counter;
+  p->visit(&counter);
+
+  EXPECT_EQ(counter.stmt, 8);
+  EXPECT_EQ(counter.expr, 19);
+  delete p->clone();
+  delete p;
+}
+
+TEST(basic, vectorize_memcpy_loop) {
+  // DEST[i] = SRC[i];
+  Program *p = new Program();
+  auto *dest = p->addArgument("DEST", {1024}, {"len"}, ElemKind::Float32Ty);
+  auto *src = p->addArgument("SRC", {1024}, {"len"}, ElemKind::Float32Ty);
+
+  auto *I = new Loop("i", 1024, 1);
+
+  p->addStmt(I);
+
+  auto *ld = new LoadExpr(src, {new IndexExpr(I)});
+  auto *st = new StoreStmt(dest, {new IndexExpr(I)}, ld, false);
+  I->addStmt(st);
+
+  p->verify();
+  p->dump();
+  auto res = ::vectorize(I, 4);
+  EXPECT_TRUE(res);
+  p->dump();
+
+  NodeCounter counter;
+  p->visit(&counter);
+
+  EXPECT_EQ(counter.stmt, 3);
+  EXPECT_EQ(counter.expr, 3);
   delete p->clone();
   delete p;
 }
