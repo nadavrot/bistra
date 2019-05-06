@@ -158,6 +158,9 @@ struct ExprType final {
     return Type::getElementName(elementType_);
   }
 
+  /// \returns the textual representation of the type. Example: float8.
+  std::string getTypename() const;
+
   /// Prints the type.
   void dump() const;
 };
