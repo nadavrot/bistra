@@ -150,6 +150,9 @@ void LoadExpr::dump() const {
     I->dump();
   }
   std::cout << "]";
+  if (getType().isVector()) {
+    std::cout << "." << getType().getWidth();
+  }
 }
 
 void StoreStmt::dump(unsigned indent) const {
@@ -163,7 +166,11 @@ void StoreStmt::dump(unsigned indent) const {
     first = false;
     I->dump();
   }
-  std::cout << (accumulate_ ? "] += " : "] = ");
+  std::cout << "]";
+  if (value_->getType().isVector()) {
+    std::cout << "." << value_->getType().getWidth();
+  }
+  std::cout << (accumulate_ ? " += " : " = ");
   value_->dump();
   std::cout << ";\n";
 }
