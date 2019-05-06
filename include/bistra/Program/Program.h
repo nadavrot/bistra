@@ -194,6 +194,9 @@ public:
   /// \returns the vectorization factor.
   unsigned getVF() const { return vf_; }
 
+  /// Updated the vectorization factor.
+  void setVF(unsigned vf) { vf_ = vf; }
+
   virtual void dump(unsigned indent) const override;
   virtual Stmt *clone(CloneCtx &map) override;
   virtual void verify() const override;
@@ -245,6 +248,8 @@ class IndexExpr final : public Expr {
 
 public:
   IndexExpr(Loop *loop) : Expr(ElemKind::IndexTy), loop_(loop) {}
+
+  IndexExpr(Loop *loop, const ExprType &ty) : Expr(ty), loop_(loop) {}
 
   /// \returns the loop that this expression indexes.
   Loop *getLoop() const { return loop_; }
