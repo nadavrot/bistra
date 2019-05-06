@@ -263,6 +263,8 @@ void BinaryExpr::verify() const {
   assert(RHS_.getParent() == this && "Invalid handle owner pointer");
   assert(LHS_.get() && "Invalid operand");
   assert(RHS_.get() && "Invalid operand");
+  LHS_->verify();
+  RHS_->verify();
 }
 
 void ConstantExpr::verify() const {}
@@ -281,6 +283,7 @@ void Loop::verify() const {
 void Scope::verify() const {
   for (auto &EH : body_) {
     assert(EH.get() && "Invalid operand");
+    EH.verify();
     EH->verify();
   }
 }
@@ -324,6 +327,7 @@ void LoadExpr::verify() const {
 void StoreStmt::verify() const {
   for (auto &E : indices_) {
     E.verify();
+    E->verify();
     assert(E.getParent() == this && "Invalid handle owner pointer");
     assert(E->getType().isIndexTy() && "Argument must be of index kind");
   }
@@ -332,8 +336,10 @@ void StoreStmt::verify() const {
          "Invalid number of indices");
 
   assert(value_.getParent() == this && "Invalid handle owner pointer");
-
   auto storedType = value_->getType();
+
+  value_->verify();
+  value_.verify();
 
   // Get the store element kind and vectorization factor.
   ElemKind EK = arg_->getType()->getElementType();
