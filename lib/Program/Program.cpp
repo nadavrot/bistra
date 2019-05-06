@@ -97,9 +97,10 @@ void Scope::removeStmt(Stmt *s) {
     }
   }
 
-  body_.erase(std::remove_if(body_.begin(), body_.end(),
-                             [&](StmtHandle &SH) { return SH.get() == nullptr; }),
-              body_.end());
+  body_.erase(
+      std::remove_if(body_.begin(), body_.end(),
+                     [&](StmtHandle &SH) { return SH.get() == nullptr; }),
+      body_.end());
 }
 
 void Scope::insertBeforeStmt(Stmt *s, Stmt *where) {
@@ -130,6 +131,12 @@ void ConstantExpr::dump() const {
 
 void ConstantFPExpr::dump() const {
   std::cout << " " + std::to_string(val_) + " ";
+}
+
+void BroadcastExpr::dump() const {
+  std::cout << "{|";
+  val_->dump();
+  std::cout << "|}";
 }
 
 void LoadExpr::dump() const {
@@ -188,6 +195,10 @@ Expr *AddExpr::clone(CloneCtx &map) {
 }
 Expr *MulExpr::clone(CloneCtx &map) {
   return new AddExpr(LHS_->clone(map), RHS_->clone(map));
+}
+
+Expr *BroadcastExpr::clone(CloneCtx &map) {
+  return new BroadcastExpr(val_->clone(map), vf_);
 }
 
 Expr *LoadExpr::clone(CloneCtx &map) {
@@ -285,6 +296,11 @@ void IndexExpr::verify() const {
                      "loop scope.");
   }
 }
+void BroadcastExpr::verify() const {
+  val_->verify();
+  assert(getType().getWidth() == vf_ && "Invalid vectorization factor");
+  assert(val_->getType().getWidth() == 1 && "Broadcasting a vector");
+}
 
 void LoadExpr::verify() const {
   for (auto &E : indices_) {
@@ -321,7 +337,7 @@ void StoreStmt::verify() const {
 
   // Get the store element kind and vectorization factor.
   ElemKind EK = arg_->getType()->getElementType();
-  auto &lastIndex = indices_[indices_.size() - 1];
+  auto &lastIndex = getLastIndex();
   unsigned VF = lastIndex->getType().getWidth();
   assert(storedType.getWidth() == VF &&
          "Stored type does not match vectorization factor");
@@ -380,6 +396,12 @@ void StoreStmt::visit(NodeVisitor *visitor) {
     ii.get()->visit(visitor);
   }
   value_->visit(visitor);
+  visitor->leave(this);
+}
+
+void BroadcastExpr::visit(NodeVisitor *visitor) {
+  visitor->enter(this);
+  val_->visit(visitor);
   visitor->leave(this);
 }
 
