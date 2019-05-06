@@ -328,6 +328,25 @@ public:
   virtual Expr *clone(CloneCtx &map) override;
 };
 
+/// Broadcasts a value from scalar to vector.
+class BroadcastExpr : public Expr {
+  /// The value to broadcast.
+  ExprHandle val_;
+  /// The vectorization width.
+  unsigned vf_;
+
+public:
+  BroadcastExpr(Expr *val, unsigned vf)
+      : Expr(val->getType().asVector(vf)), val_(val, this), vf_(vf) {}
+
+  Expr *getValue() { return val_; }
+
+  virtual void dump() const override;
+  virtual Expr *clone(CloneCtx &map) override;
+  virtual void verify() const override;
+  virtual void visit(NodeVisitor *visitor) override;
+};
+
 /// Loads some value from a buffer.
 class LoadExpr final : public Expr {
   /// The buffer to access.
@@ -382,6 +401,14 @@ public:
 
   /// \returns the indices indexing into the array.
   const std::vector<ExprHandle> &getIndices() { return indices_; }
+
+  /// \returns the expression of the last index.
+  const ExprHandle &getLastIndex() const {
+    return indices_[indices_.size() - 1];
+  }
+
+  /// \returns the expression of the last index.
+  ExprHandle &getLastIndex() { return indices_[indices_.size() - 1]; }
 
   /// \returns the stored value.
   ExprHandle &getValue() { return value_; }
