@@ -363,7 +363,7 @@ TEST(basic, vectorize_memset) {
   p->dump();
   auto res = ::vectorize(I, 8);
   EXPECT_TRUE(res);
-  EXPECT_EQ(I->getVF(), 8);
+  EXPECT_EQ(I->getStride(), 8);
   p->dump();
 
   NodeCounter counter;

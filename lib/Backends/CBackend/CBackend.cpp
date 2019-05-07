@@ -157,7 +157,7 @@ public:
     // Handle 'Loop'.
     if (Loop *l = dynamic_cast<Loop *>(stmt)) {
       auto name = l->getName();
-      unsigned increment = l->getVF();
+      unsigned increment = l->getStride();
       sb_ << "for (size_t " << name << " = 0; " << name << " < " << l->getEnd()
           << "; " << name << "+=" << increment << ") {\n";
       // Generate all of the statements in the scope.

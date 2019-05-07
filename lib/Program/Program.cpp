@@ -119,8 +119,8 @@ void Scope::insertAfterStmt(Stmt *s, Stmt *where) {
 void Loop::dump(unsigned indent) const {
   spaces(indent);
   std::string vf;
-  if (vf_ != 1) {
-    vf = std::string(".") + std::to_string(vf_);
+  if (stride_ != 1) {
+    vf = std::string(".") + std::to_string(stride_);
   }
 
   std::cout << "for" << vf << " (" << indexName_ << " in 0.." << end_
@@ -240,7 +240,7 @@ Expr *IndexExpr::clone(CloneCtx &map) {
 }
 
 Stmt *Loop::clone(CloneCtx &map) {
-  Loop *loop = new Loop(indexName_, end_, vf_);
+  Loop *loop = new Loop(indexName_, end_, stride_);
   map.map(this, loop);
   for (auto &MH : body_) {
     loop->addStmt(MH->clone(map));
@@ -285,9 +285,8 @@ void ConstantFPExpr::verify() const {}
 
 void Loop::verify() const {
   assert(end_ > 0 && "Loops must not be empty");
-  assert(end_ % vf_ == 0 &&
-         "Trip count must be divisible by vectorization factor");
-  assert(vf_ > 0 && vf_ < 64 && "Invalid vectorization factor");
+  assert(end_ % stride_ == 0 && "Trip count must be divisible by the stride");
+  assert(stride_ > 0 && stride_ < 256 && "Invalid stride");
   assert(isLegalName(getName()) && "Invalid character in index name");
   Scope::verify();
 }
@@ -327,7 +326,7 @@ void LoadExpr::verify() const {
   assert(arg_->getType()->getNumDims() == indices_.size() &&
          "Invalid number of indices");
 
-  // Get the store element kind and vectorization factor.
+  // Check the store element kind.
   ElemKind EK = arg_->getType()->getElementType();
   assert(getType().getElementType() == EK && "Loaded element type mismatch");
 }
@@ -349,7 +348,7 @@ void StoreStmt::verify() const {
   value_->verify();
   value_.verify();
 
-  // Get the store element kind and vectorization factor.
+  // Check the store value type.
   ElemKind EK = arg_->getType()->getElementType();
   assert(storedType.getElementType() == EK && "Stored element type mismatch");
 }
