@@ -206,7 +206,8 @@ public:
       if (!first) {
         sb_ << ",";
       }
-      sb_ << p->getType()->getElementName() << "* __restrict__ " << p->getName();
+      sb_ << p->getType()->getElementName() << "* __restrict__ "
+          << p->getName();
       first = false;
     }
     sb_ << ") {\n";
