@@ -6,12 +6,19 @@
 using namespace bistra;
 
 namespace {
-/// A visitor class that visits all nodes in the program.
+/// A visitor class that visits all IndexExpr nodes in the program. Uses
+/// optional filter to collect only indices for one specific loop.
 struct IndexCollector : public NodeVisitor {
   std::vector<IndexExpr *> &indices_;
-  IndexCollector(std::vector<IndexExpr *> &indices) : indices_(indices) {}
+  Loop *filter_;
+  IndexCollector(std::vector<IndexExpr *> &indices, Loop *filter)
+      : indices_(indices), filter_(filter) {}
   virtual void enter(Expr *E) override {
     if (IndexExpr *IE = dynamic_cast<IndexExpr *>(E)) {
+      // Apply the optional filter and ignore loops that are not the requested
+      // loop.
+      if (filter_ && IE->getLoop() != filter_)
+        return;
       indices_.push_back(IE);
     }
   }
@@ -67,8 +74,9 @@ void HotScopeCollector::leave(Stmt *E) {
   }
 }
 
-void bistra::collectIndices(ASTNode *S, std::vector<IndexExpr *> &indices) {
-  IndexCollector IC(indices);
+void bistra::collectIndices(ASTNode *S, std::vector<IndexExpr *> &indices,
+                            Loop *filter) {
+  IndexCollector IC(indices, filter);
   S->visit(&IC);
 }
 
