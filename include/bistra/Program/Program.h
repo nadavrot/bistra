@@ -173,11 +173,11 @@ class Loop final : public Scope {
   unsigned end_;
 
   // Vectorization factor.
-  unsigned vf_{1};
+  unsigned stride_{1};
 
 public:
   Loop(std::string name, unsigned end, unsigned vf = 0)
-      : indexName_(name), end_(end), vf_(vf) {}
+      : indexName_(name), end_(end), stride_(vf) {}
 
   /// \returns the name of the induction variable.
   const std::string &getName() const { return indexName_; }
@@ -191,11 +191,11 @@ public:
   /// Sets the trip count;
   void setEnd(unsigned tc) { end_ = tc; }
 
-  /// \returns the vectorization factor.
-  unsigned getVF() const { return vf_; }
+  /// \returns the loop stride factor.
+  unsigned getStride() const { return stride_; }
 
-  /// Updated the vectorization factor.
-  void setVF(unsigned vf) { vf_ = vf; }
+  /// Updated the loop stride.
+  void setStride(unsigned s) { stride_ = s; }
 
   virtual void dump(unsigned indent) const override;
   virtual Stmt *clone(CloneCtx &map) override;

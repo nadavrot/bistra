@@ -124,7 +124,7 @@ static bool mayVectorizeLastIndex(Expr *E, Loop *L) {
         continue;
       }
       // Other indices are okay to access as long as they are consecutive.
-      if (IE->getLoop()->getVF() != 1)
+      if (IE->getLoop()->getStride() != 1)
         return false;
 
       continue;
@@ -149,7 +149,7 @@ static bool mayVectorizeNonLastIndex(Expr *E, Loop *L) {
   collectIndices(E, collected);
   // Check that the non-consecutive dims don't access the vectorized index.
   for (auto &idx : collected) {
-    assert(idx->getLoop()->getVF() == 1 && "vectorizing on the wrong dim");
+    assert(idx->getLoop()->getStride() == 1 && "vectorizing on the wrong dim");
     if (idx->getLoop() == L)
       return false;
   }
@@ -310,7 +310,7 @@ static StoreStmt *vectorizeStore(StoreStmt *S, Loop *L, unsigned vf) {
 bool bistra::vectorize(Loop *L, unsigned vf) {
   unsigned tripCount = L->getEnd();
   // The trip count must contain the vec-width and loop must not be vectorized.
-  if (tripCount <= vf || L->getVF() != 1) {
+  if (tripCount < vf || L->getStride() != 1) {
     return false;
   }
 
@@ -333,8 +333,8 @@ bool bistra::vectorize(Loop *L, unsigned vf) {
     ::peelLoop(L, tripCount - (tripCount % vf));
   }
 
-  // Update the loop vectorization factor.
-  L->setVF(vf);
+  // Update the loop stride to reflect the vectorization factor.
+  L->setStride(vf);
 
   // Update the stores in the program and the expressions they drive.
   for (auto *S : stores) {
