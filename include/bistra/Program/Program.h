@@ -176,8 +176,8 @@ class Loop final : public Scope {
   unsigned stride_{1};
 
 public:
-  Loop(std::string name, unsigned end, unsigned vf = 0)
-      : indexName_(name), end_(end), stride_(vf) {}
+  Loop(std::string name, unsigned end, unsigned stride = 1)
+      : indexName_(name), end_(end), stride_(stride) {}
 
   /// \returns the name of the induction variable.
   const std::string &getName() const { return indexName_; }

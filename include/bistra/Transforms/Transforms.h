@@ -21,6 +21,12 @@ Loop *peelLoop(Loop *L, unsigned k);
 /// Try to vectorize the loop \p L for the vectorization factor \p vf.
 bool vectorize(Loop *L, unsigned vf);
 
+/// Widen the loop by the factor \p wf. Widening is similar to vectorization
+/// because we perform more work on each iteration. It is also similar unrolling
+/// Each store site that uses the induction variable is duplicated.
+/// Example: A[i] = 3 becomes A[i] = 3; A[i+1] = 3;
+bool widen(Loop *L, unsigned wf);
+
 } // namespace bistra
 
 #endif // BISTRA_TRANSFORMS_TRANSFORMS_H

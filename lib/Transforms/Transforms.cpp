@@ -348,3 +348,67 @@ bool bistra::vectorize(Loop *L, unsigned vf) {
 
   return true;
 }
+
+/// Widen (duplicate and update index) the store \p S. Using the loop index \p L
+/// and the offset \p offsett. Example: A[i]=B[i] becomes A[i]=B[i]; A[i+1] =
+/// B[i+1]
+static void widenStore(StoreStmt *S, Loop *L, unsigned offset) {
+  CloneCtx map;
+  auto *dup = S->clone(map);
+
+  // Update all of the indices in the statement to refer to the shifted index.
+  std::vector<IndexExpr *> indices;
+  collectIndices(dup, indices);
+
+  for (auto *idx : indices) {
+    // Only update the induction indices.
+    if (idx->getLoop() != L)
+      continue;
+    // I -> (I + offset);
+    auto *expr = new AddExpr(new IndexExpr(L), new ConstantExpr(offset));
+    idx->replaceUseWith(expr);
+  }
+
+  // Insert the new store after the original store.
+  ((Scope *)S->getParent())->insertAfterStmt(dup, S);
+}
+
+bool bistra::widen(Loop *L, unsigned wf) {
+  assert(wf > 1 && wf < 1024 && "Unexpected widen factor");
+  unsigned stride = L->getStride();
+  unsigned newStride = stride * wf;
+
+  unsigned tripCount = L->getEnd();
+  // The trip count must contain the vec-width and loop must not be vectorized.
+  if (tripCount < (newStride)) {
+    return false;
+  }
+
+  std::vector<IndexExpr *> indices;
+  collectIndices(L, indices);
+
+  std::set<StoreStmt *> stores;
+  bool collected = collectStoreSites(stores, indices);
+  if (!collected)
+    return false;
+
+  // Transform the loop to divide the loop trip count.
+  if (tripCount % newStride) {
+    ::peelLoop(L, tripCount - (tripCount % (newStride)));
+  }
+
+  // Widen the stores by duplicating them X times, updating the references to
+  // the induction variable.
+  for (auto *S : stores) {
+    // Duplicate and update the store WF times.
+    for (int i = 1; i < wf; i++) {
+      widenStore(S, L, i * stride);
+    }
+  }
+
+  // Update the loop stride to reflect the widen factor. Notice that we may
+  // widen vectorized loops, so we need to multiply the widen factor by the
+  // current stride.
+  L->setStride(newStride);
+  return true;
+}
