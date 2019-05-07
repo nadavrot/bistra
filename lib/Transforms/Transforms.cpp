@@ -123,7 +123,7 @@ static bool mayVectorizeLastIndex(Expr *E, Loop *L) {
         loopIndexFound++;
         continue;
       }
-      // Other indices are okay to access as long as they are scalar.
+      // Other indices are okay to access as long as they are consecutive.
       if (IE->getLoop()->getVF() != 1)
         return false;
 
@@ -236,30 +236,30 @@ static bool mayVectorizeStore(StoreStmt *S, Loop *L) {
   return mayVectorizeLoadStoreAccess(S->getIndices(), L);
 }
 
-/// Vectorize the expression on the index \p L.
+/// Vectorize the expression on the index \p L with vectorization factor \p vf.
 /// \returns a new scalar or vectorized expression.
-static Expr *vectorizeExpr(Expr *E, Loop *L) {
+static Expr *vectorizeExpr(Expr *E, Loop *L, unsigned vf) {
   if (IndexExpr *IE = dynamic_cast<IndexExpr *>(E)) {
     // Don't touch indices that are not vectorized.
     if (IE->getLoop() != L) {
       return IE;
     }
 
-    ExprType IndexTy(ElemKind::IndexTy, L->getVF());
+    ExprType IndexTy(ElemKind::IndexTy, vf);
     return new IndexExpr(L, IndexTy);
   }
 
   // We can vectorize add/mul expressions if we can vectorize both sides.
   if (BinaryExpr *AE = dynamic_cast<BinaryExpr *>(E)) {
-    auto *VL = vectorizeExpr(AE->getLHS(), L);
-    auto *VR = vectorizeExpr(AE->getRHS(), L);
+    auto *VL = vectorizeExpr(AE->getLHS(), L, vf);
+    auto *VR = vectorizeExpr(AE->getRHS(), L, vf);
 
     // Broadcast one side if the other is a vector.
     if (VL->getType().isVector() != VR->getType().isVector()) {
       if (!VL->getType().isVector())
-        VL = new BroadcastExpr(VL, L->getVF());
+        VL = new BroadcastExpr(VL, vf);
       if (!VR->getType().isVector())
-        VR = new BroadcastExpr(VR, L->getVF());
+        VR = new BroadcastExpr(VR, vf);
     }
 
     if (dynamic_cast<AddExpr *>(E)) {
@@ -275,8 +275,12 @@ static Expr *vectorizeExpr(Expr *E, Loop *L) {
   if (LoadExpr *LE = dynamic_cast<LoadExpr *>(E)) {
     std::vector<Expr *> indices;
     for (auto &E : LE->getIndices())
-      indices.push_back(vectorizeExpr(E.get(), L));
-    return new LoadExpr(LE->getDest(), indices);
+      indices.push_back(vectorizeExpr(E.get(), L, vf));
+
+    // Create a new vectorized load.
+    auto *VLE = new LoadExpr(LE->getDest(), indices);
+    VLE->setType(ExprType(VLE->getType().getElementType(), vf));
+    return VLE;
   }
 
   if (dynamic_cast<ConstantExpr *>(E) || dynamic_cast<ConstantFPExpr *>(E)) {
@@ -287,25 +291,26 @@ static Expr *vectorizeExpr(Expr *E, Loop *L) {
   return nullptr;
 }
 
-/// Vectorize the store statement on the index \p L.
-static StoreStmt *vectorizeStore(StoreStmt *S, Loop *L) {
+/// Vectorize the store statement on the index \p L using the vectorization
+/// factor \p vf.
+static StoreStmt *vectorizeStore(StoreStmt *S, Loop *L, unsigned vf) {
   // Vectorize or broadcast the value to be saved.
-  Expr *val = vectorizeExpr(S->getValue().get(), L);
+  Expr *val = vectorizeExpr(S->getValue().get(), L, vf);
   if (!val->getType().isVector()) {
-    val = new BroadcastExpr(val, L->getVF());
+    val = new BroadcastExpr(val, vf);
   }
 
   std::vector<Expr *> indices;
   for (auto &E : S->getIndices()) {
-    indices.push_back(vectorizeExpr(E.get(), L));
+    indices.push_back(vectorizeExpr(E.get(), L, vf));
   }
   return new StoreStmt(S->getDest(), indices, val, S->isAccumulate());
 }
 
 bool bistra::vectorize(Loop *L, unsigned vf) {
   unsigned tripCount = L->getEnd();
-  // The loop trip count must contain the vector width.
-  if (tripCount <= vf) {
+  // The trip count must contain the vec-width and loop must not be vectorized.
+  if (tripCount <= vf || L->getVF() != 1) {
     return false;
   }
 
@@ -334,7 +339,7 @@ bool bistra::vectorize(Loop *L, unsigned vf) {
   // Update the stores in the program and the expressions they drive.
   for (auto *S : stores) {
     auto *handle = S->getOwnerHandle();
-    handle->setReference(vectorizeStore(S, L));
+    handle->setReference(vectorizeStore(S, L, vf));
   }
 
   return true;

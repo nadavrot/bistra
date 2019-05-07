@@ -374,11 +374,8 @@ public:
     }
     assert(arg->getType()->getNumDims() == indices_.size() &&
            "Invalid number of indices");
-    // Get the element kind.
-    ElemKind EK = arg->getType()->getElementType();
-    // Get the vectorization factor.
-    unsigned FV = indices[indices.size() - 1]->getType().getWidth();
-    setType(ExprType(EK, FV));
+    // This loads a scalar value from the buffer.
+    setType(ExprType(arg->getType()->getElementType()));
   }
 
   ~LoadExpr() = default;
