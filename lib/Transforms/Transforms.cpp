@@ -303,8 +303,9 @@ static StoreStmt *vectorizeStore(StoreStmt *S, Loop *L) {
 }
 
 bool bistra::vectorize(Loop *L, unsigned vf) {
-  // The vectorization factor must divide the loop trip count.
-  if (L->getEnd() % vf) {
+  unsigned tripCount = L->getEnd();
+  // The loop trip count must contain the vector width.
+  if (tripCount <= vf) {
     return false;
   }
 
@@ -320,6 +321,11 @@ bool bistra::vectorize(Loop *L, unsigned vf) {
     if (!mayVectorizeStore(S, L)) {
       return false;
     }
+  }
+
+  // Transform the loop to divide the loop trip count.
+  if (tripCount % vf) {
+    ::peelLoop(L, tripCount - (tripCount % vf));
   }
 
   // Update the loop vectorization factor.
