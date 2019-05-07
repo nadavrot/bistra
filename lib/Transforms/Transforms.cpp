@@ -28,6 +28,10 @@ Loop *bistra::tile(Loop *L, unsigned blockSize) {
   collectIndices(L, indices);
 
   for (auto *idx : indices) {
+    // Only update the loop index indices.
+    if (idx->getLoop() != L)
+      continue;
+
     // I -> (I * bs) + I.tile;
     auto *mul = new MulExpr(new IndexExpr(L), new ConstantExpr(blockSize));
     auto *expr = new AddExpr(new IndexExpr(B), mul);
