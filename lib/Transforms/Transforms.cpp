@@ -6,10 +6,10 @@
 
 using namespace bistra;
 
-bool bistra::tile(Loop *L, unsigned blockSize) {
+Loop *bistra::tile(Loop *L, unsigned blockSize) {
   // Trip count must divide the block size.
   if (L->getEnd() % blockSize)
-    return false;
+    return nullptr;
 
   // Update the original-loop's trip count.
   L->setEnd(L->getEnd() / blockSize);
@@ -34,7 +34,7 @@ bool bistra::tile(Loop *L, unsigned blockSize) {
     idx->replaceUseWith(expr);
   }
 
-  return true;
+  return B;
 }
 
 bool bistra::unrollLoop(Loop *L, unsigned maxTripCount) {
@@ -74,11 +74,11 @@ bool bistra::unrollLoop(Loop *L, unsigned maxTripCount) {
   return true;
 }
 
-bool bistra::peelLoop(Loop *L, unsigned k) {
+Loop *bistra::peelLoop(Loop *L, unsigned k) {
   unsigned origTripCount = L->getEnd();
   // Trip count must be smaller than the partition size.
   if (origTripCount < k)
-    return false;
+    return nullptr;
 
   // Update the new and original-loop's trip count.
   L->setEnd(k);
@@ -101,7 +101,7 @@ bool bistra::peelLoop(Loop *L, unsigned k) {
 
   // Insert the peeled loop after the original loop.
   ((Scope *)L->getParent())->insertAfterStmt(L2, L);
-  return true;
+  return L2;
 }
 
 //--------------------------   Vectorization   -------------------------------//
