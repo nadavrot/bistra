@@ -41,8 +41,9 @@ int main() {
 
   p->verify();
   p->dump();
-
-  tile(J, 32);
+  ::vectorize(I, 8);
+  ::vectorize(J, 8);
+  ::vectorize(K, 8);
   p->dump();
 
   auto CB = getBackend("C");
