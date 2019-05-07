@@ -59,7 +59,7 @@ bool bistra::unrollLoop(Loop *L, unsigned maxTripCount) {
       auto *newSt = ST->clone(map);
       // Collect the indices.
       std::vector<IndexExpr *> indices;
-      collectIndices(newSt, indices);
+      collectIndices(newSt, indices, L);
       // Update the indices to the constant iter number.
       for (auto *IE : indices) {
         IE->replaceUseWith(new ConstantExpr(iter));
@@ -318,8 +318,9 @@ bool bistra::vectorize(Loop *L, unsigned vf) {
     return false;
   }
 
+  // Collect the indices in the loop L that access the index of L.
   std::vector<IndexExpr *> indices;
-  collectIndices(L, indices);
+  collectIndices(L, indices, L);
 
   std::set<StoreStmt *> stores;
   bool collected = collectStoreSites(stores, indices);
@@ -385,7 +386,7 @@ bool bistra::widen(Loop *L, unsigned wf) {
   }
 
   std::vector<IndexExpr *> indices;
-  collectIndices(L, indices);
+  collectIndices(L, indices, L);
 
   std::set<StoreStmt *> stores;
   bool collected = collectStoreSites(stores, indices);
