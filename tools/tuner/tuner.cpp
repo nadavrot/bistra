@@ -44,6 +44,7 @@ int main() {
   ::vectorize(I, 8);
   ::vectorize(J, 8);
   ::vectorize(K, 8);
+  ::widen(J, 3);
   p->dump();
 
   auto CB = getBackend("C");

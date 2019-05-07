@@ -374,3 +374,53 @@ TEST(basic, vectorize_memset) {
   delete p->clone();
   delete p;
 }
+
+TEST(basic, widen_loop) {
+  Program *p = new Program();
+  p->addArgument("D", {17}, {"D"}, ElemKind::Float32Ty);
+  auto *D = p->getArg(0);
+
+  auto *I = new Loop("i", 17, 1);
+  p->addStmt(I);
+  auto *st1 = new StoreStmt(D, {new IndexExpr(I)}, new ConstantFPExpr(0.2), 0);
+  I->addStmt(st1);
+
+  p->verify();
+  p->dump();
+  ::widen(I, 3);
+  p->dump();
+
+  NodeCounter counter;
+  p->visit(&counter);
+
+  EXPECT_EQ(counter.stmt, 7);
+  EXPECT_EQ(counter.expr, 14);
+  delete p->clone();
+  delete p;
+}
+
+TEST(basic, vectorize_widen_loop) {
+  Program *p = new Program();
+  auto *K = p->addArgument("K", {117}, {"K"}, ElemKind::Float32Ty);
+
+  auto *I = new Loop("index", 117);
+  p->addStmt(I);
+  auto *st1 = new StoreStmt(K, {new IndexExpr(I)}, new ConstantFPExpr(33), 1);
+  I->addStmt(st1);
+
+  p->verify();
+  p->dump();
+  ::vectorize(I, 4);
+  p->verify();
+  p->dump();
+  ::widen(I, 3);
+  p->dump();
+
+  NodeCounter counter;
+  p->visit(&counter);
+
+  EXPECT_EQ(counter.stmt, 9);
+  EXPECT_EQ(counter.expr, 22);
+  delete p->clone();
+  delete p;
+}
