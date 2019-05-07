@@ -313,7 +313,7 @@ double CBackend::evaluateCode(Program *p, unsigned iter) {
   out.close();
 
   // Compile:
-  shellExec(std::string("clang -Ofast ") + tmpSrcName + " -o " + tmpBinName);
+  shellExec(std::string("clang -mavx2 -Ofast ") + tmpSrcName + " -o " + tmpBinName);
 
   // Execute:
   std::string timeReport = shellExec(tmpBinName);
