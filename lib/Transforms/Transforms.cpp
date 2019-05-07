@@ -25,12 +25,9 @@ Loop *bistra::tile(Loop *L, unsigned blockSize) {
   // Update all of the indices in the program to refer to the combination of
   // two indices of the two loops.
   std::vector<IndexExpr *> indices;
-  collectIndices(L, indices);
+  collectIndices(L, indices, L);
 
   for (auto *idx : indices) {
-    // Only update the loop index indices.
-    if (idx->getLoop() != L)
-      continue;
 
     // I -> (I * bs) + I.tile;
     auto *mul = new MulExpr(new IndexExpr(L), new ConstantExpr(blockSize));
@@ -95,12 +92,11 @@ Loop *bistra::peelLoop(Loop *L, unsigned k) {
   // Update all of the indices in the program to refer to the combination of
   // two indices of the two loops.
   std::vector<IndexExpr *> indices;
-  collectIndices(L2, indices);
+  collectIndices(L2, indices, L2);
   for (auto *idx : indices) {
-    if (idx->getLoop() == L2) {
-      auto *expr = new AddExpr(new ConstantExpr(k), new IndexExpr(L2));
-      idx->replaceUseWith(expr);
-    }
+    auto *expr = new AddExpr(new ConstantExpr(k), new IndexExpr(L2));
+    idx->replaceUseWith(expr);
+
   }
 
   // Insert the peeled loop after the original loop.
@@ -277,6 +273,15 @@ static Expr *vectorizeExpr(Expr *E, Loop *L, unsigned vf) {
 
   // Check that the load remains consecutive when vectorizing \p L.
   if (LoadExpr *LE = dynamic_cast<LoadExpr *>(E)) {
+    std::vector<IndexExpr *> idx;
+    collectIndices(LE, idx, L);
+
+    // If L is not used as an index inside the Load
+    // then we should scalarize it.
+    if (!idx.size()) {
+      return E;
+    }
+
     std::vector<Expr *> indices;
     for (auto &E : LE->getIndices())
       indices.push_back(vectorizeExpr(E.get(), L, vf));
@@ -359,12 +364,9 @@ static void widenStore(StoreStmt *S, Loop *L, unsigned offset) {
 
   // Update all of the indices in the statement to refer to the shifted index.
   std::vector<IndexExpr *> indices;
-  collectIndices(dup, indices);
+  collectIndices(dup, indices, L);
 
   for (auto *idx : indices) {
-    // Only update the induction indices.
-    if (idx->getLoop() != L)
-      continue;
     // I -> (I + offset);
     auto *expr = new AddExpr(new IndexExpr(L), new ConstantExpr(offset));
     idx->replaceUseWith(expr);
