@@ -220,7 +220,7 @@ Expr *LoadExpr::clone(CloneCtx &map) {
     indices.push_back(E->clone(map));
   }
 
-  return new LoadExpr(arg, indices);
+  return new LoadExpr(arg, indices, getType());
 }
 
 Stmt *StoreStmt::clone(CloneCtx &map) {

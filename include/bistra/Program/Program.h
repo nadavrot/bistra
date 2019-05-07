@@ -366,6 +366,12 @@ public:
   /// \returns the indices indexing into the array.
   const std::vector<ExprHandle> &getIndices() { return indices_; }
 
+  LoadExpr(Argument *arg, const std::vector<Expr *> &indices, ExprType elemTy)
+  : LoadExpr(arg, indices) {
+    // Override the type that we guess in the untyped ctor.
+    setType(elemTy);
+  }
+
   LoadExpr(Argument *arg, const std::vector<Expr *> &indices)
       : Expr(ElemKind::IndexTy), arg_(arg), indices_() {
     for (auto *E : indices) {
