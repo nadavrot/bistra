@@ -367,7 +367,7 @@ public:
   const std::vector<ExprHandle> &getIndices() { return indices_; }
 
   LoadExpr(Argument *arg, const std::vector<Expr *> &indices, ExprType elemTy)
-  : LoadExpr(arg, indices) {
+      : LoadExpr(arg, indices) {
     // Override the type that we guess in the untyped ctor.
     setType(elemTy);
   }
