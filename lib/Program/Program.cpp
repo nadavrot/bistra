@@ -329,10 +329,6 @@ void LoadExpr::verify() const {
 
   // Get the store element kind and vectorization factor.
   ElemKind EK = arg_->getType()->getElementType();
-  auto &lastIndex = indices_[indices_.size() - 1];
-  unsigned VF = lastIndex->getType().getWidth();
-  assert(getType().getWidth() == VF &&
-         "Loaded type does not match vectorization factor");
   assert(getType().getElementType() == EK && "Loaded element type mismatch");
 }
 
@@ -355,10 +351,6 @@ void StoreStmt::verify() const {
 
   // Get the store element kind and vectorization factor.
   ElemKind EK = arg_->getType()->getElementType();
-  auto &lastIndex = getLastIndex();
-  unsigned VF = lastIndex->getType().getWidth();
-  assert(storedType.getWidth() == VF &&
-         "Stored type does not match vectorization factor");
   assert(storedType.getElementType() == EK && "Stored element type mismatch");
 }
 
