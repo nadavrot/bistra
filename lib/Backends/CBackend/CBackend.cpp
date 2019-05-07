@@ -124,6 +124,14 @@ public:
 
     // Handle Load expressions.
     if (LoadExpr *ld = dynamic_cast<LoadExpr *>(exp)) {
+      if (ld->getType().isVector()) {
+        sb_ << "Load_" << ld->getType().getTypename() << "(&";
+        auto *buffer = ld->getDest();
+        emitBudderIndex(buffer->getName(), ld->getIndices());
+        sb_ << ") ";
+        return;
+      }
+
       sb_ << "(";
       auto *buffer = ld->getDest();
       emitBudderIndex(buffer->getName(), ld->getIndices());
