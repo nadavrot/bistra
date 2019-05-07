@@ -126,6 +126,8 @@ static bool mayVectorizeLastIndex(Expr *E, Loop *L) {
       // Other indices are okay to access as long as they are scalar.
       if (IE->getLoop()->getVF() != 1)
         return false;
+
+      continue;
     }
 
     // Addition expressions are okay because they don't scale the index.
@@ -257,7 +259,7 @@ static Expr *vectorizeExpr(Expr *E, Loop *L) {
 
     if (dynamic_cast<AddExpr *>(E)) {
       return new AddExpr(VL, VR);
-    } else if (dynamic_cast<AddExpr *>(E)) {
+    } else if (dynamic_cast<MulExpr *>(E)) {
       return new MulExpr(VL, VR);
     } else {
       assert(false && "Invalid binary operator");
