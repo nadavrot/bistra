@@ -240,6 +240,11 @@ static bool mayVectorizeStore(StoreStmt *S, Loop *L) {
 /// \returns a new scalar or vectorized expression.
 static Expr *vectorizeExpr(Expr *E, Loop *L) {
   if (IndexExpr *IE = dynamic_cast<IndexExpr *>(E)) {
+    // Don't touch indices that are not vectorized.
+    if (IE->getLoop() != L) {
+      return IE;
+    }
+
     ExprType IndexTy(ElemKind::IndexTy, L->getVF());
     return new IndexExpr(L, IndexTy);
   }
