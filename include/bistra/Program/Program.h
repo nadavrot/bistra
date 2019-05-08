@@ -511,7 +511,7 @@ public:
   }
 
   /// Clone indices and return the list of unowned expr indices.
-  std::vector<Expr*> cloneIndicesPtr(CloneCtx &map);
+  std::vector<Expr *> cloneIndicesPtr(CloneCtx &map);
 
   virtual void dump(unsigned indent) const override;
   virtual Stmt *clone(CloneCtx &map) override;
