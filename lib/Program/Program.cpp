@@ -158,7 +158,6 @@ void Scope::replaceStmt(Stmt *newS, Stmt *oldS) {
   assert(newS->getParent() == this && "New stmt not in this scope");
 }
 
-
 void Scope::insertBeforeStmt(Stmt *s, Stmt *where) {
   auto iter = std::find(body_.begin(), body_.end(), where);
   assert(iter != body_.end() && "Can't find the insertion point");
@@ -218,8 +217,8 @@ void LoadExpr::dump() const {
 
 void LoadLocalExpr::dump() const { std::cout << var_->getName(); }
 
-std::vector<Expr*> StoreStmt::cloneIndicesPtr(CloneCtx &map) {
-  std::vector<Expr*> ret;
+std::vector<Expr *> StoreStmt::cloneIndicesPtr(CloneCtx &map) {
+  std::vector<Expr *> ret;
   // Clone and save the raw unowned pointers.
   for (auto &h : getIndices()) {
     ret.push_back(h.get()->clone(map));

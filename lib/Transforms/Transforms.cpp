@@ -480,8 +480,8 @@ bool bistra::simplify(Stmt *s) {
 /// \returns true if we can show that the loads and stores operate on different
 /// buffers and don't interfer with oneanother.
 static bool areLoadsStoresDisjoint(const std::vector<LoadExpr *> &loads,
-                            const std::vector<StoreStmt *> &stores) {
-  std::set<Argument*> writes;
+                                   const std::vector<StoreStmt *> &stores) {
+  std::set<Argument *> writes;
   // Collect the write destination.
   for (auto *st : stores) {
     writes.insert(st->getDest());
@@ -562,18 +562,17 @@ static bool sinkStores(Program *p, Loop *L) {
     for (auto &idx : st->getIndices()) {
       dep |= dependsOnLoop(idx.get(), L);
     }
-    if (dep) continue;
+    if (dep)
+      continue;
 
     // Add a temporary local variable.
     auto ty = st->getValue()->getType();
     auto *var = p->addTempVar(st->getDest()->getName(), ty);
 
-
     // Zero the accumulator before the loop.
     CloneCtx map;
     auto *init = new StoreLocalStmt(var, getZeroExpr(ty), false);
     parentScope->insertBeforeStmt(init, L);
-
 
     // Store the variable after the loop.
     auto *flush = new StoreStmt(st->getDest(), st->cloneIndicesPtr(map),
