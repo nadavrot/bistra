@@ -403,7 +403,10 @@ bool bistra::widen(Loop *L, unsigned wf) {
   for (auto *S : stores) {
     // Duplicate and update the store WF times.
     for (int i = 1; i < wf; i++) {
-      widenStore(S, L, i * stride);
+      // We generate the dups in reverse order because we insert the code right
+      // after the original store, so reverse order creates consecutive orders
+      // that are easy to read and could help the compiler generate better code.
+      widenStore(S, L, (wf - i) * stride);
     }
   }
 
