@@ -59,6 +59,10 @@ void collectIndices(ASTNode *S, std::vector<IndexExpr *> &indices,
 /// Collect all of the loops under statement \p S into \p loops;
 void collectLoops(Stmt *S, std::vector<Loop *> &loops);
 
+/// \return True if the \p N depends on the loop index \p L.
+/// Example: "A[i] = 4" depends on i, but not on j;
+  bool dependsOnLoop(ASTNode *N, Loop *L);
+
 } // namespace bistra
 
 #endif // BISTRA_PROGRAM_UTILS_H
