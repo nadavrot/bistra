@@ -477,10 +477,32 @@ bool bistra::simplify(Stmt *s) {
   return changed;
 }
 
+/// \returns true if we can show that the loads and stores operate on different
+/// buffers and don't interfer with oneanother.
+static bool areLoadsStoresDisjoint(const std::vector<LoadExpr *> &loads,
+                            const std::vector<StoreStmt *> &stores) {
+  std::set<Argument*> writes;
+  // Collect the write destination.
+  for (auto *st : stores) {
+    writes.insert(st->getDest());
+  }
+  for (auto *ld : loads) {
+    // A pair of load/store wrote into the same buffer. Aborting.
+    if (writes.count(ld->getDest())) {
+      return false;
+    }
+  }
+  return true;
+}
+
 static bool hoistLoads(Program *p, Loop *L) {
   std::vector<LoadExpr *> loads;
   std::vector<StoreStmt *> stores;
   collectLoadStores(L, loads, stores);
+
+  // Abort if there are buffer dependencies between loads and stores.
+  if (!areLoadsStoresDisjoint(loads, stores))
+    return false;
 
   Scope *parentScope = (Scope *)L->getParent();
 
@@ -505,6 +527,69 @@ static bool hoistLoads(Program *p, Loop *L) {
   return false;
 }
 
-static bool sinkStores(Program *p, Loop *L) { return false; }
+/// Generate the zero vector of type \p T.
+static Expr *getZeroExpr(ExprType T) {
+  Expr *ret;
+  // Zero scalar:
+  if (T.isIndexTy()) {
+    ret = new ConstantExpr(0);
+  } else {
+    ret = new ConstantFPExpr(0.0);
+  }
 
-bool bistra::promoteLICM(Program *p, Loop *L) { return hoistLoads(p, L); }
+  // Widen if we are requested a vector.
+  if (T.isVector()) {
+    ret = new BroadcastExpr(ret, T.getWidth());
+  }
+
+  assert(ret->getType() == T);
+  return ret;
+}
+
+static bool sinkStores(Program *p, Loop *L) {
+  std::vector<LoadExpr *> loads;
+  std::vector<StoreStmt *> stores;
+  collectLoadStores(L, loads, stores);
+  // Abort if there are buffer dependencies between loads and stores.
+  if (!areLoadsStoresDisjoint(loads, stores))
+    return false;
+
+  Scope *parentScope = (Scope *)L->getParent();
+
+  for (auto *st : stores) {
+    // Don't hoist stores that depend on the loop index.
+    bool dep = false;
+    for (auto &idx : st->getIndices()) {
+      dep |= dependsOnLoop(idx.get(), L);
+    }
+    if (dep) continue;
+
+    // Add a temporary local variable.
+    auto ty = st->getValue()->getType();
+    auto *var = p->addTempVar(st->getDest()->getName(), ty);
+
+
+    // Zero the accumulator before the loop.
+    CloneCtx map;
+    auto *init = new StoreLocalStmt(var, getZeroExpr(ty), false);
+    parentScope->insertBeforeStmt(init, L);
+
+
+    // Store the variable after the loop.
+    auto *flush = new StoreStmt(st->getDest(), st->cloneIndicesPtr(map),
+                                new LoadLocalExpr(var), st->isAccumulate());
+    parentScope->insertAfterStmt(flush, L);
+
+    // Save into the temporary local variable.
+    auto *save = new StoreLocalStmt(var, st->getValue()->clone(map), false);
+    L->replaceStmt(save, st);
+  }
+
+  return false;
+}
+
+bool bistra::promoteLICM(Program *p, Loop *L) {
+  bool changed = hoistLoads(p, L);
+  changed |= sinkStores(p, L);
+  return changed;
+}
