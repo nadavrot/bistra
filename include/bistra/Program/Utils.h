@@ -79,7 +79,7 @@ void collectLoops(Stmt *S, std::vector<Loop *> &loops);
 
 /// \return True if the \p N depends on the loop index \p L.
 /// Example: "A[i] = 4" depends on i, but not on j;
-  bool dependsOnLoop(ASTNode *N, Loop *L);
+bool dependsOnLoop(ASTNode *N, Loop *L);
 
 } // namespace bistra
 
