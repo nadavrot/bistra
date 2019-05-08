@@ -177,6 +177,10 @@ public:
   /// \remove the statement \p s, if it is in the body.
   void removeStmt(Stmt *s);
 
+  /// Replace and delete the old statement \p oldS with \p newS.
+  /// \p oldS must be in the scope body.
+  void replaceStmt(Stmt *newS, Stmt *oldS);
+
   /// Insert the statement \p s before \p where. \p where must be in the body.
   void insertBeforeStmt(Stmt *s, Stmt *where);
 
@@ -505,6 +509,9 @@ public:
       indices_.emplace_back(E, this);
     }
   }
+
+  /// Clone indices and return the list of unowned expr indices.
+  std::vector<Expr*> cloneIndicesPtr(CloneCtx &map);
 
   virtual void dump(unsigned indent) const override;
   virtual Stmt *clone(CloneCtx &map) override;
