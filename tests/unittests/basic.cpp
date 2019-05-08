@@ -502,3 +502,29 @@ TEST(basic, hois_loads) {
   delete p->clone();
   delete p;
 }
+
+TEST(basic, sink_stores) {
+  Program *p = new Program();
+  auto *K = p->addArgument("K", {256}, {"K"}, ElemKind::Float32Ty);
+  auto *T = p->addArgument("T", {1}, {"T"}, ElemKind::Float32Ty);
+
+  auto *I = new Loop("index", 256);
+  p->addStmt(I);
+
+  auto *ld = new LoadExpr(K, {new IndexExpr(I)});
+  auto *st1 = new StoreStmt(T, {new ConstantExpr(0)}, ld, false);
+  I->addStmt(st1);
+
+  p->verify();
+  p->dump();
+  ::promoteLICM(p, I);
+  p->dump();
+  p->verify();
+
+  NodeCounter counter;
+  p->visit(&counter);
+  EXPECT_EQ(counter.stmt, 5);
+  EXPECT_EQ(counter.expr, 5);
+  delete p->clone();
+  delete p;
+}
