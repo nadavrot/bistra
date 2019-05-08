@@ -476,3 +476,29 @@ TEST(basic, local_vars) {
   pp->dump();
   delete pp;
 }
+
+TEST(basic, hois_loads) {
+  Program *p = new Program();
+  auto *K = p->addArgument("K", {1}, {"K"}, ElemKind::Float32Ty);
+  auto *T = p->addArgument("T", {256}, {"T"}, ElemKind::Float32Ty);
+
+  auto *I = new Loop("index", 256);
+  p->addStmt(I);
+
+  auto *ld = new LoadExpr(K, {new ConstantExpr(0)});
+  auto *st1 = new StoreStmt(T, {new IndexExpr(I)}, ld, false);
+  I->addStmt(st1);
+
+  p->verify();
+  p->dump();
+  ::promoteLICM(p, I);
+  p->dump();
+  p->verify();
+
+  NodeCounter counter;
+  p->visit(&counter);
+  EXPECT_EQ(counter.stmt, 4);
+  EXPECT_EQ(counter.expr, 4);
+  delete p->clone();
+  delete p;
+}

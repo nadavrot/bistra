@@ -476,3 +476,35 @@ bool bistra::simplify(Stmt *s) {
 
   return changed;
 }
+
+static bool hoistLoads(Program *p, Loop *L) {
+  std::vector<LoadExpr *> loads;
+  std::vector<StoreStmt *> stores;
+  collectLoadStores(L, loads, stores);
+
+  Scope *parentScope = (Scope *)L->getParent();
+
+  for (auto *ld : loads) {
+    // Don't hoist loads that depend on the loop index.
+    if (dependsOnLoop(ld, L))
+      continue;
+
+    // Add a temporary local variable.
+    auto ty = ld->getType();
+    auto *var = p->addTempVar(ld->getDest()->getName(), ty);
+
+    CloneCtx map;
+    // Load the memory into a local before the loop.
+    auto *save = new StoreLocalStmt(var, ld->clone(map), false);
+    parentScope->insertBeforeStmt(save, L);
+
+    // Load the value during the loop.
+    ld->replaceUseWith(new LoadLocalExpr(var));
+  }
+
+  return false;
+}
+
+static bool sinkStores(Program *p, Loop *L) { return false; }
+
+bool bistra::promoteLICM(Program *p, Loop *L) { return hoistLoads(p, L); }
