@@ -15,8 +15,14 @@ namespace bistra {
 class Stmt;
 class Expr;
 class IndexExpr;
+class LoadLocalExpr;
+class StoreLocalStmt;
 class Loop;
 class ASTNode;
+class LocalVar;
+class Argument;
+class StoreStmt;
+class LoadExpr;
 
 /// A visitor class that visits all nodes in the program.
 class NodeVisitor {
@@ -55,6 +61,18 @@ struct HotScopeCollector : public NodeVisitor {
 /// only collect indices that access the loop \p filter.
 void collectIndices(ASTNode *S, std::vector<IndexExpr *> &indices,
                     Loop *filter = nullptr);
+
+/// Collect all of the load/store accesses to locals.
+/// If \p filter is set then only accesses to \p filter are collected.
+void collectLocals(ASTNode *S, std::vector<LoadLocalExpr *> &loads,
+                   std::vector<StoreLocalStmt *> &stores,
+                   LocalVar *filter = nullptr);
+
+/// Collect all of the load/store accesses to arguments.
+/// If \p filter is set then only accesses to \p filter are collected.
+void collectLoadStores(ASTNode *S, std::vector<LoadExpr *> &loads,
+                       std::vector<StoreStmt *> &stores,
+                       Argument *filter = nullptr);
 
 /// Collect all of the loops under statement \p S into \p loops;
 void collectLoops(Stmt *S, std::vector<Loop *> &loops);
