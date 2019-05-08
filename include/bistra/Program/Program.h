@@ -137,6 +137,9 @@ public:
 
   Scope() = default;
 
+  /// \returns True if the body of the loop is empty.
+  bool isEmpty() { return !body_.size(); }
+
   /// Empties the body of the scope.
   void clear();
 

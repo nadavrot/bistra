@@ -28,7 +28,6 @@ Loop *bistra::tile(Loop *L, unsigned blockSize) {
   collectIndices(L, indices, L);
 
   for (auto *idx : indices) {
-
     // I -> (I * bs) + I.tile;
     auto *mul = new MulExpr(new IndexExpr(L), new ConstantExpr(blockSize));
     auto *expr = new AddExpr(new IndexExpr(B), mul);
@@ -96,7 +95,6 @@ Loop *bistra::peelLoop(Loop *L, unsigned k) {
   for (auto *idx : indices) {
     auto *expr = new AddExpr(new ConstantExpr(k), new IndexExpr(L2));
     idx->replaceUseWith(expr);
-
   }
 
   // Insert the peeled loop after the original loop.
@@ -414,4 +412,50 @@ bool bistra::widen(Loop *L, unsigned wf) {
   // current stride.
   L->setStride(newStride);
   return true;
+}
+
+bool bistra::simplify(Stmt *s) {
+  std::vector<Loop *> loops;
+  collectLoops(s, loops);
+
+  bool changed = false;
+
+  // Remove empty loops:
+  for (auto *L : loops) {
+    if (L->isEmpty()) {
+      ((Scope *)L->getParent())->removeStmt(L);
+      changed = true;
+    }
+  }
+
+  // Scan the program for loops again because some loops were deleted.
+  loops.clear();
+  collectLoops(s, loops);
+
+  // Remove loops of tripcount-1:
+  for (auto *L : loops) {
+    // If we need to eliminate loops that perform just one iteration.
+    if (L->getEnd() != L->getStride())
+      continue;
+
+    std::vector<IndexExpr *> indices;
+    collectIndices(L, indices, L);
+
+    // Replace all of the loop indices with zero.
+    for (auto *idx : indices) {
+      idx->replaceUseWith(new ConstantExpr(0));
+    }
+
+    // Move the loop body to the parent scope.
+    Scope *parent = (Scope *)L->getParent();
+    for (auto &E : L->getBody()) {
+      parent->insertBeforeStmt(E.get(), L);
+    }
+
+    // Delete the loop body with the dangling null instructions that moved.
+    parent->removeStmt(L);
+    changed = true;
+  }
+
+  return changed;
 }
