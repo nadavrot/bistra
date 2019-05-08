@@ -338,6 +338,8 @@ TEST(basic, vectorize_memcpy_loop) {
   p->dump();
   auto res = ::vectorize(I, 4);
   EXPECT_TRUE(res);
+  EXPECT_EQ(I->getStride(), 4);
+
   p->dump();
 
   NodeCounter counter;
@@ -388,6 +390,7 @@ TEST(basic, widen_loop) {
   p->verify();
   p->dump();
   ::widen(I, 3);
+  EXPECT_EQ(I->getStride(), 3);
   p->dump();
 
   NodeCounter counter;
@@ -411,9 +414,12 @@ TEST(basic, vectorize_widen_loop) {
   p->verify();
   p->dump();
   ::vectorize(I, 4);
+  EXPECT_EQ(I->getStride(), 4);
+
   p->verify();
   p->dump();
   ::widen(I, 3);
+  EXPECT_EQ(I->getStride(), 12);
   p->dump();
 
   NodeCounter counter;
