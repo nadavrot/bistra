@@ -22,6 +22,16 @@ static void spaces(unsigned t) {
   }
 }
 
+Program *ASTNode::getProgram() const {
+  ASTNode *parent = getParent();
+  assert(parent && "The node is unowned by a program");
+
+  if (Program *p = dynamic_cast<Program *>(parent))
+    return p;
+
+  return parent->getProgram();
+}
+
 void Argument::dump() const {
   std::cout << name_ << ":";
   type_.dump();
@@ -422,6 +432,9 @@ void LoadExpr::verify() const {
 }
 
 void LoadLocalExpr::verify() const {
+  Program *prog = getProgram();
+  assert(prog->getVars().size() && "Program has no locals!");
+  assert(prog->getVar(var_->getName()) == var_ && "Vars are not uniqued");
   assert(getType() == var_->getType() && "Loaded element type mismatch");
 }
 
@@ -448,6 +461,10 @@ void StoreStmt::verify() const {
 }
 
 void StoreLocalStmt::verify() const {
+  Program *prog = getProgram();
+  assert(prog->getVars().size() && "Program has no locals!");
+  assert(prog->getVar(var_->getName()) == var_ && "Vars are not uniqued");
+
   assert(value_.getParent() == this && "Invalid handle owner pointer");
   value_->verify();
   value_.verify();

@@ -71,6 +71,8 @@ public:
   void verify() const;
 };
 
+class Program;
+
 class ASTNode {
 public:
   /// \returns the parent expression that holds the node of this expression.
@@ -79,6 +81,8 @@ public:
   virtual void verify() const = 0;
   /// A node visitor that visits all of the nodes in the program.
   virtual void visit(NodeVisitor *visitor) = 0;
+  /// Walk up the chain and find the owning program. The node must be owned.
+  Program *getProgram() const;
 };
 
 using ExprHandle = ASTHandle<Expr, ASTNode>;
