@@ -424,3 +424,33 @@ TEST(basic, vectorize_widen_loop) {
   delete p->clone();
   delete p;
 }
+
+TEST(basic, simplify_program) {
+  Program *p = new Program();
+  auto *K = p->addArgument("K", {117}, {"K"}, ElemKind::Float32Ty);
+
+  // Loop from zero to one.
+  auto *I = new Loop("index", 1);
+  p->addStmt(I);
+
+  p->addStmt(new Loop("index2", 10));
+  p->addStmt(new Loop("index3", 12));
+  p->addStmt(new Loop("index4", 13));
+
+  auto *st1 = new StoreStmt(K, {new IndexExpr(I)}, new ConstantFPExpr(33), 1);
+  I->addStmt(st1);
+
+  p->verify();
+  p->dump();
+  ::simplify(p);
+  p->dump();
+  p->verify();
+
+  NodeCounter counter;
+  p->visit(&counter);
+
+  EXPECT_EQ(counter.stmt, 2);
+  EXPECT_EQ(counter.expr, 2);
+  delete p->clone();
+  delete p;
+}

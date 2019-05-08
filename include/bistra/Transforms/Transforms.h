@@ -27,6 +27,11 @@ bool vectorize(Loop *L, unsigned vf);
 /// Example: A[i] = 3 becomes A[i] = 3; A[i+1] = 3;
 bool widen(Loop *L, unsigned wf);
 
+/// Simplify the program by eliminating dead code and simplifying the
+/// program structure.
+/// \returns true if the code was modified.
+bool simplify(Stmt *s);
+
 } // namespace bistra
 
 #endif // BISTRA_TRANSFORMS_TRANSFORMS_H
