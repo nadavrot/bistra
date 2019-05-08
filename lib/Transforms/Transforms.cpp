@@ -37,6 +37,31 @@ Loop *bistra::tile(Loop *L, unsigned blockSize) {
   return B;
 }
 
+bool bistra::hoist(Loop *L, unsigned levels) {
+  if (levels == 0)
+    return false;
+
+  Loop *parent = dynamic_cast<Loop *>(L->getParent());
+  if (!parent)
+    return false;
+
+  // Can't hoist because the parent loop has other code in the body.
+  if (parent->getBody().size() != 1)
+    return false;
+
+  auto *PH = parent->getOwnerHandle();
+
+  // Swap this loop and the one above it.
+  parent->clear();
+  parent->takeContent(L);
+  L->addStmt(parent);
+  PH->setReference(L);
+
+  // Try to hoist the loop again.
+  hoist(L, levels - 1);
+  return true;
+}
+
 bool bistra::unrollLoop(Loop *L, unsigned maxTripCount) {
   Scope *parent = dynamic_cast<Scope *>(L->getParent());
   assert(parent && "Unexpected parent shape");
