@@ -146,6 +146,19 @@ void Scope::removeStmt(Stmt *s) {
       body_.end());
 }
 
+void Scope::replaceStmt(Stmt *newS, Stmt *oldS) {
+  assert(oldS->getParent() == this && "Old stmt not in this scope");
+  for (auto &sth : getBody()) {
+    if (sth.get() != oldS)
+      continue;
+
+    sth.setReference(newS);
+    delete oldS;
+  }
+  assert(newS->getParent() == this && "New stmt not in this scope");
+}
+
+
 void Scope::insertBeforeStmt(Stmt *s, Stmt *where) {
   auto iter = std::find(body_.begin(), body_.end(), where);
   assert(iter != body_.end() && "Can't find the insertion point");
@@ -204,6 +217,15 @@ void LoadExpr::dump() const {
 }
 
 void LoadLocalExpr::dump() const { std::cout << var_->getName(); }
+
+std::vector<Expr*> StoreStmt::cloneIndicesPtr(CloneCtx &map) {
+  std::vector<Expr*> ret;
+  // Clone and save the raw unowned pointers.
+  for (auto &h : getIndices()) {
+    ret.push_back(h.get()->clone(map));
+  }
+  return ret;
+}
 
 void StoreStmt::dump(unsigned indent) const {
   spaces(indent);
@@ -285,11 +307,7 @@ Expr *LoadLocalExpr::clone(CloneCtx &map) {
 Stmt *StoreStmt::clone(CloneCtx &map) {
   Argument *arg = map.get(arg_);
   verify();
-  std::vector<Expr *> indices;
-  for (auto &E : indices_) {
-    indices.push_back(E->clone(map));
-  }
-
+  std::vector<Expr *> indices = cloneIndicesPtr(map);
   return new StoreStmt(arg, indices, value_->clone(map), accumulate_);
 }
 
