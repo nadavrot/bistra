@@ -6,6 +6,71 @@
 using namespace bistra;
 
 namespace {
+/// A visitor class that collects all loads/stores to locals.
+struct LocalsCollector : public NodeVisitor {
+  std::vector<LoadLocalExpr *> &loads_;
+  std::vector<StoreLocalStmt *> &stores_;
+  LocalVar *filter_;
+  LocalsCollector(std::vector<LoadLocalExpr *> &loads,
+                  std::vector<StoreLocalStmt *> &stores, LocalVar *filter)
+      : loads_(loads), stores_(stores), filter_(filter) {}
+
+  virtual void enter(Expr *E) override {
+    if (auto *LL = dynamic_cast<LoadLocalExpr *>(E)) {
+      // Apply the optional filter and ignore loops that are not the requested
+      // loop.
+      if (filter_ && LL->getDest() != filter_)
+        return;
+      loads_.push_back(LL);
+    }
+  }
+
+  virtual void enter(Stmt *E) override {
+    if (auto *SL = dynamic_cast<StoreLocalStmt *>(E)) {
+      // Apply the optional filter and ignore loops that are not the requested
+      // loop.
+      if (filter_ && SL->getDest() != filter_)
+        return;
+      stores_.push_back(SL);
+    }
+  }
+};
+} // namespace
+
+namespace {
+/// A visitor class that collects all loads/stores.
+struct LoadStoreCollector : public NodeVisitor {
+  std::vector<LoadExpr *> &loads_;
+  std::vector<StoreStmt *> &stores_;
+  Argument *filter_;
+
+  LoadStoreCollector(std::vector<LoadExpr *> &loads,
+                     std::vector<StoreStmt *> &stores, Argument *filter)
+      : loads_(loads), stores_(stores), filter_(filter) {}
+
+  virtual void enter(Expr *E) override {
+    if (auto *LL = dynamic_cast<LoadExpr *>(E)) {
+      // Apply the optional filter and ignore loops that are not the requested
+      // loop.
+      if (filter_ && LL->getDest() != filter_)
+        return;
+      loads_.push_back(LL);
+    }
+  }
+
+  virtual void enter(Stmt *E) override {
+    if (auto *SL = dynamic_cast<StoreStmt *>(E)) {
+      // Apply the optional filter and ignore loops that are not the requested
+      // loop.
+      if (filter_ && SL->getDest() != filter_)
+        return;
+      stores_.push_back(SL);
+    }
+  }
+};
+} // namespace
+
+namespace {
 /// A visitor class that visits all IndexExpr nodes in the program. Uses
 /// optional filter to collect only indices for one specific loop.
 struct IndexCollector : public NodeVisitor {
@@ -74,6 +139,22 @@ void HotScopeCollector::leave(Stmt *E) {
   }
 }
 
+void bistra::collectLocals(ASTNode *S, std::vector<LoadLocalExpr *> &loads,
+                           std::vector<StoreLocalStmt *> &stores,
+                           LocalVar *filter) {
+  LocalsCollector IC(loads, stores, filter);
+  S->visit(&IC);
+}
+
+/// Collect all of the load/store accesses to arguments.
+/// If \p filter is set then only accesses to \p filter are collected.
+void bistra::collectLoadStores(ASTNode *S, std::vector<LoadExpr *> &loads,
+                               std::vector<StoreStmt *> &stores,
+                               Argument *filter) {
+  LoadStoreCollector IC(loads, stores, filter);
+  S->visit(&IC);
+}
+
 void bistra::collectIndices(ASTNode *S, std::vector<IndexExpr *> &indices,
                             Loop *filter) {
   IndexCollector IC(indices, filter);
@@ -90,3 +171,9 @@ void bistra::collectLoops(Stmt *S, std::vector<Loop *> &loops) {
   LoopCollector IC(loops);
   S->visit(&IC);
 }
+
+/// Collect all of the load/store accesses to locals.
+/// If \p filter is set then only accesses to \p filter are collected.
+void bistra::collectLocals(ASTNode *S, std::vector<LoadLocalExpr *> &loads,
+                           std::vector<StoreLocalStmt *> &stores,
+                           LocalVar *filter);
