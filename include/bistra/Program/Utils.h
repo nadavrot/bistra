@@ -23,6 +23,7 @@ class LocalVar;
 class Argument;
 class StoreStmt;
 class LoadExpr;
+struct ExprType;
 
 /// A visitor class that visits all nodes in the program.
 class NodeVisitor {
@@ -80,6 +81,14 @@ void collectLoops(Stmt *S, std::vector<Loop *> &loops);
 /// \return True if the \p N depends on the loop index \p L.
 /// Example: "A[i] = 4" depends on i, but not on j;
 bool dependsOnLoop(ASTNode *N, Loop *L);
+
+/// Generate the zero vector of type \p T.
+Expr *getZeroExpr(ExprType &T);
+
+/// \returns true if we can show that the loads and stores operate on different
+/// buffers and don't interfer with oneanother.
+bool areLoadsStoresDisjoint(const std::vector<LoadExpr *> &loads,
+                            const std::vector<StoreStmt *> &stores);
 
 } // namespace bistra
 

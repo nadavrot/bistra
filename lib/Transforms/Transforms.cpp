@@ -477,24 +477,6 @@ bool bistra::simplify(Stmt *s) {
   return changed;
 }
 
-/// \returns true if we can show that the loads and stores operate on different
-/// buffers and don't interfer with oneanother.
-static bool areLoadsStoresDisjoint(const std::vector<LoadExpr *> &loads,
-                                   const std::vector<StoreStmt *> &stores) {
-  std::set<Argument *> writes;
-  // Collect the write destination.
-  for (auto *st : stores) {
-    writes.insert(st->getDest());
-  }
-  for (auto *ld : loads) {
-    // A pair of load/store wrote into the same buffer. Aborting.
-    if (writes.count(ld->getDest())) {
-      return false;
-    }
-  }
-  return true;
-}
-
 static bool hoistLoads(Program *p, Loop *L) {
   std::vector<LoadExpr *> loads;
   std::vector<StoreStmt *> stores;
@@ -525,25 +507,6 @@ static bool hoistLoads(Program *p, Loop *L) {
   }
 
   return false;
-}
-
-/// Generate the zero vector of type \p T.
-static Expr *getZeroExpr(ExprType T) {
-  Expr *ret;
-  // Zero scalar:
-  if (T.isIndexTy()) {
-    ret = new ConstantExpr(0);
-  } else {
-    ret = new ConstantFPExpr(0.0);
-  }
-
-  // Widen if we are requested a vector.
-  if (T.isVector()) {
-    ret = new BroadcastExpr(ret, T.getWidth());
-  }
-
-  assert(ret->getType() == T);
-  return ret;
 }
 
 static bool sinkStores(Program *p, Loop *L) {

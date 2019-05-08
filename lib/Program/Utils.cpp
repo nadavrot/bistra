@@ -1,6 +1,8 @@
 #include "bistra/Program/Utils.h"
 #include "bistra/Program/Program.h"
+#include "bistra/Program/Types.h"
 
+#include <set>
 #include <vector>
 
 using namespace bistra;
@@ -177,3 +179,37 @@ void bistra::collectLoops(Stmt *S, std::vector<Loop *> &loops) {
 void bistra::collectLocals(ASTNode *S, std::vector<LoadLocalExpr *> &loads,
                            std::vector<StoreLocalStmt *> &stores,
                            LocalVar *filter);
+
+Expr *bistra::getZeroExpr(ExprType &T) {
+  Expr *ret;
+  // Zero scalar:
+  if (T.isIndexTy()) {
+    ret = new ConstantExpr(0);
+  } else {
+    ret = new ConstantFPExpr(0.0);
+  }
+
+  // Widen if we are requested a vector.
+  if (T.isVector()) {
+    ret = new BroadcastExpr(ret, T.getWidth());
+  }
+
+  assert(ret->getType() == T);
+  return ret;
+}
+
+bool bistra::areLoadsStoresDisjoint(const std::vector<LoadExpr *> &loads,
+                                    const std::vector<StoreStmt *> &stores) {
+  std::set<Argument *> writes;
+  // Collect the write destination.
+  for (auto *st : stores) {
+    writes.insert(st->getDest());
+  }
+  for (auto *ld : loads) {
+    // A pair of load/store wrote into the same buffer. Aborting.
+    if (writes.count(ld->getDest())) {
+      return false;
+    }
+  }
+  return true;
+}
