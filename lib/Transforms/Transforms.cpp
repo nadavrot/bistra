@@ -571,7 +571,7 @@ static bool sinkStores(Program *p, Loop *L) {
 
     // Zero the accumulator before the loop.
     CloneCtx map;
-    auto *init = new StoreLocalStmt(var, getZeroExpr(ty), false);
+    auto *init = new StoreLocalStmt(var, getZeroExpr(ty), st->isAccumulate());
     parentScope->insertBeforeStmt(init, L);
 
     // Store the variable after the loop.
