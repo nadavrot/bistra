@@ -206,7 +206,7 @@ Expr *AddExpr::clone(CloneCtx &map) {
   return new AddExpr(LHS_->clone(map), RHS_->clone(map));
 }
 Expr *MulExpr::clone(CloneCtx &map) {
-  return new AddExpr(LHS_->clone(map), RHS_->clone(map));
+  return new MulExpr(LHS_->clone(map), RHS_->clone(map));
 }
 
 Expr *BroadcastExpr::clone(CloneCtx &map) {
