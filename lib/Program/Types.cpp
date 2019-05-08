@@ -20,5 +20,9 @@ void ExprType::dump() const {
 }
 
 std::string ExprType::getTypename() const {
-  return std::string(getElementName()) + std::to_string(width_);
+  std::string res = std::string(getElementName());
+  if (width_ > 1) {
+    res += std::to_string(width_);
+  }
+  return res;
 }
