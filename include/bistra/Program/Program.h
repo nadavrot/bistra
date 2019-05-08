@@ -21,7 +21,7 @@ class Expr;
 class Stmt;
 class NodeVisitor;
 
-/// This struct represents an input to the program, which is a Tensor, or a
+/// This class represents an input to the program, which is a Tensor, or a
 /// typed region in memory.
 class Argument final {
   /// The name of the argument.
@@ -37,9 +37,34 @@ public:
   const Type *getType() const { return &type_; }
 
   /// \returns the name of the argument.
-  std::string getName() const { return name_; }
+  const std::string &getName() const { return name_; }
 
   /// Prints the argument.
+  void dump() const;
+
+  /// Crash if the program is in an invalid state.
+  void verify() const;
+};
+
+/// This class represents a local variable in the program.
+class LocalVar final {
+  /// The name of the variable.
+  std::string name_;
+
+  /// The type of the variable.
+  ExprType type_;
+
+public:
+  LocalVar(const std::string &name, const ExprType &t)
+      : name_(name), type_(t) {}
+
+  /// \returns the type of the variable.
+  const ExprType getType() const { return type_; }
+
+  /// \returns the name of the variable.
+  const std::string &getName() const { return name_; }
+
+  /// Prints the variable.
   void dump() const;
 
   /// Crash if the program is in an invalid state.
@@ -64,7 +89,7 @@ class Stmt : public ASTNode {
   StmtHandle *user_{nullptr};
 
 public:
-  /// Prints the argument.
+  /// Prints the statement.
   virtual void dump(unsigned indent) const = 0;
   virtual ~Stmt() = default;
   /// \returns an unowned clone of the current node and updates \p map with the
@@ -210,6 +235,8 @@ public:
 class Program final : public Scope {
   /// \represents the list of arguments.
   std::vector<Argument *> args_;
+  /// \represents the list of local variables.
+  std::vector<LocalVar *> vars_;
 
 public:
   ~Program();
@@ -217,15 +244,27 @@ public:
   Program() = default;
 
   /// Construct a new program with the body \p body and arguments \p args.
-  Program(const std::vector<Stmt *> &body, const std::vector<Argument *> &args);
+  Program(const std::vector<Stmt *> &body, const std::vector<Argument *> &args,
+          const std::vector<LocalVar *> &vars);
 
   /// Argument getter.
   std::vector<Argument *> &getArgs() { return args_; }
+  /// Vars getter.
+  std::vector<LocalVar *> &getVars() { return vars_; }
+
+  /// \return the variable with the name \p name or nullptr if there is no
+  /// variable with this name.
+  LocalVar *getVar(const std::string &name);
 
   /// \returns the n'th argument.
   Argument *getArg(unsigned idx) {
     assert(idx < args_.size() && "Invalid arg index");
     return args_[idx];
+  }
+  /// \returns the n'th argument.
+  LocalVar *getVar(unsigned idx) {
+    assert(idx < vars_.size() && "Invalid var index");
+    return vars_[idx];
   }
 
   /// Adds a new argument. \returns the newly created argument.
@@ -233,8 +272,14 @@ public:
                         const std::vector<unsigned> &dims,
                         const std::vector<std::string> &names, ElemKind Ty);
 
+  /// Adds a new argument. \returns the newly created argument.
+  LocalVar *addLocalVar(const std::string &name, ExprType Ty);
+
   /// Adds a new argument;
   void addArgument(Argument *arg);
+
+  /// Adds a new argument;
+  void addVar(LocalVar *arg);
 
   Program *clone();
   void dump() const { dump(0); }
@@ -395,6 +440,23 @@ public:
   virtual void visit(NodeVisitor *visitor) override;
 };
 
+/// Loads some value from a local variable.
+class LoadLocalExpr final : public Expr {
+  /// The variable to access.
+  LocalVar *var_{nullptr};
+
+public:
+  /// \returns the accessed variable.
+  LocalVar *getDest() { return var_; }
+
+  LoadLocalExpr(LocalVar *var) : Expr(var->getType()), var_(var) {}
+
+  virtual void dump() const override;
+  virtual Expr *clone(CloneCtx &map) override;
+  virtual void verify() const override;
+  virtual void visit(NodeVisitor *visitor) override;
+};
+
 /// Stores some value to a buffer.
 class StoreStmt final : public Stmt {
   /// The buffer to access.
@@ -445,6 +507,37 @@ public:
   virtual void visit(NodeVisitor *visitor) override;
 };
 
+/// Saves some value to a local.
+class StoreLocalStmt final : public Stmt {
+  /// The variable to access.
+  LocalVar *var_;
+  /// The value to store into the buffer.
+  ExprHandle value_;
+  /// Accumulate the resule into the destination.
+  bool accumulate_;
+
+public:
+  /// \returns the write destination of the instruction.
+  LocalVar *getDest() { return var_; }
+
+  /// \returns the stored value.
+  ExprHandle &getValue() { return value_; }
+
+  /// \returns true if this store statement accumulates into the stored
+  /// destination.
+  bool isAccumulate() { return accumulate_; }
+
+  StoreLocalStmt(LocalVar *var, Expr *value, bool accumulate)
+      : var_(var), value_(value, this), accumulate_(accumulate) {
+    assert(value->getType() == var->getType() && "invalid stored type");
+  }
+
+  virtual void dump(unsigned indent) const override;
+  virtual Stmt *clone(CloneCtx &map) override;
+  virtual void verify() const override;
+  virtual void visit(NodeVisitor *visitor) override;
+};
+
 /// This context is used when cloning programs or parts of programs. Values that
 /// are stored in this map will be replaced when indexed by some expressions.
 /// We use this context to replace things such as loop indices and arguments.
@@ -453,6 +546,8 @@ public:
 class CloneCtx final {
   // Maps arguments.
   std::unordered_map<Argument *, Argument *> args;
+  // Maps local vars.
+  std::unordered_map<LocalVar *, LocalVar *> vars;
   // Maps loops.
   std::unordered_map<Loop *, Loop *> loops;
 
@@ -469,7 +564,12 @@ public:
     args[from] = to;
     return to;
   }
-
+  /// Maps \p From to \p To and returns \p To.
+  LocalVar *map(LocalVar *from, LocalVar *to) {
+    assert(vars.count(from) == 0 && "LocalVar already in map");
+    vars[from] = to;
+    return to;
+  }
   /// \returns the value that \p from is mapped to, or \p from if the value is
   /// not in the map.
   Loop *get(Loop *from) {
@@ -484,6 +584,15 @@ public:
   Argument *get(Argument *from) {
     auto it = args.find(from);
     if (it != args.end()) {
+      return it->second;
+    }
+    return from;
+  }
+  /// \returns the value that \p from is mapped to, or \p from if the value is
+  /// not in the map.
+  LocalVar *get(LocalVar *from) {
+    auto it = vars.find(from);
+    if (it != vars.end()) {
       return it->second;
     }
     return from;
