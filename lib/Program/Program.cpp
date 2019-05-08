@@ -139,9 +139,9 @@ void ConstantFPExpr::dump() const {
 }
 
 void BroadcastExpr::dump() const {
-  std::cout << "{|";
+  std::cout << "(";
   val_->dump();
-  std::cout << "|}";
+  std::cout << ")";
 }
 
 void LoadExpr::dump() const {
