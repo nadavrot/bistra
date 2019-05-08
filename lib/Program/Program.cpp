@@ -50,6 +50,7 @@ LocalVar *Program::getVar(const std::string &name) {
     if (name == v->getName())
       return v;
   }
+  return nullptr;
 }
 
 Argument *Program::addArgument(const std::string &name,
