@@ -342,5 +342,5 @@ double CBackend::evaluateCode(Program *p, unsigned iter) {
   std::string::size_type sz;
   double timeInSeconds = std::stod(timeReport, &sz);
   // Return the time in sec that the program measured internally and reported.
-  return timeInSeconds;
+  return timeInSeconds / iter;
 }
