@@ -146,6 +146,13 @@ public:
       sb_ << ")";
       return;
     }
+
+    // Handle restore expressions.
+    if (LoadLocalExpr *r = dynamic_cast<LoadLocalExpr *>(exp)) {
+      sb_ << "(" << r->getDest()->getName() << ")";
+      return;
+    }
+
     assert(false && "Unknown expression");
   }
 
@@ -200,6 +207,15 @@ public:
       return;
     }
 
+    // Handle save to local statements.
+    if (StoreLocalStmt *st = dynamic_cast<StoreLocalStmt *>(stmt)) {
+      sb_ << st->getDest()->getName();
+      sb_ << (st->isAccumulate() ? " +=" : "=");
+      generate(st->getValue());
+      sb_ << ";\n";
+      return;
+    }
+
     assert(false && "Unknown statement");
   }
 
@@ -219,6 +235,10 @@ public:
       first = false;
     }
     sb_ << ") {\n";
+
+    for (auto *loc : P->getVars()) {
+      sb_ << loc->getType().getTypename() << " " << loc->getName() << ";\n";
+    }
 
     // Print the tensor shape decls:
     // Example:

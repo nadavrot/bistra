@@ -454,3 +454,25 @@ TEST(basic, simplify_program) {
   delete p->clone();
   delete p;
 }
+
+// Check that we can build a simple program with local vars.
+TEST(basic, local_vars) {
+  Program *p = new Program();
+  auto *A = p->addArgument("A", {32, 32}, {"X", "Y"}, ElemKind::Float32Ty);
+  auto *loc = p->addLocalVar("local1", ExprType(ElemKind::Float32Ty));
+
+  EXPECT_EQ(loc, p->getVar("local1"));
+
+  auto *ld = new LoadExpr(A, {new ConstantExpr(0), new ConstantExpr(0)});
+  auto *save = new StoreLocalStmt(loc, ld, 0);
+  auto *restore = new LoadLocalExpr(loc);
+  auto *store = new StoreStmt(A, {new ConstantExpr(0), new ConstantExpr(0)},
+                              restore, true);
+  p->addStmt(save);
+  p->addStmt(store);
+  p->dump();
+  Program *pp = p->clone();
+  delete p;
+  pp->dump();
+  delete pp;
+}

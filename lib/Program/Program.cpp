@@ -27,13 +27,28 @@ void Argument::dump() const {
   type_.dump();
 }
 
+void LocalVar::dump() const {
+  std::cout << name_ << " : " << type_.getTypename();
+}
+
 Program::Program(const std::vector<Stmt *> &body,
-                 const std::vector<Argument *> &args)
-    : Scope(body), args_(args) {}
+                 const std::vector<Argument *> &args,
+                 const std::vector<LocalVar *> &vars)
+    : Scope(body), args_(args), vars_(vars) {}
 
 Program::~Program() {
   for (auto *arg : args_) {
     delete arg;
+  }
+  for (auto *var : vars_) {
+    delete var;
+  }
+}
+
+LocalVar *Program::getVar(const std::string &name) {
+  for (auto *v : vars_) {
+    if (name == v->getName())
+      return v;
   }
 }
 
@@ -47,7 +62,15 @@ Argument *Program::addArgument(const std::string &name,
   return arg;
 }
 
+LocalVar *Program::addLocalVar(const std::string &name, ExprType Ty) {
+  LocalVar *var = new LocalVar(name, Ty);
+  addVar(var);
+  return var;
+}
+
 void Program::addArgument(Argument *arg) { args_.push_back(arg); }
+
+void Program::addVar(LocalVar *var) { vars_.push_back(var); }
 
 void Program::dump(unsigned indent) const {
   std::cout << "Program (";
@@ -58,6 +81,13 @@ void Program::dump(unsigned indent) const {
     args_[i]->dump();
   }
   std::cout << ") {\n";
+
+  for (auto *var : vars_) {
+    std::cout << "var ";
+    var->dump();
+    std::cout << "\n";
+  }
+
   Scope::dump(1);
   std::cout << "}\n";
 }
@@ -160,6 +190,8 @@ void LoadExpr::dump() const {
   }
 }
 
+void LoadLocalExpr::dump() const { std::cout << var_->getName(); }
+
 void StoreStmt::dump(unsigned indent) const {
   spaces(indent);
   std::cout << arg_->getName() << "[";
@@ -175,6 +207,14 @@ void StoreStmt::dump(unsigned indent) const {
   if (value_->getType().isVector()) {
     std::cout << "." << value_->getType().getWidth();
   }
+  std::cout << (accumulate_ ? " += " : " = ");
+  value_->dump();
+  std::cout << ";\n";
+}
+
+void StoreLocalStmt::dump(unsigned indent) const {
+  spaces(indent);
+  std::cout << var_->getName();
   std::cout << (accumulate_ ? " += " : " = ");
   value_->dump();
   std::cout << ";\n";
@@ -223,6 +263,12 @@ Expr *LoadExpr::clone(CloneCtx &map) {
   return new LoadExpr(arg, indices, getType());
 }
 
+Expr *LoadLocalExpr::clone(CloneCtx &map) {
+  LocalVar *var = map.get(var_);
+  verify();
+  return new LoadLocalExpr(var);
+}
+
 Stmt *StoreStmt::clone(CloneCtx &map) {
   Argument *arg = map.get(arg_);
   verify();
@@ -232,6 +278,12 @@ Stmt *StoreStmt::clone(CloneCtx &map) {
   }
 
   return new StoreStmt(arg, indices, value_->clone(map), accumulate_);
+}
+
+Stmt *StoreLocalStmt::clone(CloneCtx &map) {
+  LocalVar *var = map.get(var_);
+  verify();
+  return new StoreLocalStmt(var, value_->clone(map), accumulate_);
 }
 
 Expr *IndexExpr::clone(CloneCtx &map) {
@@ -258,11 +310,19 @@ Stmt *Program::clone(CloneCtx &map) {
   verify();
   Program *np = new Program();
   std::vector<Argument *> newArgs;
+  std::vector<LocalVar *> newVars;
+
   for (auto *arg : args_) {
     Argument *newArg = new Argument(*arg);
     np->addArgument(newArg);
     map.map(arg, newArg);
-  };
+  }
+  for (auto *var : vars_) {
+    LocalVar *newVar = new LocalVar(*var);
+    np->addVar(newVar);
+    map.map(var, newVar);
+  }
+
   for (auto &MH : body_) {
     np->addStmt(MH->clone(map));
   }
@@ -331,6 +391,10 @@ void LoadExpr::verify() const {
   assert(getType().getElementType() == EK && "Loaded element type mismatch");
 }
 
+void LoadLocalExpr::verify() const {
+  assert(getType() == var_->getType() && "Loaded element type mismatch");
+}
+
 void StoreStmt::verify() const {
   for (auto &E : indices_) {
     E.verify();
@@ -353,13 +417,26 @@ void StoreStmt::verify() const {
   assert(storedType.getElementType() == EK && "Stored element type mismatch");
 }
 
+void StoreLocalStmt::verify() const {
+  assert(value_.getParent() == this && "Invalid handle owner pointer");
+  value_->verify();
+  value_.verify();
+  assert(value_->getType() == var_->getType() && "invalid stored type");
+}
+
 void Argument::verify() const {
   assert(isLegalName(getName()) && "Invalid character in argument name");
 }
 
+void LocalVar::verify() const {
+  assert(isLegalName(getName()) && "Invalid character in argument name");
+}
+
 void Program::verify() const {
-  // Verify the arguments.
   for (auto *a : args_) {
+    a->verify();
+  }
+  for (auto *a : vars_) {
     a->verify();
   }
   Scope::verify();
@@ -408,6 +485,12 @@ void StoreStmt::visit(NodeVisitor *visitor) {
   visitor->leave(this);
 }
 
+void StoreLocalStmt::visit(NodeVisitor *visitor) {
+  visitor->enter(this);
+  value_->visit(visitor);
+  visitor->leave(this);
+}
+
 void BroadcastExpr::visit(NodeVisitor *visitor) {
   visitor->enter(this);
   val_->visit(visitor);
@@ -419,6 +502,11 @@ void LoadExpr::visit(NodeVisitor *visitor) {
   for (auto &ii : this->getIndices()) {
     ii.get()->visit(visitor);
   }
+  visitor->leave(this);
+}
+
+void LoadLocalExpr::visit(NodeVisitor *visitor) {
+  visitor->enter(this);
   visitor->leave(this);
 }
 
