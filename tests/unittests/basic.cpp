@@ -185,7 +185,7 @@ TEST(basic, time_simple_loop) {
   delete p;
 
   auto CB = getBackend("C");
-  auto timeInSeconds = CB->evaluateCode(pp, 10);
+  CB->evaluateCode(pp, 10);
   delete pp;
 }
 
