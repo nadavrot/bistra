@@ -69,6 +69,18 @@ LocalVar *Program::addLocalVar(const std::string &name, ExprType Ty) {
   return var;
 }
 
+LocalVar *Program::addTempVar(const std::string &nameHint, ExprType Ty) {
+  unsigned counter = 1;
+  std::string name = nameHint;
+
+  // Generate the pattern: "foo14"
+  do {
+    name = nameHint + std::to_string(counter++);
+  } while (getVar(name));
+
+  return addLocalVar(name, Ty);
+}
+
 void Program::addArgument(Argument *arg) { args_.push_back(arg); }
 
 void Program::addVar(LocalVar *var) { vars_.push_back(var); }

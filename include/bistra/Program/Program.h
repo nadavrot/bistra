@@ -272,8 +272,13 @@ public:
                         const std::vector<unsigned> &dims,
                         const std::vector<std::string> &names, ElemKind Ty);
 
-  /// Adds a new argument. \returns the newly created argument.
+  /// Create a new variable. \returns the newly created variable.
   LocalVar *addLocalVar(const std::string &name, ExprType Ty);
+
+  /// Create a new temporary variable with the type \p Ty with a unique name
+  /// that is similar to \p nameHint .
+  /// \returns the newly created variable.
+  LocalVar *addTempVar(const std::string &nameHint, ExprType Ty);
 
   /// Adds a new argument;
   void addArgument(Argument *arg);
