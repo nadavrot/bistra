@@ -104,99 +104,70 @@ Loop *bistra::peelLoop(Loop *L, unsigned k) {
 
 //--------------------------   Vectorization   -------------------------------//
 
-static bool mayVectorizeLastIndex(Expr *E, Loop *L) {
-  // A list of expressions to process.
-  std::vector<Expr *> worklist = {E};
+/// Describes the kind of relationship some expression has when vectorizing it
+/// across some dimension.
+enum IndexKind { Uniform, Consecutive, Other };
 
-  // Count the number of times that the index is used. (must be 1!)
-  unsigned loopIndexFound = 0;
-
-  while (worklist.size()) {
-    Expr *E = worklist.back();
-    worklist.pop_back();
-
-    // It is okay to access the loop index.
-    if (IndexExpr *IE = dynamic_cast<IndexExpr *>(E)) {
-      if (IE->getLoop() == L) {
-        loopIndexFound++;
-        continue;
-      }
-      // Other indices are okay to access as long as they are consecutive.
-      if (IE->getLoop()->getStride() != 1)
-        return false;
-
-      continue;
+static IndexKind getIndexKind(Expr *E, Loop *L) {
+  if (IndexExpr *IE = dynamic_cast<IndexExpr *>(E)) {
+    if (IE->getLoop() == L) {
+      return IndexKind::Consecutive;
     }
-
-    // Addition expressions are okay because they don't scale the index.
-    if (AddExpr *AE = dynamic_cast<AddExpr *>(E)) {
-      worklist.push_back(AE->getLHS());
-      worklist.push_back(AE->getRHS());
-      continue;
-    }
-    // Unknown expression. Aborting.
-    return false;
-  }
-  return true;
-}
-
-/// Check if we can vectorize a load/store access for a coordinate that is
-/// not the last consecutive one. Rule: must not use the vectorized loop index.
-static bool mayVectorizeNonLastIndex(Expr *E, Loop *L) {
-  std::vector<IndexExpr *> collected;
-  collectIndices(E, collected);
-  // Check that the non-consecutive dims don't access the vectorized index.
-  for (auto &idx : collected) {
-    assert(idx->getLoop()->getStride() == 1 && "vectorizing on the wrong dim");
-    if (idx->getLoop() == L)
-      return false;
+    return IndexKind::Uniform;
   }
 
-  return true;
+  // Addition expressions. Example:  [4 + J];
+  if (AddExpr *AE = dynamic_cast<AddExpr *>(E)) {
+    auto LK = getIndexKind(AE->getLHS(), L);
+    auto RK = getIndexKind(AE->getRHS(), L);
+
+    if (LK == IndexKind::Other || RK == IndexKind::Other)
+      return IndexKind::Other;
+
+    if (LK == IndexKind::Uniform && RK == IndexKind::Uniform)
+      return Uniform;
+
+    return Consecutive;
+  }
+
+  // Mul expressions. Example:  [d * J];
+  if (MulExpr *ME = dynamic_cast<MulExpr *>(E)) {
+    auto LK = getIndexKind(ME->getLHS(), L);
+    auto RK = getIndexKind(ME->getRHS(), L);
+
+    if (LK == IndexKind::Uniform && RK == IndexKind::Uniform)
+      return Uniform;
+
+    return Other;
+  }
+
+  if (dynamic_cast<ConstantExpr *>(E) || dynamic_cast<ConstantFPExpr *>(E)) {
+    return IndexKind::Uniform;
+  }
+
+  return IndexKind::Other;
 }
 
 /// \returns True if it is legal to vectorize some load/store with the indices
 /// \p indices when vectorizing the loop \p L.
 static bool mayVectorizeLoadStoreAccess(const std::vector<ExprHandle> &indices,
                                         Loop *L) {
-  // Iterate over all of the indices except for the last index.
-  for (int i = 0, e = indices.size() - 1; i < e; i++) {
-    std::vector<IndexExpr *> collected;
-    collectIndices(indices[i].get(), collected);
-    if (!mayVectorizeNonLastIndex(indices[i].get(), L))
-      return false;
+  // Iterate over all of the indices and check if they allow vectorization.
+  for (int i = 0, e = indices.size(); i < e; i++) {
+    auto kind = getIndexKind(indices[i].get(), L);
+    bool isLastIndex = (i == e - 1);
+
+    if (isLastIndex) {
+      // The last index must be consecutive.
+      if (kind != IndexKind::Consecutive && kind != IndexKind::Uniform)
+        return false;
+    } else {
+      // Tall other indices must be uniform.
+      if (kind != IndexKind::Uniform)
+        return false;
+    }
   }
-
-  // Check the last "consecutive" index.
-  if (!mayVectorizeLastIndex(indices[indices.size() - 1].get(), L))
-    return false;
-
   return true;
-}
-
-/// \returns True if it is possible to vectorize the expression \p E, which can
-/// be a value to be stored, when vectorizing the dimension \p L.
-static bool mayVectorizeExpr(Expr *E, Loop *L) {
-  if (IndexExpr *IE = dynamic_cast<IndexExpr *>(E)) {
-    return true;
-  }
-
-  // We can vectorize add/mul expressions if we can vectorize both sides.
-  if (BinaryExpr *AE = dynamic_cast<BinaryExpr *>(E)) {
-    return (mayVectorizeExpr(AE->getLHS(), L) &&
-            mayVectorizeExpr(AE->getRHS(), L));
-  }
-
-  // Check that the load remains consecutive when vectorizing \p L.
-  if (LoadExpr *LE = dynamic_cast<LoadExpr *>(E)) {
-    return mayVectorizeLoadStoreAccess(LE->getIndices(), L);
-  }
-
-  if (dynamic_cast<ConstantExpr *>(E) || dynamic_cast<ConstantFPExpr *>(E)) {
-    return true;
-  }
-
-  return false;
 }
 
 /// Collect the store instructions that use the indices.
@@ -217,6 +188,21 @@ static bool collectStoreSites(std::set<StoreStmt *> &stores,
       if (!parent)
         return false;
     }
+  }
+
+  return true;
+}
+
+/// \returns True if it is possible to vectorize the expression \p E, which can
+/// be a value to be stored, when vectorizing the dimension \p L.
+static bool mayVectorizeExpr(Expr *E, Loop *L) {
+  std::vector<LoadExpr *> loads;
+  std::vector<StoreStmt *> stores;
+  collectLoadStores(E, loads, stores);
+
+  for (auto *ld : loads) {
+    if (!mayVectorizeLoadStoreAccess(ld->getIndices(), L))
+      return false;
   }
 
   return true;
@@ -282,7 +268,7 @@ static Expr *vectorizeExpr(Expr *E, Loop *L, unsigned vf) {
 
     std::vector<Expr *> indices;
     for (auto &E : LE->getIndices())
-      indices.push_back(vectorizeExpr(E.get(), L, vf));
+      indices.push_back(E.get());
 
     // Create a new vectorized load.
     auto *VLE = new LoadExpr(LE->getDest(), indices);
@@ -308,9 +294,9 @@ static StoreStmt *vectorizeStore(StoreStmt *S, Loop *L, unsigned vf) {
   }
 
   std::vector<Expr *> indices;
-  for (auto &E : S->getIndices()) {
-    indices.push_back(vectorizeExpr(E.get(), L, vf));
-  }
+  for (auto &E : S->getIndices())
+    indices.push_back(E.get());
+
   return new StoreStmt(S->getDest(), indices, val, S->isAccumulate());
 }
 
