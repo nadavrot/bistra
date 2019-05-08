@@ -321,6 +321,13 @@ bool bistra::vectorize(Loop *L, unsigned vf) {
     return false;
   }
 
+  std::vector<LoadLocalExpr *> lloads;
+  std::vector<StoreLocalStmt *> lstores;
+  collectLocals(L, lloads, lstores, nullptr);
+  // We can't handle local loads/stores in this optimization.
+  if (lloads.size() || lstores.size())
+    return false;
+
   // Collect the indices in the loop L that access the index of L.
   std::vector<IndexExpr *> indices;
   collectIndices(L, indices, L);
@@ -378,6 +385,13 @@ bool bistra::widen(Loop *L, unsigned wf) {
   assert(wf > 1 && wf < 1024 && "Unexpected widen factor");
   unsigned stride = L->getStride();
   unsigned newStride = stride * wf;
+
+  std::vector<LoadLocalExpr *> lloads;
+  std::vector<StoreLocalStmt *> lstores;
+  collectLocals(L, lloads, lstores, nullptr);
+  // We can't handle local loads/stores in this optimization.
+  if (lloads.size() || lstores.size())
+    return false;
 
   unsigned tripCount = L->getEnd();
   // The trip count must contain the vec-width and loop must not be vectorized.
