@@ -4,6 +4,7 @@
 
 #include <set>
 #include <vector>
+#include <iostream>
 
 using namespace bistra;
 
@@ -129,7 +130,7 @@ void HotScopeCollector::enter(Stmt *E) {
   }
   // The inner part will be executed more times, based on the trip count.
   if (Loop *L = dynamic_cast<Loop *>(E)) {
-    frequency_ *= L->getEnd();
+    frequency_ *= L->getEnd() / L->getStride();
   }
 }
 
@@ -137,7 +138,7 @@ void HotScopeCollector::leave(Stmt *E) {
   // When the loop is done we divide the frequency to match the frequency of the
   // outer scope. See the implementation of 'enter'.
   if (Loop *L = dynamic_cast<Loop *>(E)) {
-    frequency_ /= L->getEnd();
+    frequency_ /= (L->getEnd() / L->getStride());
   }
 }
 
@@ -223,4 +224,17 @@ bool bistra::areLoadsStoresDisjoint(const std::vector<LoadExpr *> &loads,
     }
   }
   return true;
+}
+
+void bistra::dumpProgramFrequencies(Scope *P) {
+  HotScopeCollector HSC;
+  P->visit(&HSC);
+  for (auto &pair : HSC.freqPairs_) {
+    if (auto *L = dynamic_cast<Loop*>(pair.first)) {
+      std::cout<<"Loop " << L->getName() << " stride: " << L->getStride() <<
+      " body: " << L->getBody().size() << " freq " <<
+      pair.second * (L->getEnd() / L->getStride()) << "\n";
+    }
+  }
+
 }
