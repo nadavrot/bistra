@@ -11,6 +11,10 @@ Loop *bistra::tile(Loop *L, unsigned blockSize) {
   if (L->getEnd() % blockSize)
     return nullptr;
 
+  // Ensure that the new tile fits in the stride.
+  if ((L->getEnd() / blockSize) < L->getStride())
+    return nullptr;
+
   // Update the original-loop's trip count.
   L->setEnd(L->getEnd() / blockSize);
 
@@ -500,7 +504,7 @@ static bool hoistLoads(Program *p, Loop *L) {
   // Only hoist from innermost loops to prevent hoisting from internal loops
   // with index dependency.
   for (auto &s : L->getBody()) {
-    if (!dynamic_cast<StoreStmt*>(s.get())) {
+    if (!dynamic_cast<StoreStmt *>(s.get())) {
       return false;
     }
   }
