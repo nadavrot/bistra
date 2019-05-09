@@ -2,9 +2,9 @@
 #include "bistra/Program/Program.h"
 #include "bistra/Program/Types.h"
 
+#include <iostream>
 #include <set>
 #include <vector>
-#include <iostream>
 
 using namespace bistra;
 
@@ -230,11 +230,10 @@ void bistra::dumpProgramFrequencies(Scope *P) {
   HotScopeCollector HSC;
   P->visit(&HSC);
   for (auto &pair : HSC.freqPairs_) {
-    if (auto *L = dynamic_cast<Loop*>(pair.first)) {
-      std::cout<<"Loop " << L->getName() << " stride: " << L->getStride() <<
-      " body: " << L->getBody().size() << " freq " <<
-      pair.second * (L->getEnd() / L->getStride()) << "\n";
+    if (auto *L = dynamic_cast<Loop *>(pair.first)) {
+      std::cout << "Loop " << L->getName() << " stride: " << L->getStride()
+                << " body: " << L->getBody().size() << " freq "
+                << pair.second * (L->getEnd() / L->getStride()) << "\n";
     }
   }
-
 }
