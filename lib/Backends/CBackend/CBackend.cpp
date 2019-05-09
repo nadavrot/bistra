@@ -336,11 +336,14 @@ double CBackend::evaluateCode(Program *p, unsigned iter) {
   shellExec(std::string("clang -mavx2 -Ofast ") + tmpSrcName + " -o " +
             tmpBinName);
 
-  // Execute:
-  std::string timeReport = shellExec(tmpBinName);
-
   std::string::size_type sz;
-  double timeInSeconds = std::stod(timeReport, &sz);
+  double timeInSeconds = 10000;
+  // Execute:
+  try {
+    std::string timeReport = shellExec(tmpBinName);
+    timeInSeconds = std::stod(timeReport, &sz);
+  } catch (...) {
+  }
   // Return the time in sec that the program measured internally and reported.
   return timeInSeconds / iter;
 }
