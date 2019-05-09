@@ -386,7 +386,7 @@ void ConstantFPExpr::verify() const {}
 void Loop::verify() const {
   assert(end_ > 0 && "Loops must not be empty");
   assert(end_ % stride_ == 0 && "Trip count must be divisible by the stride");
-  assert(stride_ > 0 && stride_ < 256 && "Invalid stride");
+  assert(stride_ > 0 && stride_ < 1024 && "Invalid stride");
   assert(isLegalName(getName()) && "Invalid character in index name");
   Scope::verify();
 }
