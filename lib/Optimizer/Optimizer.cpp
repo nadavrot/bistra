@@ -19,6 +19,8 @@ void EvaluatorPass::doIt(Program *p) {
     std::cout << "New best result: " << res << "\n";
     bestTime_ = res;
     bestProgram_.setReference(p->clone());
+  } else {
+    std::cout << "." << std::flush;
   }
 }
 
@@ -39,7 +41,7 @@ void TilerPass::doIt(Program *p) {
   p->verify();
   nextPass_->doIt(p);
 
-  int tileSizes[] = {16, 32, 56, 64, 128};
+  int tileSizes[] = {32, 64, 128, 256, 512, 1024};
 
   std::vector<Loop *> loops;
   collectLoops(p, loops);
@@ -52,7 +54,7 @@ void TilerPass::doIt(Program *p) {
       if (!::tile(newL, ts))
         continue;
 
-      for (int i = 0; i < 2; i++) {
+      for (int i = 0; i < 3; i++) {
         if (::hoist(newL, 1)) {
           nextPass_->doIt(np.get());
         }
@@ -64,7 +66,7 @@ void TilerPass::doIt(Program *p) {
 void WidnerPass::doIt(Program *p) {
   p->verify();
   nextPass_->doIt(p);
-  int widths[] = {2, 3, 4, 5, 6};
+  int widths[] = {2, 3, 4};
 
   std::vector<Loop *> loops;
   collectLoops(p, loops);
@@ -83,11 +85,6 @@ void WidnerPass::doIt(Program *p) {
 
 void PromoterPass::doIt(Program *p) {
   p->verify();
-  nextPass_->doIt(p);
-
-  std::vector<Loop *> loops;
-  collectLoops(p, loops);
-
   CloneCtx map;
   std::unique_ptr<Program> np((Program *)p->clone(map));
   ::simplify(np.get());
@@ -100,9 +97,9 @@ Program *bistra::optimizeEvaluate(Program *p) {
   auto *p1 = new PromoterPass(p0);
   auto *p2 = new WidnerPass(p1);
   auto *p3 = new WidnerPass(p2);
-  auto *p4 = new TilerPass(p3);
+  auto *p4 = new VectorizerPass(p3);
   auto *p5 = new TilerPass(p4);
-  auto *p6 = new VectorizerPass(p5);
+  auto *p6 = new TilerPass(p5);
   p6->doIt(p);
 
   return p0->getBestProgram();
