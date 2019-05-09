@@ -78,6 +78,9 @@ void collectLoadStores(ASTNode *S, std::vector<LoadExpr *> &loads,
 /// Collect all of the loops under statement \p S into \p loops;
 void collectLoops(Stmt *S, std::vector<Loop *> &loops);
 
+/// \returns a loop that has the index with the name \p name or nullptr.
+Loop *getLoopByName(Stmt *S, const std::string &name);
+
 /// \return True if the \p N depends on the loop index \p L.
 /// Example: "A[i] = 4" depends on i, but not on j;
 bool dependsOnLoop(ASTNode *N, Loop *L);
