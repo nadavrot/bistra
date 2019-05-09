@@ -541,6 +541,14 @@ static bool sinkStores(Program *p, Loop *L) {
   if (!areLoadsStoresDisjoint(loads, stores))
     return false;
 
+  // Only sink from innermost loops to prevent sinking from internal loops
+  // with index dependency.
+  for (auto &s : L->getBody()) {
+    if (!dynamic_cast<StoreStmt *>(s.get())) {
+      return false;
+    }
+  }
+
   Scope *parentScope = (Scope *)L->getParent();
 
   for (auto *st : stores) {
@@ -578,6 +586,6 @@ static bool sinkStores(Program *p, Loop *L) {
 
 bool bistra::promoteLICM(Program *p, Loop *L) {
   bool changed = hoistLoads(p, L);
-  changed |= sinkStores(p, L);
+    changed |= sinkStores(p, L);
   return changed;
 }
