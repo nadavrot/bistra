@@ -175,7 +175,7 @@ void bistra::collectLoops(Stmt *S, std::vector<Loop *> &loops) {
   S->visit(&IC);
 }
 
-Loop *getLoopByName(Stmt *S, const std::string &name) {
+Loop *bistra::getLoopByName(Stmt *S, const std::string &name) {
   std::vector<Loop *> loops;
   collectLoops(S, loops);
   for (auto *L : loops) {
