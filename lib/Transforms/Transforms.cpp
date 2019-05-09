@@ -497,6 +497,14 @@ static bool hoistLoads(Program *p, Loop *L) {
   if (!areLoadsStoresDisjoint(loads, stores))
     return false;
 
+  // Only hoist from innermost loops to prevent hoisting from internal loops
+  // with index dependency.
+  for (auto &s : L->getBody()) {
+    if (!dynamic_cast<StoreStmt*>(s.get())) {
+      return false;
+    }
+  }
+
   Scope *parentScope = (Scope *)L->getParent();
 
   for (auto *ld : loads) {
