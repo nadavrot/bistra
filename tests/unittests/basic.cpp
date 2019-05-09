@@ -495,7 +495,7 @@ TEST(basic, hois_loads) {
 
   p->verify();
   p->dump();
-  ::promoteLICM(p, I);
+  ::promoteLICM(p);
   p->dump();
   p->verify();
 
@@ -521,7 +521,7 @@ TEST(basic, sink_stores) {
 
   p->verify();
   p->dump();
-  ::promoteLICM(p, I);
+  ::promoteLICM(p);
   p->dump();
   p->verify();
 

@@ -584,8 +584,15 @@ static bool sinkStores(Program *p, Loop *L) {
   return changed;
 }
 
-bool bistra::promoteLICM(Program *p, Loop *L) {
-  bool changed = hoistLoads(p, L);
+bool bistra::promoteLICM(Program *p) {
+  std::vector<Loop *> loops;
+  collectLoops(p, loops);
+
+  bool changed = false;
+  for (auto &L : loops) {
+    changed |= hoistLoads(p, L);
     changed |= sinkStores(p, L);
+  }
+
   return changed;
 }

@@ -90,13 +90,9 @@ void PromoterPass::doIt(Program *p) {
 
   CloneCtx map;
   std::unique_ptr<Program> np((Program *)p->clone(map));
-  bool changed = false;
-  for (auto *l : loops) {
-    auto *newL = map.get(l);
-    changed |= ::promoteLICM(np.get(), newL);
-  }
-  if (changed)
-    nextPass_->doIt(np.get());
+  ::simplify(np.get());
+  ::promoteLICM(np.get());
+  nextPass_->doIt(np.get());
 }
 
 Program *bistra::optimizeEvaluate(Program *p) {
