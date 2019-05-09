@@ -93,6 +93,9 @@ Expr *getZeroExpr(ExprType &T);
 bool areLoadsStoresDisjoint(const std::vector<LoadExpr *> &loads,
                             const std::vector<StoreStmt *> &stores);
 
+/// Prints some useful statistics about the loops in the program and their execution frequency.
+void dumpProgramFrequencies(Scope *P);
+
 } // namespace bistra
 
 #endif // BISTRA_PROGRAM_UTILS_H
