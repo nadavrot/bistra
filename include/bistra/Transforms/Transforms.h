@@ -37,7 +37,7 @@ bool simplify(Stmt *s);
 
 /// Promote some memory usage from the memory to local variables.
 /// \returns true if the program was modified.
-bool promoteLICM(Program *p, Loop *L);
+bool promoteLICM(Program *p);
 
 } // namespace bistra
 
