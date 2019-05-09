@@ -174,6 +174,17 @@ void bistra::collectLoops(Stmt *S, std::vector<Loop *> &loops) {
   S->visit(&IC);
 }
 
+Loop *getLoopByName(Stmt *S, const std::string &name) {
+  std::vector<Loop *> loops;
+  collectLoops(S, loops);
+  for (auto *L : loops) {
+    if (L->getName() == name) {
+      return L;
+    }
+  }
+  return nullptr;
+}
+
 /// Collect all of the load/store accesses to locals.
 /// If \p filter is set then only accesses to \p filter are collected.
 void bistra::collectLocals(ASTNode *S, std::vector<LoadLocalExpr *> &loads,
