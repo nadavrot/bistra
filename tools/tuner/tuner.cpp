@@ -1,33 +1,26 @@
 #include "bistra/Backends/Backend.h"
 #include "bistra/Backends/Backends.h"
+#include "bistra/Optimizer/Optimizer.h"
 #include "bistra/Program/Program.h"
+#include "bistra/Program/Utils.h"
 #include "bistra/Transforms/Transforms.h"
 
 #include <iostream>
 
 using namespace bistra;
 
-int main() {
-  const int sizeM = 128;
-  const int sizeN = 256;
-  const int sizeV = 1024;
-
+Program *generateGemm(unsigned szI, unsigned szJ, unsigned szK) {
   // C[i, j] = A[i, k] * B[k, j];
   Program *p = new Program();
-  p->addArgument("C", {sizeM, sizeN}, {"I", "J"}, ElemKind::Float32Ty);
-  p->addArgument("A", {sizeM, sizeV}, {"I", "K"}, ElemKind::Float32Ty);
-  p->addArgument("B", {sizeV, sizeN}, {"K", "J"}, ElemKind::Float32Ty);
+  auto *C = p->addArgument("C", {szI, szK}, {"I", "J"}, ElemKind::Float32Ty);
+  auto *A = p->addArgument("A", {szI, szJ}, {"I", "K"}, ElemKind::Float32Ty);
+  auto *B = p->addArgument("B", {szJ, szK}, {"K", "J"}, ElemKind::Float32Ty);
 
-  auto *C = p->getArg(0);
-  auto *A = p->getArg(1);
-  auto *B = p->getArg(2);
-
-  auto *I = new Loop("i", sizeM, 1);
-  auto *J = new Loop("j", sizeN, 1);
-  auto *K = new Loop("k", sizeV, 1);
+  auto *I = new Loop("i", szI, 1);
+  auto *J = new Loop("j", szJ, 1);
+  auto *K = new Loop("k", szK, 1);
   auto *zero = new StoreStmt(C, {new IndexExpr(I), new IndexExpr(J)},
                              new ConstantFPExpr(0), false);
-
   p->addStmt(I);
   I->addStmt(J);
   J->addStmt(zero);
@@ -38,17 +31,10 @@ int main() {
   auto *mul = new MulExpr(ldA, ldB);
   auto *st = new StoreStmt(C, {new IndexExpr(I), new IndexExpr(J)}, mul, true);
   K->addStmt(st);
+  return p;
+}
 
-  p->verify();
-  p->dump();
-  ::vectorize(I, 8);
-  ::vectorize(J, 8);
-  ::vectorize(K, 8);
-  ::widen(J, 3);
-  p->dump();
-
-  auto CB = getBackend("C");
-  auto cpp = CB->emitProgramCode(p);
-  std::cout << cpp;
-  CB->evaluateCode(p, 100);
+int main() {
+  auto *p = generateGemm(512, 512, 512);
+  optimizeEvaluate(p);
 }

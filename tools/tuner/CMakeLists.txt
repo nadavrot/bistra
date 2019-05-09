@@ -7,5 +7,6 @@ target_link_libraries(tuner
                         Backends
                         Program
                         Transforms
+                        Optimizer
                         )
 

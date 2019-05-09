@@ -1,3 +1,4 @@
 add_subdirectory(Backends)
 add_subdirectory(Program)
 add_subdirectory(Transforms)
+add_subdirectory(Optimizer)
