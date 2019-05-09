@@ -521,6 +521,7 @@ static bool hoistLoads(Program *p, Loop *L) {
 }
 
 static bool sinkStores(Program *p, Loop *L) {
+  bool changed = false;
   std::vector<LoadExpr *> loads;
   std::vector<StoreStmt *> stores;
   collectLoadStores(L, loads, stores);
@@ -557,9 +558,10 @@ static bool sinkStores(Program *p, Loop *L) {
     auto *save =
         new StoreLocalStmt(var, st->getValue()->clone(map), st->isAccumulate());
     L->replaceStmt(save, st);
+    changed = true;
   }
 
-  return false;
+  return changed;
 }
 
 bool bistra::promoteLICM(Program *p, Loop *L) {
