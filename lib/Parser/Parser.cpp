@@ -187,7 +187,16 @@ Program *Parser::parseFunctionDecl() {
     if (parseNamedType(T, typeName)) {
       return nullptr;
     }
-    p->addArgument(new Argument(typeName, T));
+
+    if (ctx_.getArgumentByName(typeName)) {
+      ctx_.diagnose("Argument with this name already exists.");
+      // Try to recover by ignoring this argument.
+      continue;
+    }
+
+    auto *arg = new Argument(typeName, T);
+    ctx_.registerNewArgument(arg);
+    p->addArgument(arg);
   }
 
   if (!consumeIf(TokenKind::r_paren)) {
