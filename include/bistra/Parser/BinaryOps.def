@@ -1,0 +1,37 @@
+///
+/// Binary operator precedences: higher precedences numbers bind more strongly.
+/// Neend to follow the C++ operator precedence:
+///   http://en.cppreference.com/w/cpp/language/operator_precedence
+///
+/// The names of the operators need to match the names in Tokens.def.
+/// Precedences values must be greater than zero.
+
+// Member access.
+OPERATOR(period, 100)
+
+// Unary operators.
+OPERATOR(bang, 90)
+
+// Multiplication, division, and remainder.
+OPERATOR(mult, 80)
+OPERATOR(div, 80)
+OPERATOR(rem, 80)
+
+// Addition and subtraction.
+OPERATOR(plus,  70)
+OPERATOR(minus, 70)
+
+// relational operators.
+OPERATOR(gt,  60)
+OPERATOR(gte, 60)
+OPERATOR(lt,  60)
+OPERATOR(lte, 60)
+
+// Equality relational operators.
+OPERATOR(not_equal,  50)
+OPERATOR(equal,      50)
+
+
+// Logical operators.
+// ...
+

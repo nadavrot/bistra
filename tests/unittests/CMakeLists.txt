@@ -1,4 +1,24 @@
 add_executable(
+    parser_test
+    parser.cpp
+    )
+
+target_link_libraries(
+    parser_test
+    gtest_main
+    Program
+    Parser
+    )
+
+add_test(
+  NAME
+    parser_test
+  COMMAND
+    ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}/parser_test
+  )
+
+
+add_executable(
     basic_test
     basic.cpp
     )
@@ -9,6 +29,7 @@ target_link_libraries(
     Program
     Backends
     Transforms
+    Optimizer
     )
 
 add_test(
