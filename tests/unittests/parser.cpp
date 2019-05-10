@@ -54,3 +54,15 @@ TEST(basic, parse_decl) {
   EXPECT_EQ(pg->getArg(0)->getType()->getDims().size(), 2);
   EXPECT_EQ(pg->getArg(0)->getType()->getDims()[0], 512);
 }
+
+TEST(basic, parse_for) {
+  ParserContext ctx;
+  Parser P("def matmul(C:float<I:512,J:512>) {  for (i in 0..125) {} }", ctx);
+  P.Parse();
+  P.getContext().getProgram()->dump();
+  EXPECT_EQ(P.getContext().getNumErrors(), 0);
+  Program *pg = P.getContext().getProgram();
+  Loop *forStmt = dynamic_cast<Loop *>(pg->getBody()[0].get());
+  EXPECT_EQ(forStmt->getName(), "i");
+  EXPECT_EQ(forStmt->getEnd(), 125);
+}

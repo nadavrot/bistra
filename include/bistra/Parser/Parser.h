@@ -7,6 +7,8 @@
 
 namespace bistra {
 class Lexer;
+class Stmt;
+class Scope;
 
 /// The program parser.
 class Parser {
@@ -78,8 +80,14 @@ private:
   /// returns true.
   bool parseNamedType(Type &T, std::string &name);
 
+  /// Parse a single integer literal.
+  bool parseIntegerLiteral(int &val);
+
   /// Parse a single unit (stmt).
-  ASTNode *parseOneStmt();
+  Stmt *parseOneStmt();
+
+  /// Parse a scope that starts and ends with braces and populate \p s.
+  bool parseScope(Scope *s);
 
   /// The parser expects that 'K' is next in the input.  If so, it
   /// is consumed and false is returned.

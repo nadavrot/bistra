@@ -78,6 +78,15 @@ bool Parser::parseTypePair(std::string &name, unsigned &val) {
   return false;
 }
 
+bool Parser::parseIntegerLiteral(int &val) {
+  if (Tok.is(TokenKind::integer_literal)) {
+    val = std::atoi(Tok.getText().c_str());
+    consumeIf(TokenKind::integer_literal);
+    return false;
+  }
+  return true;
+}
+
 // Example: C:float<I:512,J:512>,
 bool Parser::parseNamedType(Type &T, std::string &name) {
   name = Tok.getText();
@@ -152,6 +161,91 @@ bool Parser::parseNamedType(Type &T, std::string &name) {
   return false;
 }
 
+bool Parser::parseScope(Scope *scope) {
+  if (!consumeIf(TokenKind::l_brace)) {
+    ctx_.diagnose("Expecting left brace for scope body.");
+    return true;
+  }
+
+  while (!Tok.is(TokenKind::r_brace)) {
+    if (Stmt *S = parseOneStmt()) {
+      scope->addStmt(S);
+    } else {
+      return true;
+    }
+  }
+
+  if (!consumeIf(TokenKind::r_brace)) {
+    ctx_.diagnose("Expecting closing brace to scope body.");
+    return true;
+  }
+  return false;
+}
+
+/// Parse a single unit (stmt).
+Stmt *Parser::parseOneStmt() {
+  if (Tok.is(TokenKind::kw_for)) {
+    // "For"
+    consumeToken(TokenKind::kw_for);
+
+    // "("
+    if (!consumeIf(TokenKind::l_paren)) {
+      ctx_.diagnose("Expecting left paren in for loop.");
+      return nullptr;
+    }
+
+    // Indentifier name.
+    std::string indexName = Tok.getText();
+    if (!consumeIf(TokenKind::identifier)) {
+      ctx_.diagnose("Expecting index name in for loop.");
+      return nullptr;
+    }
+
+    // "in" keyword.
+    if (!consumeIf(TokenKind::kw_in)) {
+      ctx_.diagnose("Expecting 'in' keyword in the for loop.");
+      return nullptr;
+    }
+
+    int zero;
+    if (parseIntegerLiteral(zero) || zero != 0) {
+      ctx_.diagnose("Expecting '0' in the for base range.");
+      return nullptr;
+    }
+
+    // ".." range keyword.
+    if (!consumeIf(TokenKind::range)) {
+      ctx_.diagnose("Expecting the '..' range in the for loop.");
+      return nullptr;
+    }
+
+    // End of index range.
+    int endRange = 0;
+    if (parseIntegerLiteral(endRange)) {
+      ctx_.diagnose("Expecting end of range integer at for loop.");
+      return nullptr;
+    }
+
+    // ")"
+    if (!consumeIf(TokenKind::r_paren)) {
+      ctx_.diagnose("Expecting right brace in for loop.");
+      return nullptr;
+    }
+
+    // Create the loop.
+    Loop *L = new Loop(indexName, endRange);
+
+    // Parse the body of the loop.
+    if (parseScope(L)) {
+      return nullptr;
+    }
+    return L;
+  }
+
+  ctx_.diagnose("Unknown statement in scope body.");
+  return nullptr;
+}
+
 Program *Parser::parseFunctionDecl() {
   if (!consumeIf(kw_def)) {
     skipUntil(TokenKind::eof);
@@ -161,7 +255,7 @@ Program *Parser::parseFunctionDecl() {
   std::string progName = Tok.getText();
 
   if (!consumeIf(TokenKind::identifier)) {
-    ctx_.diagnose("expecting function name after def");
+    ctx_.diagnose("Expecting function name after def.");
     return nullptr;
   }
 
@@ -204,15 +298,7 @@ Program *Parser::parseFunctionDecl() {
     return nullptr;
   }
 
-  if (!consumeIf(TokenKind::l_brace)) {
-    ctx_.diagnose("Expecting function body.");
-    return nullptr;
-  }
-
-  // TODO: parse function body.
-
-  if (!consumeIf(TokenKind::r_brace)) {
-    ctx_.diagnose("Expecting closing brace to function body.");
+  if (parseScope(p)) {
     return nullptr;
   }
 
