@@ -5,6 +5,25 @@
 
 using namespace bistra;
 
+Loop *ParserContext::getLoopByName(const std::string &name) {
+  // Go over the loop nest in reverse to find the last decleration of the
+  // variable with the index \p name.
+  for (int i = loopNextStack_.size() - 1; i >= 0; i--) {
+    Loop *L = loopNextStack_[i];
+    if (L->getName() == name)
+      return L;
+  }
+  return nullptr;
+}
+
+void ParserContext::pushLoop(Loop *L) { loopNextStack_.push_back(L); }
+
+Loop *ParserContext::popLoop() {
+  auto *L = loopNextStack_[loopNextStack_.size() - 1];
+  loopNextStack_.pop_back();
+  return L;
+}
+
 void ParserContext::registerNewArgument(Argument *arg) {
   assert(getArgumentByName(arg->getName()) == nullptr &&
          "Argument already registered");

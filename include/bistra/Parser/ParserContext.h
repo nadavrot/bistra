@@ -3,10 +3,12 @@
 
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace bistra {
 class Program;
 class Argument;
+class Loop;
 
 /// The context that serves the parser while parsing.
 class ParserContext {
@@ -19,8 +21,20 @@ class ParserContext {
   /// Indexes arguments by name.
   std::unordered_map<std::string, Argument *> argMap_;
 
+  /// Contains the next of loops while parsing.
+  std::vector<Loop *> loopNextStack_;
+
 public:
   ParserContext() = default;
+
+  /// \returns a loop by name \p name that is currently in the loop nest stack.
+  Loop *getLoopByName(const std::string &name);
+
+  /// Add the loop \p L to the loop stack.
+  void pushLoop(Loop *L);
+
+  /// Remove the top loop from the loop stack.
+  Loop *popLoop();
 
   /// Registers a new argument.
   void registerNewArgument(Argument *arg);

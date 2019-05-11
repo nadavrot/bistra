@@ -6,18 +6,23 @@
 using namespace bistra;
 
 const char *test_program = R"(
-                def matmul(C:float<I:512,J:512>, A:float<I:512,K:512>, B:float<K:512,J:512>) {
-                var C1 : float8
-                 for (i in 0..512) {
-                  for.8 (j in 0..512) {
-                   C1 = ( 0.0 );
-                   for (k in 0..512) {
-                    C1 += (A[i,k]) * B[k,j].8;
-                   }
-                   C[i,j].8 += C1;
-                  }
-                 }
-                })";
+def matmul(C:float<I:512,J:512>, A:float<I:512,K:512>, B:float<K:512,J:512>) {
+  for (i in 0 .. 512) {
+    for (j in 0 .. 512) {
+      C[i,j] = 0.0;
+      for (k in 0 .. 512) {
+        C[i,j] += (A[i,k]) * B[k,j];
+      }
+    }
+  }
+})";
+
+const char *test_program2 = R"(
+def matmul(C:float<I:512,J:512>, A:float<I:512,K:512>, B:float<K:512,J:512>) {
+  for (i in 0 .. 512) {
+        C[i + 3, i * 2 ] += (A[i, (4 + 2) * i]) * B[4 + 4, 8 + (8 * i)] + 0.34;
+  }
+})";
 
 TEST(basic, lexer1) {
   ParserContext ctx;
@@ -57,7 +62,7 @@ TEST(basic, parse_decl) {
 
 TEST(basic, parse_for) {
   ParserContext ctx;
-  Parser P("def matmul(C:float<I:512,J:512>) {  for (i in 0..125) {} }", ctx);
+  Parser P("def matmul(C:float<I:512,J:512>) {  for (i in 0 .. 125) {} }", ctx);
   P.Parse();
   P.getContext().getProgram()->dump();
   EXPECT_EQ(P.getContext().getNumErrors(), 0);
@@ -65,4 +70,28 @@ TEST(basic, parse_for) {
   Loop *forStmt = dynamic_cast<Loop *>(pg->getBody()[0].get());
   EXPECT_EQ(forStmt->getName(), "i");
   EXPECT_EQ(forStmt->getEnd(), 125);
+}
+
+TEST(basic, parse_whole_file) {
+  ParserContext ctx;
+  Parser P(test_program, ctx);
+  P.Parse();
+  P.getContext().getProgram()->dump();
+  EXPECT_EQ(P.getContext().getNumErrors(), 0);
+  Program *pg = P.getContext().getProgram();
+  Loop *forStmt = dynamic_cast<Loop *>(pg->getBody()[0].get());
+  EXPECT_EQ(forStmt->getName(), "i");
+  EXPECT_EQ(forStmt->getEnd(), 512);
+}
+
+TEST(basic, parse_whole_file2) {
+  ParserContext ctx;
+  Parser P(test_program2, ctx);
+  P.Parse();
+  P.getContext().getProgram()->dump();
+  EXPECT_EQ(P.getContext().getNumErrors(), 0);
+  Program *pg = P.getContext().getProgram();
+  Loop *forStmt = dynamic_cast<Loop *>(pg->getBody()[0].get());
+  EXPECT_EQ(forStmt->getName(), "i");
+  EXPECT_EQ(forStmt->getEnd(), 512);
 }
