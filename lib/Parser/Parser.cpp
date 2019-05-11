@@ -22,18 +22,6 @@ static unsigned getBinOpPrecedence(TokenKind Kind) {
   }
 }
 
-/// Returns true if the token is an operator.
-static bool isOperator(TokenKind Kind) {
-  switch (Kind) {
-  default: { return false; }
-#define OPERATOR(ID, PREC)                                                     \
-  case TokenKind::ID:                                                          \
-    return true;
-#include "bistra/Parser/BinaryOps.def"
-#undef OPERATOR
-  }
-}
-
 void Parser::consumeToken() {
   assert(!Tok.is(eof) && "Lexing past eof!");
   L_->Lex(Tok);
@@ -57,7 +45,7 @@ void Parser::skipUntil(TokenKind T) {
 bool Parser::parseTypePair(std::string &name, int &val) {
   if (parseIdentifier(name)) {
     ctx_.diagnose("Expecting dimension name.");
-    return nullptr;
+    return true;
   }
 
   if (!consumeIf(TokenKind::colon)) {
@@ -228,7 +216,7 @@ bool Parser::parseSubscriptList(std::vector<Expr *> &exprs) {
     }
 
     ctx_.diagnose("Expecting comma or end of subscript.");
-    return nullptr;
+    return true;
   }
 
   consumeToken(TokenKind::r_square);
