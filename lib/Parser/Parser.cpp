@@ -462,7 +462,7 @@ Program *Parser::parseFunctionDecl() {
 
   consumeToken(l_paren);
 
-  Program *p = new Program();
+  Program *p = new Program(progName);
 
   Type T;
   std::string typeName;
