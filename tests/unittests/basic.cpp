@@ -8,6 +8,38 @@
 
 using namespace bistra;
 
+Program *generateGemm(unsigned szI, unsigned szJ, unsigned szK) {
+  // C[i, j] = A[i, k] * B[k, j];
+  Program *p = new Program("gemm");
+  auto *C = p->addArgument("C", {szI, szK}, {"I", "J"}, ElemKind::Float32Ty);
+  auto *A = p->addArgument("A", {szI, szJ}, {"I", "K"}, ElemKind::Float32Ty);
+  auto *B = p->addArgument("B", {szJ, szK}, {"K", "J"}, ElemKind::Float32Ty);
+
+  auto *I = new Loop("i", szI, 1);
+  auto *J = new Loop("j", szJ, 1);
+  auto *K = new Loop("k", szK, 1);
+  auto *zero = new StoreStmt(C, {new IndexExpr(I), new IndexExpr(J)},
+                             new ConstantFPExpr(0), false);
+  p->addStmt(I);
+  I->addStmt(J);
+  J->addStmt(zero);
+  J->addStmt(K);
+
+  auto *ldA = new LoadExpr(A, {new IndexExpr(I), new IndexExpr(K)});
+  auto *ldB = new LoadExpr(B, {new IndexExpr(K), new IndexExpr(J)});
+  auto *mul = new MulExpr(ldA, ldB);
+  auto *st = new StoreStmt(C, {new IndexExpr(I), new IndexExpr(J)}, mul, true);
+  K->addStmt(st);
+  return p;
+}
+
+// Check that we can build a simple program.
+TEST(basic, simple_builder) {
+  Program *p = generateGemm(1024, 256, 128);
+  p->dump();
+  delete p;
+}
+
 // Check that we can build a simple program, clone a graph and dump it.
 TEST(basic, builder) {
   Program *p = new Program("test");
