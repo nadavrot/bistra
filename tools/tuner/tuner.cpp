@@ -11,7 +11,7 @@ using namespace bistra;
 
 Program *generateGemm(unsigned szI, unsigned szJ, unsigned szK) {
   // C[i, j] = A[i, k] * B[k, j];
-  Program *p = new Program();
+  Program *p = new Program("gemm");
   auto *C = p->addArgument("C", {szI, szK}, {"I", "J"}, ElemKind::Float32Ty);
   auto *A = p->addArgument("A", {szI, szJ}, {"I", "K"}, ElemKind::Float32Ty);
   auto *B = p->addArgument("B", {szJ, szK}, {"K", "J"}, ElemKind::Float32Ty);
