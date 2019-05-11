@@ -107,6 +107,9 @@ private:
   bool parseToken(TokenKind K);
 };
 
+/// Parses the program in \p src and returns a valid program or nullptr.
+Program *parseProgram(const char *src);
+
 } // namespace bistra
 
 #endif // BISTRA_PARSER_PARSER_H

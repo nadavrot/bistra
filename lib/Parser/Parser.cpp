@@ -524,3 +524,10 @@ void Parser::Parse() {
   ctx_.diagnose("Expecting function decleration.");
   return;
 }
+
+Program *bistra::parseProgram(const char *src) {
+  ParserContext ctx;
+  Parser P(src, ctx);
+  P.Parse();
+  return ctx.getProgram();
+}
