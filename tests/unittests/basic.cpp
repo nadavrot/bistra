@@ -10,7 +10,7 @@ using namespace bistra;
 
 // Check that we can build a simple program, clone a graph and dump it.
 TEST(basic, builder) {
-  Program *p = new Program();
+  Program *p = new Program("test");
   p->addArgument("bar", {32, 32}, {"X", "Y"}, ElemKind::Float32Ty);
   p->addArgument("input", {32, 32}, {"X", "Y"}, ElemKind::Float32Ty);
   p->addArgument("foo", {10, 32, 32, 4}, {"N", "H", "W", "C"},
@@ -53,7 +53,7 @@ TEST(basic, builder) {
 
 TEST(basic, matmul) {
   // C[i, j] = A[i, k] * B[k, j];
-  Program *p = new Program();
+  Program *p = new Program("simple");
   p->addArgument("C", {128, 32}, {"I", "J"}, ElemKind::Float32Ty);
   p->addArgument("A", {128, 64}, {"I", "K"}, ElemKind::Float32Ty);
   p->addArgument("B", {64, 32}, {"K", "J"}, ElemKind::Float32Ty);
@@ -86,7 +86,7 @@ TEST(basic, matmul) {
 
 TEST(basic, memcpy) {
   // DEST[i] = SRC[i];
-  Program *p = new Program();
+  Program *p = new Program("memcpy");
   auto *dest = p->addArgument("DEST", {256}, {"len"}, ElemKind::Float32Ty);
   auto *src = p->addArgument("SRC", {256}, {"len"}, ElemKind::Float32Ty);
 
@@ -115,7 +115,7 @@ struct NodeCounter : public NodeVisitor {
 
 TEST(basic, visitor_collect_indices) {
   // C[i, j] = A[i, k] * B[k, j];
-  Program *p = new Program();
+  Program *p = new Program("gemm");
   p->addArgument("C", {128, 256}, {"I", "J"}, ElemKind::Float32Ty);
   p->addArgument("A", {128, 512}, {"I", "K"}, ElemKind::Float32Ty);
   p->addArgument("B", {512, 256}, {"K", "J"}, ElemKind::Float32Ty);
@@ -156,7 +156,7 @@ TEST(basic, visitor_collect_indices) {
 
 TEST(basic, time_simple_loop) {
   // C[i, j] = A[i, k] * B[k, j];
-  Program *p = new Program();
+  Program *p = new Program("gemm");
   p->addArgument("C", {128, 256}, {"I", "J"}, ElemKind::Float32Ty);
   p->addArgument("A", {128, 512}, {"I", "K"}, ElemKind::Float32Ty);
   p->addArgument("B", {512, 256}, {"K", "J"}, ElemKind::Float32Ty);
@@ -190,7 +190,7 @@ TEST(basic, time_simple_loop) {
 }
 
 TEST(basic, tile_loop) {
-  Program *p = new Program();
+  Program *p = new Program("simple");
   p->addArgument("A", {125}, {"X"}, ElemKind::Float32Ty);
   p->addArgument("B", {125}, {"X"}, ElemKind::Float32Ty);
 
@@ -223,7 +223,7 @@ TEST(basic, tile_loop) {
 }
 
 TEST(basic, unroll_loop) {
-  Program *p = new Program();
+  Program *p = new Program("unroll_me");
   p->addArgument("A", {10}, {"X"}, ElemKind::Float32Ty);
 
   auto *A = p->getArg(0);
@@ -250,7 +250,7 @@ TEST(basic, unroll_loop) {
 
 TEST(basic, peel_loop) {
   // DEST[i] = SRC[i];
-  Program *p = new Program();
+  Program *p = new Program("mem_cpy");
   auto *dest = p->addArgument("DEST", {260}, {"len"}, ElemKind::Float32Ty);
   auto *src = p->addArgument("SRC", {260}, {"len"}, ElemKind::Float32Ty);
 
@@ -277,7 +277,7 @@ TEST(basic, peel_loop) {
 }
 
 TEST(basic, peel_loop2) {
-  Program *p = new Program();
+  Program *p = new Program("simple");
   p->addArgument("A", {60, 60}, {"X", "Y"}, ElemKind::Float32Ty);
   p->addArgument("B", {60, 60}, {"X", "Y"}, ElemKind::Float32Ty);
   p->addArgument("C", {60, 60}, {"X", "Y"}, ElemKind::Float32Ty);
@@ -320,7 +320,7 @@ TEST(basic, peel_loop2) {
 
 TEST(basic, vectorize_memcpy_loop) {
   // DEST[i] = SRC[i];
-  Program *p = new Program();
+  Program *p = new Program("memcpy");
   auto *dest = p->addArgument("DEST", {1024}, {"len"}, ElemKind::Float32Ty);
   auto *src = p->addArgument("SRC", {1024}, {"len"}, ElemKind::Float32Ty);
 
@@ -351,7 +351,7 @@ TEST(basic, vectorize_memcpy_loop) {
 
 TEST(basic, vectorize_memset) {
   // DEST[i] = 0;
-  Program *p = new Program();
+  Program *p = new Program("memset");
   auto *dest = p->addArgument("DEST", {125}, {"len"}, ElemKind::Float32Ty);
   auto *I = new Loop("i", 125, 1);
   p->addStmt(I);
@@ -376,7 +376,7 @@ TEST(basic, vectorize_memset) {
 }
 
 TEST(basic, widen_loop) {
-  Program *p = new Program();
+  Program *p = new Program("simple");
   p->addArgument("D", {17}, {"D"}, ElemKind::Float32Ty);
   auto *D = p->getArg(0);
 
@@ -401,7 +401,7 @@ TEST(basic, widen_loop) {
 }
 
 TEST(basic, vectorize_widen_loop) {
-  Program *p = new Program();
+  Program *p = new Program("simple");
   auto *K = p->addArgument("K", {117}, {"K"}, ElemKind::Float32Ty);
 
   auto *I = new Loop("index", 117);
@@ -430,7 +430,7 @@ TEST(basic, vectorize_widen_loop) {
 }
 
 TEST(basic, simplify_program) {
-  Program *p = new Program();
+  Program *p = new Program("simple");
   auto *K = p->addArgument("K", {117}, {"K"}, ElemKind::Float32Ty);
 
   // Loop from zero to one.
@@ -461,7 +461,7 @@ TEST(basic, simplify_program) {
 
 // Check that we can build a simple program with local vars.
 TEST(basic, local_vars) {
-  Program *p = new Program();
+  Program *p = new Program("simple");
   auto *A = p->addArgument("A", {32, 32}, {"X", "Y"}, ElemKind::Float32Ty);
   auto *loc = p->addLocalVar("local1", ExprType(ElemKind::Float32Ty));
 
@@ -482,7 +482,7 @@ TEST(basic, local_vars) {
 }
 
 TEST(basic, hois_loads) {
-  Program *p = new Program();
+  Program *p = new Program("simple");
   auto *K = p->addArgument("K", {1}, {"K"}, ElemKind::Float32Ty);
   auto *T = p->addArgument("T", {256}, {"T"}, ElemKind::Float32Ty);
 
@@ -508,7 +508,7 @@ TEST(basic, hois_loads) {
 }
 
 TEST(basic, sink_stores) {
-  Program *p = new Program();
+  Program *p = new Program("simple");
   auto *K = p->addArgument("K", {256}, {"K"}, ElemKind::Float32Ty);
   auto *T = p->addArgument("T", {1}, {"T"}, ElemKind::Float32Ty);
 

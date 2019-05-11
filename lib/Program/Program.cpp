@@ -41,10 +41,12 @@ void LocalVar::dump() const {
   std::cout << name_ << " : " << type_.getTypename();
 }
 
-Program::Program(const std::vector<Stmt *> &body,
+Program::Program(const std::string &name) : name_(name) {}
+
+Program::Program(const std::string &name, const std::vector<Stmt *> &body,
                  const std::vector<Argument *> &args,
                  const std::vector<LocalVar *> &vars)
-    : Scope(body), args_(args), vars_(vars) {}
+    : Scope(body), name_(name), args_(args), vars_(vars) {}
 
 Program::~Program() {
   for (auto *arg : args_) {
@@ -348,7 +350,7 @@ Program *Program::clone() {
 
 Stmt *Program::clone(CloneCtx &map) {
   verify();
-  Program *np = new Program();
+  Program *np = new Program(getName());
   std::vector<Argument *> newArgs;
   std::vector<LocalVar *> newVars;
 
@@ -486,6 +488,7 @@ void Program::verify() const {
   for (auto *a : vars_) {
     a->verify();
   }
+  assert(isLegalName(getName()) && "Invalid program name.");
   Scope::verify();
 }
 

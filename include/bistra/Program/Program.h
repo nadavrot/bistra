@@ -241,6 +241,8 @@ public:
 
 /// This class represents a program.
 class Program final : public Scope {
+  /// The name of the program.
+  std::string name_;
   /// \represents the list of arguments.
   std::vector<Argument *> args_;
   /// \represents the list of local variables.
@@ -249,10 +251,14 @@ class Program final : public Scope {
 public:
   ~Program();
 
-  Program() = default;
+  Program(const std::string &name);
+
+  /// \returns the name of the program.
+  const std::string &getName() const { return name_; }
 
   /// Construct a new program with the body \p body and arguments \p args.
-  Program(const std::vector<Stmt *> &body, const std::vector<Argument *> &args,
+  Program(const std::string &name, const std::vector<Stmt *> &body,
+          const std::vector<Argument *> &args,
           const std::vector<LocalVar *> &vars);
 
   /// Argument getter.
