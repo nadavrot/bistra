@@ -74,7 +74,7 @@ private:
   Program *parseFunctionDecl();
 
   /// Parse the name:value pair. Example: I:512
-  bool parseTypePair(std::string &name, unsigned &val);
+  bool parseTypePair(std::string &name, int &val);
 
   /// If the input is malformed, this emits the specified error diagnostic and
   /// returns true.
@@ -82,6 +82,16 @@ private:
 
   /// Parse a single integer literal.
   bool parseIntegerLiteral(int &val);
+
+  /// Parse a single float literal.
+  bool parseFloatLiteral(double &val);
+
+  /// Parse Identifier.
+  bool parseIdentifier(std::string &text);
+
+  /// Parse a list of indices acessing arrays.
+  /// Example (the subscript part):  A[1, 2, j*2, i + 3 ]
+  bool parseSubscriptList(std::vector<Expr *> &exprs);
 
   /// Parse a single unit (stmt).
   Stmt *parseOneStmt();

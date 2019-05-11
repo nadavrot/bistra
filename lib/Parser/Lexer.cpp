@@ -87,9 +87,21 @@ void Lexer::lexNumber(Token &result) {
   const char *tokStart = curPtr_ - 1;
   assert(isdigit(*tokStart) && "Unexpected start");
 
+  bool seenPoint = false;
   // Lex [0-9]*
-  while (isdigit(*curPtr_))
+  while (isdigit(*curPtr_) || *curPtr_ == '.') {
+    if (*curPtr_ == '.') {
+      // If this is not the first period in the number then abort.
+      if (seenPoint) {
+        break;
+      }
+      seenPoint = true;
+    }
     ++curPtr_;
+  }
+  // Create the float/int number tokens.
+  if (seenPoint)
+    return formToken(float_literal, tokStart, result);
 
   return formToken(integer_literal, tokStart, result);
 }
@@ -112,6 +124,7 @@ Restart:
   case '\t':
   case '\n':
   case '\r':
+  case ';':
     goto Restart; // Skip whitespace.
   case 0:
     // This is the end of the buffer.  Return EOF.
@@ -121,8 +134,6 @@ Restart:
     return formToken(comma, tokStart, result);
   case ':':
     return formToken(colon, tokStart, result);
-  case ';':
-    return formToken(semi, tokStart, result);
   case '.':
     if (curPtr_[0] == '.') {
       curPtr_++;
@@ -157,6 +168,10 @@ Restart:
     return formToken(bang, tokStart, result);
 
   case '+':
+    if (curPtr_[0] == '=') {
+      curPtr_++;
+      return formToken(plusEquals, tokStart, result);
+    }
     return formToken(plus, tokStart, result);
   case '-':
     return formToken(minus, tokStart, result);

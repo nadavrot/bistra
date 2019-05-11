@@ -54,23 +54,18 @@ void Parser::skipUntil(TokenKind T) {
   }
 }
 
-bool Parser::parseTypePair(std::string &name, unsigned &val) {
-  name = Tok.getText();
-
-  if (!consumeIf(TokenKind::identifier)) {
+bool Parser::parseTypePair(std::string &name, int &val) {
+  if (parseIdentifier(name)) {
     ctx_.diagnose("Expecting dimension name.");
-    return true;
+    return nullptr;
   }
+
   if (!consumeIf(TokenKind::colon)) {
     ctx_.diagnose("Expecting colon after dimension name " + name + ".");
     return true;
   }
 
-  if (Tok.is(TokenKind::integer_literal)) {
-    val = std::atoi(Tok.getText().c_str());
-  }
-
-  if (!consumeIf(TokenKind::integer_literal)) {
+  if (parseIntegerLiteral(val)) {
     ctx_.diagnose("Expecting integer after dimension name " + name + ".");
     return true;
   }
@@ -85,6 +80,159 @@ bool Parser::parseIntegerLiteral(int &val) {
     return false;
   }
   return true;
+}
+
+bool Parser::parseFloatLiteral(double &val) {
+  if (Tok.is(TokenKind::float_literal)) {
+    val = std::atof(Tok.getText().c_str());
+    consumeIf(TokenKind::float_literal);
+    return false;
+  }
+  return true;
+}
+
+bool Parser::parseIdentifier(std::string &text) {
+  if (Tok.is(TokenKind::identifier)) {
+    text = Tok.getText();
+    consumeIf(TokenKind::identifier);
+    return false;
+  }
+  std::string varName;
+  if (parseIdentifier(varName)) {
+    ctx_.diagnose("Unexpected identifier.");
+  }
+  return true;
+}
+
+Expr *Parser::parseExpr(unsigned RBP) {
+  // Parse a single expression.
+  Expr *LHS = parseExprPrimary();
+
+  while (1) {
+    // Check the precedence of the next token. Notice that the next token does
+    // not have to be a binary operator.
+    unsigned LBP = getBinOpPrecedence(Tok.getKind());
+    if (RBP >= LBP) {
+      break;
+    }
+
+    // Save the binary operator.
+    auto operatorSymbol = Tok.getText();
+
+    // Remove the operand and continue parsing.
+    consumeToken();
+
+    Expr *RHS = parseExpr(LBP);
+    if (!RHS) {
+      return nullptr;
+    }
+
+    if (operatorSymbol == "+") {
+      LHS = new AddExpr(LHS, RHS);
+    } else if (operatorSymbol == "*") {
+      LHS = new MulExpr(LHS, RHS);
+    } else {
+      ctx_.diagnose("Unsupported operator: '" + operatorSymbol + "'.");
+      return nullptr;
+    }
+  }
+
+  return LHS;
+}
+
+Expr *Parser::parseExprPrimary() {
+  switch (Tok.getKind()) {
+  case integer_literal: {
+    int num;
+    parseIntegerLiteral(num);
+    return new ConstantExpr(num);
+  }
+
+  case float_literal: {
+    double num;
+    parseFloatLiteral(num);
+    return new ConstantFPExpr(num);
+  }
+
+  case identifier: {
+    std::string varName;
+    parseIdentifier(varName);
+
+    // Check if this identifier is a loop index.
+    if (Loop *L = ctx_.getLoopByName(varName)) {
+      return new IndexExpr(L);
+    }
+
+    // Check if this is a buffer access.
+    Argument *A = ctx_.getArgumentByName(varName);
+    if (Tok.is(l_square)) {
+      if (!A) {
+        ctx_.diagnose("Unknown subscript argument " + varName + ".");
+        return nullptr;
+      }
+
+      std::vector<Expr *> exprs;
+      if (parseSubscriptList(exprs)) {
+        return nullptr;
+      }
+
+      return new LoadExpr(A, exprs);
+    }
+
+    ctx_.diagnose("Unknown identifier: " + varName + ".");
+    return nullptr;
+  }
+
+  case l_paren: {
+    consumeToken(l_paren);
+
+    if (Expr *subExpr = parseExpr()) {
+      if (!Tok.is(r_paren)) {
+        ctx_.diagnose("Expected right paren to close the expression.");
+        return nullptr;
+      }
+      consumeToken(r_paren);
+      return subExpr;
+    }
+    return nullptr;
+  }
+
+  default:
+    ctx_.diagnose("Unknown expression.");
+    return nullptr;
+  }
+}
+
+bool Parser::parseSubscriptList(std::vector<Expr *> &exprs) {
+  assert(exprs.empty() && "exprs list not empty");
+  if (!consumeIf(TokenKind::l_square)) {
+    ctx_.diagnose("Expecting left square brace for subscript.");
+    return true;
+  }
+
+  while (true) {
+    // Parse an expression in the expression list.
+    if (Expr *e = parseExpr()) {
+      exprs.push_back(e);
+    } else {
+      return true;
+    }
+
+    // Hit the closing subscript. Bail.
+    if (Tok.is(TokenKind::r_square))
+      break;
+
+    if (Tok.is(TokenKind::comma)) {
+      consumeToken(TokenKind::comma);
+      continue;
+    }
+
+    ctx_.diagnose("Expecting comma or end of subscript.");
+    return nullptr;
+  }
+
+  consumeToken(TokenKind::r_square);
+  return false;
 }
 
 // Example: C:float<I:512,J:512>,
@@ -130,7 +278,7 @@ bool Parser::parseNamedType(Type &T, std::string &name) {
   std::vector<unsigned> sizes;
 
   std::string dimName;
-  unsigned dimVal;
+  int dimVal;
 
   // Parse the first mandatory dimension.
   if (parseTypePair(dimName, dimVal)) {
@@ -184,6 +332,62 @@ bool Parser::parseScope(Scope *scope) {
 
 /// Parse a single unit (stmt).
 Stmt *Parser::parseOneStmt() {
+
+  /// Parse variable access:
+  ///
+  /// Example: A[1,I * 8, 12] += 2
+  if (Tok.is(TokenKind::identifier)) {
+    std::string varName;
+    parseIdentifier(varName);
+
+    Argument *arg = ctx_.getArgumentByName(varName);
+    if (!arg) {
+      ctx_.diagnose("Accessing unknown variable.");
+      return nullptr;
+    }
+
+    if (Tok.is(l_square)) {
+      if (!arg) {
+        ctx_.diagnose("Unknown subscript argument " + varName + ".");
+        return nullptr;
+      }
+      std::vector<Expr *> indices;
+      if (parseSubscriptList(indices)) {
+        return nullptr;
+      }
+
+      bool accumulate;
+
+      switch (Tok.getKind()) {
+      case TokenKind::plusEquals:
+        consumeToken();
+        accumulate = true;
+        break;
+
+      case TokenKind::assign:
+        consumeToken();
+        accumulate = false;
+        break;
+
+      default:
+        ctx_.diagnose("Expecting assignment operator after buffer access.");
+        return nullptr;
+      }
+
+      Expr *storedValue = parseExpr();
+      if (!storedValue) {
+        return nullptr;
+      }
+
+      return new StoreStmt(arg, indices, storedValue, accumulate);
+    }
+
+    ctx_.diagnose("Expecting subscript after identifier " + varName + ".");
+    return nullptr;
+  }
+
+  // Parse for statements:
+  // Example: for (i in 0..100) { ... }
   if (Tok.is(TokenKind::kw_for)) {
     // "For"
     consumeToken(TokenKind::kw_for);
@@ -195,8 +399,8 @@ Stmt *Parser::parseOneStmt() {
     }
 
     // Indentifier name.
-    std::string indexName = Tok.getText();
-    if (!consumeIf(TokenKind::identifier)) {
+    std::string indexName;
+    if (parseIdentifier(indexName)) {
       ctx_.diagnose("Expecting index name in for loop.");
       return nullptr;
     }
@@ -216,6 +420,7 @@ Stmt *Parser::parseOneStmt() {
     // ".." range keyword.
     if (!consumeIf(TokenKind::range)) {
       ctx_.diagnose("Expecting the '..' range in the for loop.");
+      ctx_.diagnose("Remember the space between the zero and '..'");
       return nullptr;
     }
 
@@ -235,10 +440,13 @@ Stmt *Parser::parseOneStmt() {
     // Create the loop.
     Loop *L = new Loop(indexName, endRange);
 
+    ctx_.pushLoop(L);
     // Parse the body of the loop.
     if (parseScope(L)) {
       return nullptr;
     }
+    auto *K = ctx_.popLoop();
+    assert(K == L && "Popped an unexpected loop");
     return L;
   }
 
@@ -252,9 +460,9 @@ Program *Parser::parseFunctionDecl() {
     return nullptr;
   }
 
+  // Indentifier name.
   std::string progName = Tok.getText();
-
-  if (!consumeIf(TokenKind::identifier)) {
+  if (parseIdentifier(progName)) {
     ctx_.diagnose("Expecting function name after def.");
     return nullptr;
   }
@@ -274,10 +482,14 @@ Program *Parser::parseFunctionDecl() {
   if (parseNamedType(T, typeName)) {
     return nullptr;
   }
-  p->addArgument(new Argument(typeName, T));
+
+  auto *firstArg = new Argument(typeName, T);
+  p->addArgument(firstArg);
+  ctx_.registerNewArgument(firstArg);
 
   // Parse the optional argument list.
   while (Tok.is(TokenKind::comma)) {
+    consumeToken(TokenKind::comma);
     if (parseNamedType(T, typeName)) {
       return nullptr;
     }
