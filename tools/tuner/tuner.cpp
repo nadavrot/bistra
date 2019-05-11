@@ -1,3 +1,5 @@
+#include "bistra/Parser/Parser.h"
+
 #include "bistra/Backends/Backend.h"
 #include "bistra/Backends/Backends.h"
 #include "bistra/Optimizer/Optimizer.h"
@@ -9,32 +11,20 @@
 
 using namespace bistra;
 
-Program *generateGemm(unsigned szI, unsigned szJ, unsigned szK) {
-  // C[i, j] = A[i, k] * B[k, j];
-  Program *p = new Program("gemm");
-  auto *C = p->addArgument("C", {szI, szK}, {"I", "J"}, ElemKind::Float32Ty);
-  auto *A = p->addArgument("A", {szI, szJ}, {"I", "K"}, ElemKind::Float32Ty);
-  auto *B = p->addArgument("B", {szJ, szK}, {"K", "J"}, ElemKind::Float32Ty);
-
-  auto *I = new Loop("i", szI, 1);
-  auto *J = new Loop("j", szJ, 1);
-  auto *K = new Loop("k", szK, 1);
-  auto *zero = new StoreStmt(C, {new IndexExpr(I), new IndexExpr(J)},
-                             new ConstantFPExpr(0), false);
-  p->addStmt(I);
-  I->addStmt(J);
-  J->addStmt(zero);
-  J->addStmt(K);
-
-  auto *ldA = new LoadExpr(A, {new IndexExpr(I), new IndexExpr(K)});
-  auto *ldB = new LoadExpr(B, {new IndexExpr(K), new IndexExpr(J)});
-  auto *mul = new MulExpr(ldA, ldB);
-  auto *st = new StoreStmt(C, {new IndexExpr(I), new IndexExpr(J)}, mul, true);
-  K->addStmt(st);
-  return p;
+const char *gemmSource = R"(
+def gemm (C:float<I:512,J:512>, A:float<I:512,K:512>, B:float<K:512,J:512>) {
+  for (i in 0 .. 512) {
+    for (j in 0 .. 512) {
+      C[i,j] =  0.000000 ;
+      for (k in 0 .. 512) {
+        C[i,j] += A[i,k] * B[k,j];
+      }
+    }
+  }
 }
+})";
 
 int main() {
-  auto *p = generateGemm(512, 512, 512);
+  Program *p = parseProgram(gemmSource);
   optimizeEvaluate(p);
 }
