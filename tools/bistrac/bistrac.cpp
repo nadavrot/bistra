@@ -18,7 +18,6 @@ DEFINE_bool(tune, false, "Executes and auto-tune the program.");
 DEFINE_bool(time, false, "Executes and times the program.");
 DEFINE_string(out, "", "Output destination file to save the compiled program.");
 
-
 void tune(Program *p, const std::string &outName) {
   auto *p0 = new EvaluatorPass(outName);
   auto *p1 = new PromoterPass(p0);
@@ -56,14 +55,14 @@ int main(int argc, char *argv[]) {
               << " seconds. \n";
   }
 
-
   if (FLAGS_tune) {
 
     std::string outFile = "/tmp/file.cc";
     if (FLAGS_out.size()) {
       outFile = FLAGS_out;
     } else {
-      std::cout << "Output flag (--out) is not set. Using the default: " << outFile << "\n";
+      std::cout << "Output flag (--out) is not set. Using the default: "
+                << outFile << "\n";
     }
 
     tune(p, outFile);
