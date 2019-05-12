@@ -9,6 +9,7 @@ target_link_libraries(bistrac
                         Transforms
                         Parser
                         Optimizer
+                        gflags::gflags
                      )
 
 
