@@ -275,7 +275,7 @@ public:
           << "));\n";
     }
     sb_ << benchmark_start;
-    sb_ << "for(int i = 0; i < " << iter << "; i++)";
+    sb_ << "for(int i = 0; i < benchmark_iterations; i++)";
     sb_ << "  program(";
 
     bool first = true;
