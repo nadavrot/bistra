@@ -14,6 +14,7 @@
 
 using namespace bistra;
 
+DEFINE_bool(dump, false, "Dump the texttual representation of the program.");
 DEFINE_bool(tune, false, "Executes and auto-tune the program.");
 DEFINE_bool(time, false, "Executes and times the program.");
 DEFINE_string(out, "", "Output destination file to save the compiled program.");
@@ -45,6 +46,10 @@ int main(int argc, char *argv[]) {
 
   auto content = readFile(inFile);
   Program *p = parseProgram(content.c_str());
+
+  if (FLAGS_dump) {
+    p->dump();
+  }
 
   if (FLAGS_time) {
     ::simplify(p);
