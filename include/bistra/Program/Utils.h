@@ -97,6 +97,12 @@ bool areLoadsStoresDisjoint(const std::vector<LoadExpr *> &loads,
 /// execution frequency.
 void dumpProgramFrequencies(Scope *P);
 
+/// Saves the content \p content to file \p filename or aborts.
+void writeFile(const std::string &filename, const std::string &content);
+
+/// \returns the content of file \p filename or aborts.
+std::string readFile(const std::string &filename);
+
 } // namespace bistra
 
 #endif // BISTRA_PROGRAM_UTILS_H
