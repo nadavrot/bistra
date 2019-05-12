@@ -2,6 +2,7 @@
 #include "bistra/Program/Program.h"
 #include "bistra/Program/Types.h"
 
+#include <fstream>
 #include <iostream>
 #include <set>
 #include <vector>
@@ -236,4 +237,30 @@ void bistra::dumpProgramFrequencies(Scope *P) {
                 << pair.second * (L->getEnd() / L->getStride()) << "\n";
     }
   }
+}
+
+void bistra::writeFile(const std::string &filename,
+                       const std::string &content) {
+  std::ofstream out(filename);
+  if (!out.good()) {
+    std::cout << "Unable to save the file " << filename << "\n";
+    abort();
+  }
+  out << content;
+  out.close();
+  return;
+}
+
+std::string bistra::readFile(const std::string &filename) {
+  std::string result;
+  std::string line;
+  std::ifstream myfile(filename);
+  if (!myfile.good()) {
+    std::cout << "Unable to open the file " << filename << "\n";
+    abort();
+  }
+  while (std::getline(myfile, line)) {
+    result += line + "\n";
+  }
+  return result;
 }
