@@ -19,6 +19,11 @@ void EvaluatorPass::doIt(Program *p) {
     std::cout << "New best result: " << res << "\n";
     bestTime_ = res;
     bestProgram_.setReference(p->clone());
+
+    if (savePath_.size()) {
+      remove(savePath_.c_str());
+      writeFile(savePath_, CB->emitBenchmarkCode(p, 10));
+    }
   } else {
     std::cout << "." << std::flush;
   }

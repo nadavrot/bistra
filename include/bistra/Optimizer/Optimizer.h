@@ -23,10 +23,13 @@ public:
 class EvaluatorPass : public Pass {
   double bestTime_{1000};
   StmtHandle bestProgram_;
+  /// Save the best C program to this optional path, if not empty.
+  std::string savePath_;
 
 public:
-  EvaluatorPass()
-      : Pass("evaluator", nullptr), bestProgram_(nullptr, nullptr) {}
+  EvaluatorPass(const std::string &savePath = "")
+      : Pass("evaluator", nullptr), bestProgram_(nullptr, nullptr),
+        savePath_(savePath) {}
   virtual void doIt(Program *p) override;
   Program *getBestProgram() { return (Program *)bestProgram_.get(); }
 };
