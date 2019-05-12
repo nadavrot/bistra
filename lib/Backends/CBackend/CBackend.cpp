@@ -71,7 +71,7 @@ clock_t begin = clock();
 const char *benchmark_end = R"(
 clock_t end = clock();
 time_spent += (double)(end - begin) / CLOCKS_PER_SEC;
-printf("%f seconds elpased running %d iterations.", time_spent,
+printf("%f seconds elpased running %d iterations.\n", time_spent,
        benchmark_iterations);
 )";
 
