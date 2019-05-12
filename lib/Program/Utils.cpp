@@ -241,6 +241,7 @@ void bistra::dumpProgramFrequencies(Scope *P) {
 
 void bistra::writeFile(const std::string &filename,
                        const std::string &content) {
+  remove(filename.c_str());
   std::ofstream out(filename);
   if (!out.good()) {
     std::cout << "Unable to save the file " << filename << "\n";
