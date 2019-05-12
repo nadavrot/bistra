@@ -6,53 +6,21 @@
 #include "bistra/Program/Utils.h"
 #include "bistra/Transforms/Transforms.h"
 
+#define STRIP_FLAG_HELP 0
+#include "gflags/gflags.h"
+
 #include <fstream>
 #include <iostream>
 
 using namespace bistra;
 
-bool timeFlag = false;
-bool tuneFlag = false;
-bool optFlag = false;
-std::string outFile;
-std::string inFile;
+DEFINE_bool(tune, false, "Executes and auto-tune the program.");
+DEFINE_bool(time, false, "Executes and times the program.");
+DEFINE_string(out, "", "Output destination file to save the compiled program.");
 
-void parseFlags(int argc, char *argv[]) {
-  std::vector<std::string> params;
-  for (int i = 1; i < argc; i++) {
-    params.push_back(std::string(argv[i]));
-  }
 
-  for (int i = 0; i < params.size(); i++) {
-    auto op = params[i];
-    if (op == "-T" || op == "--time") {
-      timeFlag = true;
-      continue;
-    }
-
-    if (op == "-t" || op == "--tune") {
-      tuneFlag = true;
-      continue;
-    }
-    if (op == "-O3" || op == "--opt") {
-      optFlag = true;
-      continue;
-    }
-    if (op == "-o" || op == "--out") {
-      if (i == (argc - 1)) {
-        std::cout << "-o missing an argument\n";
-        abort();
-      }
-      outFile = params[i + 1];
-      i++;
-      continue;
-    }
-    inFile = op;
-  }
-}
-
-void tune(Program *p) {
-  auto *p0 = new EvaluatorPass(outFile);
+void tune(Program *p, const std::string &outName) {
+  auto *p0 = new EvaluatorPass(outName);
   auto *p1 = new PromoterPass(p0);
   auto *p2 = new WidnerPass(p1);
   auto *p3 = new WidnerPass(p2);
@@ -63,17 +31,23 @@ void tune(Program *p) {
 }
 
 int main(int argc, char *argv[]) {
-  parseFlags(argc, argv);
+  gflags::SetUsageMessage("Bistra compiler driver.");
+  gflags::SetVersionString("0.0.1");
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
 
-  if (!inFile.size()) {
-    std::cout << "Usage: bistrac [--tune|-t] [--opt|-O3] [--out|-o] file.txt\n";
-    return 1;
+  if (argc != 2) {
+    std::cout << "Usage: bistrac [...] program.txt\n";
+    std::cout << "See --help for more details.\n";
+    return 0;
   }
+  std::string inFile = argv[1];
+
+  gflags::ShutDownCommandLineFlags();
 
   auto content = readFile(inFile);
   Program *p = parseProgram(content.c_str());
 
-  if (timeFlag) {
+  if (FLAGS_time) {
     ::simplify(p);
     ::promoteLICM(p);
     auto CB = getBackend("C");
@@ -82,19 +56,17 @@ int main(int argc, char *argv[]) {
               << " seconds. \n";
   }
 
-  if (optFlag) {
-    ::simplify(p);
-    ::promoteLICM(p);
-    auto CB = getBackend("C");
-    if (outFile.size()) {
-      std::cout << "Outfile unspecified (--out file.cc).\n";
-      abort();
-    }
-    writeFile(outFile, CB->emitBenchmarkCode(p, 10));
-  }
 
-  if (tuneFlag) {
-    tune(p);
+  if (FLAGS_tune) {
+
+    std::string outFile = "/tmp/file.cc";
+    if (FLAGS_out.size()) {
+      outFile = FLAGS_out;
+    } else {
+      std::cout << "Output flag (--out) is not set. Using the default: " << outFile << "\n";
+    }
+
+    tune(p, outFile);
   }
 
   return 0;
