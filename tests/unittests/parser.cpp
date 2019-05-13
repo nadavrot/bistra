@@ -86,14 +86,22 @@ TEST(basic, parse_whole_file) {
   EXPECT_EQ(forStmt->getEnd(), 512);
 }
 
-TEST(basic, parse_whole_file2) {
+const char *use_buffer_index = R"(
+def use_buffer_index(C:float<I:512,J:512>) {
+  for (i in 0 .. C.I) {
+    for (j in 0 .. C.J) {
+      C [i, j ] = 0;
+    }
+  }
+})";
+
+TEST(basic, use_buffer_index) {
   ParserContext ctx;
-  Parser P(test_program2, ctx);
+  Parser P(use_buffer_index, ctx);
   P.Parse();
-  ctx.getProgram()->dump();
   EXPECT_EQ(ctx.getNumErrors(), 0);
   Program *pg = ctx.getProgram();
-  Loop *forStmt = dynamic_cast<Loop *>(pg->getBody()[0].get());
-  EXPECT_EQ(forStmt->getName(), "i");
-  EXPECT_EQ(forStmt->getEnd(), 512);
+  pg->dump();
+  EXPECT_EQ(::getLoopByName(pg, "i")->getEnd(), 512);
+  EXPECT_EQ(::getLoopByName(pg, "i")->getEnd(), 512);
 }
