@@ -1,6 +1,7 @@
 #include "bistra/Parser/Parser.h"
 #include "bistra/Parser/Lexer.h"
 #include "bistra/Parser/ParserContext.h"
+#include "bistra/Program/Program.h"
 
 using namespace bistra;
 
@@ -375,7 +376,7 @@ Stmt *Parser::parseOneStmt() {
   }
 
   // Parse for statements:
-  // Example: for (i in 0..100) { ... }
+  // Example: for (i in 0 .. 100) { ... }
   if (Tok.is(TokenKind::kw_for)) {
     // "For"
     consumeToken(TokenKind::kw_for);
@@ -414,10 +415,10 @@ Stmt *Parser::parseOneStmt() {
 
     // End of index range.
     int endRange = 0;
-    if (parseIntegerLiteral(endRange)) {
-      ctx_.diagnose("Expecting end of range integer at for loop.");
-      return nullptr;
-    }
+      if (parseIntegerLiteral(endRange)) {
+        ctx_.diagnose("Expecting end of range integer at for loop.");
+        return nullptr;
+      }
 
     // ")"
     if (!consumeIf(TokenKind::r_paren)) {

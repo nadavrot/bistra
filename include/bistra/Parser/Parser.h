@@ -3,12 +3,13 @@
 
 #include "bistra/Parser/ParserContext.h"
 #include "bistra/Parser/Token.h"
-#include "bistra/Program/Program.h"
 
 namespace bistra {
 class Lexer;
 class Stmt;
 class Scope;
+class Expr;
+struct Type;
 
 /// The program parser.
 class Parser {
