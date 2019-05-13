@@ -1,5 +1,7 @@
 #include "bistra/Parser/Parser.h"
 #include "bistra/Parser/Lexer.h"
+#include "bistra/Program/Program.h"
+#include "bistra/Program/Utils.h"
 
 #include "gtest/gtest.h"
 
