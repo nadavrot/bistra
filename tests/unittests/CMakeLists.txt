@@ -1,6 +1,6 @@
 add_executable(
     parser_test
-    parser.cpp
+    parser_test.cpp
     )
 
 target_link_libraries(
@@ -20,7 +20,7 @@ add_test(
 
 add_executable(
     basic_test
-    basic.cpp
+    basic_test.cpp
     )
 
 target_link_libraries(
