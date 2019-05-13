@@ -413,12 +413,50 @@ Stmt *Parser::parseOneStmt() {
       return nullptr;
     }
 
-    // End of index range.
     int endRange = 0;
+    if (Tok.is(TokenKind::integer_literal)) {
+      // End of index range.
       if (parseIntegerLiteral(endRange)) {
         ctx_.diagnose("Expecting end of range integer at for loop.");
         return nullptr;
       }
+    } else {
+      if (Tok.is(identifier)) {
+        std::string varName;
+        if (parseIdentifier(varName)) {
+          ctx_.diagnose("Expecting buffer name.");
+          return nullptr;
+        }
+
+        Argument *arg = ctx_.getArgumentByName(varName);
+        if (!arg) {
+          ctx_.diagnose("Unexpected argument name in for loop range: " +
+                        varName);
+          return nullptr;
+        }
+
+        if (!consumeIf(TokenKind::period)) {
+          ctx_.diagnose("Expecting a member access in loop range: " + varName);
+          return nullptr;
+        }
+
+        std::string dimName;
+        if (parseIdentifier(dimName)) {
+          ctx_.diagnose("Expecting dimension name in loop range: " + varName);
+          return nullptr;
+        }
+
+        endRange = arg->getType()->getDimSizeByName(dimName);
+        if (endRange == 0) {
+          ctx_.diagnose("Invalid dimension name in: " + varName + "." +
+                        dimName);
+          return nullptr;
+        }
+      } else {
+        ctx_.diagnose("Invalid expression in for loop range.");
+        return nullptr;
+      }
+    }
 
     // ")"
     if (!consumeIf(TokenKind::r_paren)) {
