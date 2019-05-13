@@ -72,6 +72,16 @@ struct Type final {
     return size;
   }
 
+  /// \returns the size of a specific dimension specified by name or zero if the
+  /// name is not a valid dimension.
+  unsigned getDimSizeByName(const std::string &name) const {
+    for (int i = 0; i < names_.size(); i++) {
+      if (names_[i] == name)
+        return sizes_[i];
+    }
+    return 0;
+  }
+
   /// \returns the names of the dimensions.
   const std::vector<std::string> &getNames() const { return names_; }
 
