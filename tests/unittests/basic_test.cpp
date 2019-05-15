@@ -27,7 +27,7 @@ Program *generateGemm(unsigned szI, unsigned szJ, unsigned szK) {
 
   auto *ldA = new LoadExpr(A, {new IndexExpr(I), new IndexExpr(K)});
   auto *ldB = new LoadExpr(B, {new IndexExpr(K), new IndexExpr(J)});
-  auto *mul = new MulExpr(ldA, ldB);
+  auto *mul = new BinaryExpr(ldA, ldB, BinaryExpr::BinOpKind::Mul);
   auto *st = new StoreStmt(C, {new IndexExpr(I), new IndexExpr(J)}, mul, true);
   K->addStmt(st);
   return p;
@@ -56,7 +56,8 @@ TEST(basic, builder) {
   auto *B = p->getArg(1);
 
   auto *ld = new LoadExpr(A, {new IndexExpr(K), new IndexExpr(L)});
-  auto *val = new AddExpr(ld, new ConstantFPExpr(4));
+  auto *val =
+      new BinaryExpr(ld, new ConstantFPExpr(4), BinaryExpr::BinOpKind::Add);
   auto *store =
       new StoreStmt(B, {new IndexExpr(K), new IndexExpr(L)}, val, true);
   K->addStmt(store);
@@ -104,7 +105,7 @@ TEST(basic, matmul) {
 
   auto *ldB = new LoadExpr(B, {new IndexExpr(I), new IndexExpr(K)});
   auto *ldA = new LoadExpr(A, {new IndexExpr(K), new IndexExpr(J)});
-  auto *mul = new MulExpr(ldA, ldB);
+  auto *mul = new BinaryExpr(ldA, ldB, BinaryExpr::BinOpKind::Mul);
   auto *st = new StoreStmt(C, {new IndexExpr(I), new IndexExpr(J)}, mul, true);
   K->addStmt(st);
 
@@ -166,7 +167,7 @@ TEST(basic, visitor_collect_indices) {
 
   auto *ldB = new LoadExpr(B, {new IndexExpr(I), new IndexExpr(K)});
   auto *ldA = new LoadExpr(A, {new IndexExpr(K), new IndexExpr(J)});
-  auto *mul = new MulExpr(ldA, ldB);
+  auto *mul = new BinaryExpr(ldA, ldB, BinaryExpr::BinOpKind::Mul);
   auto *st = new StoreStmt(C, {new IndexExpr(I), new IndexExpr(J)}, mul, true);
 
   // Check that the ownership of the node is correct.
@@ -207,7 +208,7 @@ TEST(basic, time_simple_loop) {
 
   auto *ldB = new LoadExpr(B, {new IndexExpr(I), new IndexExpr(K)});
   auto *ldA = new LoadExpr(A, {new IndexExpr(K), new IndexExpr(J)});
-  auto *mul = new MulExpr(ldA, ldB);
+  auto *mul = new BinaryExpr(ldA, ldB, BinaryExpr::BinOpKind::Mul);
   auto *st = new StoreStmt(C, {new IndexExpr(I), new IndexExpr(J)}, mul, true);
   K->addStmt(st);
 
@@ -235,7 +236,7 @@ TEST(basic, tile_loop) {
 
   auto *ldB = new LoadExpr(B, {new IndexExpr(I)});
   auto *cf = new ConstantFPExpr(1.5);
-  auto *mul = new MulExpr(ldB, cf);
+  auto *mul = new BinaryExpr(ldB, cf, BinaryExpr::BinOpKind::Mul);
   auto *st = new StoreStmt(A, {new IndexExpr(I)}, mul, true);
   I->addStmt(st);
 

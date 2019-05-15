@@ -363,41 +363,41 @@ public:
 
 /// A binary arithmetic expression.
 class BinaryExpr : public Expr {
+public:
+  enum BinOpKind { Mul, Add };
+
 protected:
   /// Left-hand-side of the expression.
   ExprHandle LHS_;
   /// Right-hand-side of the expression.
   ExprHandle RHS_;
+  /// The kind of the binary operator.
+  BinOpKind kind_;
 
 public:
-  BinaryExpr(Expr *LHS, Expr *RHS)
-      : Expr(LHS->getType()), LHS_(LHS, this), RHS_(RHS, this) {
+  BinaryExpr(Expr *LHS, Expr *RHS, BinOpKind kind)
+      : Expr(getExprType(LHS->getType(), RHS->getType(), kind)),
+        LHS_(LHS, this), RHS_(RHS, this), kind_(kind) {
     assert(LHS->getType() == RHS->getType() && "Invalid expr type");
     assert(LHS != RHS && "Invalid ownership of operands");
   }
 
   ~BinaryExpr() = default;
 
+  /// \return the kind of the binary operator.
+  BinOpKind getKind() const { return kind_; }
+
+  /// \returns a valid expression type for the binary operator \p kind for
+  /// the operands \p L and \p R. The return type depends if this is an
+  /// arithmetic binary operation of a comparison operation.
+  ExprType getExprType(const ExprType &L, const ExprType &R, BinOpKind kind);
+
   Expr *getLHS() { return LHS_; }
   Expr *getRHS() { return RHS_; }
-  virtual void dump() const override = 0;
-  virtual Expr *clone(CloneCtx &map) override = 0;
+  virtual void dump() const override;
+  virtual Expr *clone(CloneCtx &map) override;
   virtual void verify() const override;
   virtual void visit(NodeVisitor *visitor) override;
-};
-
-class AddExpr final : public BinaryExpr {
-public:
-  AddExpr(Expr *LHS, Expr *RHS) : BinaryExpr(LHS, RHS) {}
-  virtual void dump() const override;
-  virtual Expr *clone(CloneCtx &map) override;
-};
-
-class MulExpr : public BinaryExpr {
-public:
-  MulExpr(Expr *LHS, Expr *RHS) : BinaryExpr(LHS, RHS) {}
-  virtual void dump() const override;
-  virtual Expr *clone(CloneCtx &map) override;
 };
 
 /// Broadcasts a value from scalar to vector.

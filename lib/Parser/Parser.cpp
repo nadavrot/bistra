@@ -117,9 +117,9 @@ Expr *Parser::parseExpr(unsigned RBP) {
     }
 
     if (operatorSymbol == "+") {
-      LHS = new AddExpr(LHS, RHS);
+      LHS = new BinaryExpr(LHS, RHS, BinaryExpr::BinOpKind::Add);
     } else if (operatorSymbol == "*") {
-      LHS = new MulExpr(LHS, RHS);
+      LHS = new BinaryExpr(LHS, RHS, BinaryExpr::BinOpKind::Mul);
     } else {
       ctx_.diagnose("Unsupported operator: '" + operatorSymbol + "'.");
       return nullptr;

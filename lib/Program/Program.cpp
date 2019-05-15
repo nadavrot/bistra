@@ -117,6 +117,19 @@ void Program::dump(unsigned indent) const {
   std::cout << "}\n";
 }
 
+ExprType BinaryExpr::getExprType(const ExprType &L, const ExprType &R,
+                                 BinOpKind kind) {
+  switch (kind) {
+  case BinaryExpr::BinOpKind::Add:
+  case BinaryExpr::BinOpKind::Mul:
+    assert(L.isEqual(R) && "Operand types must be equal");
+    return L;
+
+  default:
+    break;
+  }
+}
+
 void Scope::dump(unsigned indent) const {
   for (auto &SH : body_) {
     SH->dump(indent);
@@ -268,15 +281,21 @@ void StoreLocalStmt::dump(unsigned indent) const {
 
 void IndexExpr::dump() const { std::cout << loop_->getName(); }
 
-void AddExpr::dump() const {
+void BinaryExpr::dump() const {
   LHS_->dump();
-  std::cout << " + ";
-  RHS_->dump();
-}
 
-void MulExpr::dump() const {
-  LHS_->dump();
-  std::cout << " * ";
+  switch (getKind()) {
+  case BinaryExpr::BinOpKind::Add:
+    std::cout << " + ";
+    break;
+
+  case BinaryExpr::BinOpKind::Mul:
+    std::cout << " * ";
+    break;
+
+  default:
+    break;
+  }
   RHS_->dump();
 }
 
@@ -288,11 +307,8 @@ Expr *ConstantFPExpr::clone(CloneCtx &map) {
   return new ConstantFPExpr(this->val_);
 }
 
-Expr *AddExpr::clone(CloneCtx &map) {
-  return new AddExpr(LHS_->clone(map), RHS_->clone(map));
-}
-Expr *MulExpr::clone(CloneCtx &map) {
-  return new MulExpr(LHS_->clone(map), RHS_->clone(map));
+Expr *BinaryExpr::clone(CloneCtx &map) {
+  return new BinaryExpr(LHS_->clone(map), RHS_->clone(map), getKind());
 }
 
 Expr *BroadcastExpr::clone(CloneCtx &map) {
