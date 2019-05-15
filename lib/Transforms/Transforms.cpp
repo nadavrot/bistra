@@ -12,7 +12,7 @@ Loop *bistra::tile(Loop *L, unsigned blockSize) {
     return nullptr;
 
   // Ensure that the new tile fits in the stride.
-  if ((L->getEnd() / blockSize) < L->getStride())
+  if ((L->getEnd() / blockSize) % L->getStride() != 0)
     return nullptr;
 
   // Update the original-loop's trip count.
