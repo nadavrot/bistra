@@ -34,6 +34,12 @@ public:
   Program *getBestProgram() { return (Program *)bestProgram_.get(); }
 };
 
+class FilterPass : public Pass {
+public:
+  FilterPass(Pass *next) : Pass("filter", next) {}
+  virtual void doIt(Program *p) override;
+};
+
 class VectorizerPass : public Pass {
 public:
   VectorizerPass(Pass *next) : Pass("vectorizer", next) {}

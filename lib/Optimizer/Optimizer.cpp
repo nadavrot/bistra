@@ -29,6 +29,33 @@ void EvaluatorPass::doIt(Program *p) {
   }
 }
 
+void FilterPass::doIt(Program *p) {
+  std::vector<Loop *> loops;
+  collectLoops(p, loops);
+  // For each loop.
+  for (auto *l : loops) {
+    // This loop body is too big.
+    if (l->getBody().size() > 64) {
+      return;
+    }
+
+    unsigned local = 0;
+    for (auto &s : l->getBody()) {
+      if (dynamic_cast<StoreLocalStmt *>(s.get())) {
+        local++;
+      }
+    }
+
+    // This loop must spill (on CPUs). Abort.
+    if (local > 16) {
+      return;
+    }
+  }
+
+  // All of the filters passed. Move on to the next level.
+  nextPass_->doIt(p);
+}
+
 void VectorizerPass::doIt(Program *p) {
   std::vector<Loop *> loops;
   collectLoops(p, loops);
