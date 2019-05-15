@@ -105,8 +105,9 @@ bool bistra::unrollLoop(Loop *L, unsigned maxTripCount) {
 
 Loop *bistra::peelLoop(Loop *L, unsigned k) {
   unsigned origTripCount = L->getEnd();
-  // Trip count must be smaller than the partition size.
-  if (origTripCount < k)
+  // Trip count must be smaller than the partition size, and the peeled portion
+  // must be a multiple of the loop stride.
+  if (origTripCount < k || k % L->getStride())
     return nullptr;
 
   // Update the new and original-loop's trip count.
