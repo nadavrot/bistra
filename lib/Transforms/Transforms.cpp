@@ -33,8 +33,10 @@ Loop *bistra::tile(Loop *L, unsigned blockSize) {
 
   for (auto *idx : indices) {
     // I -> (I * bs) + I.tile;
-    auto *mul = new MulExpr(new IndexExpr(L), new ConstantExpr(blockSize));
-    auto *expr = new AddExpr(new IndexExpr(B), mul);
+    auto *mul = new BinaryExpr(new IndexExpr(L), new ConstantExpr(blockSize),
+                               BinaryExpr::BinOpKind::Mul);
+    auto *expr =
+        new BinaryExpr(new IndexExpr(B), mul, BinaryExpr::BinOpKind::Add);
     idx->replaceUseWith(expr);
   }
 
@@ -123,7 +125,8 @@ Loop *bistra::peelLoop(Loop *L, unsigned k) {
   std::vector<IndexExpr *> indices;
   collectIndices(L2, indices, L2);
   for (auto *idx : indices) {
-    auto *expr = new AddExpr(new ConstantExpr(k), new IndexExpr(L2));
+    auto *expr = new BinaryExpr(new ConstantExpr(k), new IndexExpr(L2),
+                                BinaryExpr::BinOpKind::Add);
     idx->replaceUseWith(expr);
   }
 
@@ -146,29 +149,30 @@ static IndexKind getIndexKind(Expr *E, Loop *L) {
     return IndexKind::Uniform;
   }
 
-  // Addition expressions. Example:  [4 + J];
-  if (AddExpr *AE = dynamic_cast<AddExpr *>(E)) {
-    auto LK = getIndexKind(AE->getLHS(), L);
-    auto RK = getIndexKind(AE->getRHS(), L);
+  if (BinaryExpr *BE = dynamic_cast<BinaryExpr *>(E)) {
+    auto LK = getIndexKind(BE->getLHS(), L);
+    auto RK = getIndexKind(BE->getRHS(), L);
 
-    if (LK == IndexKind::Other || RK == IndexKind::Other)
-      return IndexKind::Other;
+    switch (BE->getKind()) {
+    // Mul expressions. Example:  [d * J];
+    case BinaryExpr::BinOpKind::Mul:
+      if (LK == IndexKind::Uniform && RK == IndexKind::Uniform)
+        return Uniform;
+      break;
 
-    if (LK == IndexKind::Uniform && RK == IndexKind::Uniform)
-      return Uniform;
+    // Addition expressions. Example:  [4 + J];
+    case BinaryExpr::BinOpKind::Add:
+      if (LK == IndexKind::Other || RK == IndexKind::Other)
+        return IndexKind::Other;
 
-    return Consecutive;
-  }
+      if (LK == IndexKind::Uniform && RK == IndexKind::Uniform)
+        return Uniform;
 
-  // Mul expressions. Example:  [d * J];
-  if (MulExpr *ME = dynamic_cast<MulExpr *>(E)) {
-    auto LK = getIndexKind(ME->getLHS(), L);
-    auto RK = getIndexKind(ME->getRHS(), L);
+      return Consecutive;
 
-    if (LK == IndexKind::Uniform && RK == IndexKind::Uniform)
-      return Uniform;
-
-    return Other;
+    default:
+      return Other;
+    }
   }
 
   if (dynamic_cast<ConstantExpr *>(E) || dynamic_cast<ConstantFPExpr *>(E)) {
@@ -276,12 +280,8 @@ static Expr *vectorizeExpr(Expr *E, Loop *L, unsigned vf) {
         VR = new BroadcastExpr(VR, vf);
     }
 
-    if (dynamic_cast<AddExpr *>(E)) {
-      return new AddExpr(VL, VR);
-    } else if (dynamic_cast<MulExpr *>(E)) {
-      return new MulExpr(VL, VR);
-    } else {
-      assert(false && "Invalid binary operator");
+    if (BinaryExpr *BE = dynamic_cast<BinaryExpr *>(E)) {
+      return new BinaryExpr(VL, VR, BE->getKind());
     }
   }
 
@@ -389,7 +389,8 @@ static void widenStore(StoreStmt *S, Loop *L, unsigned offset) {
 
   for (auto *idx : indices) {
     // I -> (I + offset);
-    auto *expr = new AddExpr(new IndexExpr(L), new ConstantExpr(offset));
+    auto *expr = new BinaryExpr(new IndexExpr(L), new ConstantExpr(offset),
+                                BinaryExpr::BinOpKind::Add);
     idx->replaceUseWith(expr);
   }
 
