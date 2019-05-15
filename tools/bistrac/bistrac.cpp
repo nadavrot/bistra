@@ -20,14 +20,16 @@ DEFINE_bool(time, false, "Executes and times the program.");
 DEFINE_string(out, "", "Output destination file to save the compiled program.");
 
 void tune(Program *p, const std::string &outName) {
+
   auto *p0 = new EvaluatorPass(outName);
-  auto *p1 = new PromoterPass(p0);
-  auto *p2 = new WidnerPass(p1);
+  auto *p1 = new FilterPass(p0);
+  auto *p2 = new PromoterPass(p1);
   auto *p3 = new WidnerPass(p2);
-  auto *p4 = new VectorizerPass(p3);
-  auto *p5 = new TilerPass(p4);
+  auto *p4 = new WidnerPass(p3);
+  auto *p5 = new VectorizerPass(p4);
   auto *p6 = new TilerPass(p5);
-  p6->doIt(p);
+  auto *p7 = new TilerPass(p6);
+  p7->doIt(p);
 }
 
 int main(int argc, char *argv[]) {
