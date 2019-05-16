@@ -38,3 +38,25 @@ add_test(
   COMMAND
     ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}/basic_test
   )
+
+add_executable(
+    optimizer_test
+    optimizer_test.cpp
+    )
+
+target_link_libraries(
+    optimizer_test
+    gtest_main
+    Program
+    Backends
+    Transforms
+    Optimizer
+    Parser
+    )
+
+add_test(
+  NAME
+    optimizer_test
+  COMMAND
+    ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}/optimizer_test
+  )
