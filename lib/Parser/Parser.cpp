@@ -116,14 +116,21 @@ Expr *Parser::parseExpr(unsigned RBP) {
       return nullptr;
     }
 
-    if (operatorSymbol == "+") {
-      LHS = new BinaryExpr(LHS, RHS, BinaryExpr::BinOpKind::Add);
-    } else if (operatorSymbol == "*") {
-      LHS = new BinaryExpr(LHS, RHS, BinaryExpr::BinOpKind::Mul);
-    } else {
-      ctx_.diagnose("Unsupported operator: '" + operatorSymbol + "'.");
-      return nullptr;
-    }
+#define GEN(str, sym, kind) \
+if (str == sym) { LHS = new BinaryExpr(LHS, RHS, BinaryExpr::BinOpKind:: kind); continue; }
+
+    GEN(operatorSymbol, "+", Add);
+    GEN(operatorSymbol, "*", Mul);
+    GEN(operatorSymbol, "<", LT);
+    GEN(operatorSymbol, "<=", LTE);
+    GEN(operatorSymbol, ">", GT);
+    GEN(operatorSymbol, ">=", GTE);
+    GEN(operatorSymbol, "==", EQ);
+    GEN(operatorSymbol, "!=", NEQ);
+#undef GEN
+
+    ctx_.diagnose("Unsupported operator: '" + operatorSymbol + "'.");
+    return nullptr;
   }
 
   return LHS;

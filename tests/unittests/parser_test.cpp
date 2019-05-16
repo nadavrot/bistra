@@ -105,3 +105,22 @@ TEST(basic, use_buffer_index) {
   EXPECT_EQ(::getLoopByName(pg, "i")->getEnd(), 512);
   EXPECT_EQ(::getLoopByName(pg, "i")->getEnd(), 512);
 }
+
+TEST(basic, comperators) {
+  const char *comperators = R"(
+  def simple_comperator(C:float<I:10>) {
+    C [0] = C[0] > C[1];
+    for (i in 0 .. 10) {
+      for (j in 0 .. 10) {
+        C [1] = i < j;
+        C [2] = i == j;
+      }
+    }
+  })";
+
+  ParserContext ctx;
+  Parser P(comperators, ctx);
+  P.Parse();
+  EXPECT_EQ(ctx.getNumErrors(), 0);
+  Program *pg = ctx.getProgram()->dump();
+}

@@ -364,7 +364,7 @@ public:
 /// A binary arithmetic expression.
 class BinaryExpr : public Expr {
 public:
-  enum BinOpKind { Mul, Add };
+  enum BinOpKind { Mul, Add, GT, GTE, LT, LTE, EQ, NEQ };
 
 protected:
   /// Left-hand-side of the expression.
@@ -391,6 +391,12 @@ public:
   /// the operands \p L and \p R. The return type depends if this is an
   /// arithmetic binary operation of a comparison operation.
   ExprType getExprType(const ExprType &L, const ExprType &R, BinOpKind kind);
+
+  /// \returns the string representation of \p kind_;
+  static const char* getOpSymbol(BinOpKind kind_);
+
+    /// \returns the string representation of this expression;
+  const char* getOpSymbol() const;
 
   Expr *getLHS() { return LHS_; }
   Expr *getRHS() { return RHS_; }
