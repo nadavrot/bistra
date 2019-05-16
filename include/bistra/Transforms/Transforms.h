@@ -10,11 +10,15 @@ namespace bistra {
 /// \returns the new new Loop if the transform worked or nullptr.
 Loop *tile(Loop *L, unsigned blockSize);
 
+/// Split the loop to multiple consecutive loops.
+/// \returns True if the transform worked.
+bool split(Loop *L);
+
 /// Try to hoist the loop \p level levels up.
 bool hoist(Loop *L, unsigned levels);
 
 /// Unroll the loop \p L by copying its body up to \p maxTripCount times.
-/// Return True if the transform worked.
+/// \returns True if the transform worked.
 bool unrollLoop(Loop *L, unsigned maxTripCount);
 
 /// Splits the loop into two consecutive loops in the ranges [0..k], [k..n];

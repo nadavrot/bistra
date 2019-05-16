@@ -138,14 +138,6 @@ TEST(basic, memcpy) {
   delete pp;
 }
 
-/// A visitor class that visits all nodes in the program.
-struct NodeCounter : public NodeVisitor {
-  unsigned stmt{0};
-  unsigned expr{0};
-  virtual void enter(Stmt *S) override { stmt++; }
-  virtual void enter(Expr *E) override { expr++; }
-};
-
 TEST(basic, visitor_collect_indices) {
   // C[i, j] = A[i, k] * B[k, j];
   Program *p = new Program("gemm");
