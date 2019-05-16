@@ -7,24 +7,38 @@
 using namespace bistra;
 
 Loop *bistra::tile(Loop *L, unsigned blockSize) {
-  // Trip count must divide the block size.
-  if (L->getEnd() % blockSize)
+  // No need to tile if the whole loop fits in one tile.
+  if (L->getEnd() <= blockSize)
     return nullptr;
 
-  // Ensure that the new tile fits in the stride.
-  if ((L->getEnd() / blockSize) % L->getStride() != 0)
+  // Block size must be multiple of the stride (loop processing width).
+  if (blockSize % L->getStride())
     return nullptr;
+
+  // We need the range check on the last block only if the block size does not
+  // divide the range perfectly.
+  bool needRangeCheck = L->getEnd() % blockSize;
+
+  auto origLoopRange = L->getEnd();
+
+  // Create a new loop.
+  Loop *NL = new Loop(L->getName() + "_tile_" + std::to_string(blockSize),
+                      blockSize, L->getStride());
 
   // Update the original-loop's trip count.
   L->setEnd(L->getEnd() / blockSize);
+  L->setStride(1);
 
-  // Create a new loop.
-  auto *B = new Loop(L->getName() + "_tile_" + std::to_string(blockSize),
-                     blockSize, 1);
-
-  // Insert the new loop by moving the content of the original loop.
-  B->takeContent(L);
-  L->addStmt(B);
+  // Insert the new loop by moving the content of the original loop. Insert a
+  // range check if needed.
+  if (needRangeCheck) {
+    Scope *IR = new IfRange(new IndexExpr(L), 0, origLoopRange);
+    IR->takeContent(L);
+    NL->addStmt(IR);
+  } else {
+    NL->takeContent(L);
+  }
+  L->addStmt(NL);
 
   // Update all of the indices in the program to refer to the combination of
   // two indices of the two loops.
@@ -36,11 +50,11 @@ Loop *bistra::tile(Loop *L, unsigned blockSize) {
     auto *mul = new BinaryExpr(new IndexExpr(L), new ConstantExpr(blockSize),
                                BinaryExpr::BinOpKind::Mul);
     auto *expr =
-        new BinaryExpr(new IndexExpr(B), mul, BinaryExpr::BinOpKind::Add);
+        new BinaryExpr(new IndexExpr(NL), mul, BinaryExpr::BinOpKind::Add);
     idx->replaceUseWith(expr);
   }
 
-  return B;
+  return NL;
 }
 
 bool bistra::hoist(Loop *L, unsigned levels) {
@@ -208,7 +222,6 @@ static bool mayVectorizeLoadStoreAccess(const std::vector<ExprHandle> &indices,
 /// Collect the store instructions that use the indices.
 /// \returns True if all roots were detected or False if there was a problem
 /// analyzing the function.
-/// TODO: add support for non-store uses of index, such as if-conditions.
 static bool collectStoreSites(std::set<StoreStmt *> &stores,
                               const std::vector<IndexExpr *> &indices) {
   for (auto *index : indices) {
