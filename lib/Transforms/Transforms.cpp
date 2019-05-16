@@ -6,6 +6,13 @@
 
 using namespace bistra;
 
+/// Generate a new index name based on the original name \p origName, the
+/// suffix \p suffix and a running counter \p index.
+static std::string newIndexName(const std::string &origName,
+                                const std::string &suffix, unsigned index) {
+  return origName + "_" + suffix + "_" + std::to_string(index);
+}
+
 Loop *bistra::tile(Loop *L, unsigned blockSize) {
   // No need to tile if the whole loop fits in one tile.
   if (L->getEnd() <= blockSize)
@@ -22,8 +29,8 @@ Loop *bistra::tile(Loop *L, unsigned blockSize) {
   auto origLoopRange = L->getEnd();
 
   // Create a new loop.
-  Loop *NL = new Loop(L->getName() + "_tile_" + std::to_string(blockSize),
-                      blockSize, L->getStride());
+  Loop *NL = new Loop(newIndexName(L->getName(), "tile", blockSize), blockSize,
+                      L->getStride());
 
   // Update the original-loop's trip count.
   L->setEnd(L->getEnd() / blockSize);
@@ -65,8 +72,8 @@ bool bistra::split(Loop *L) {
   unsigned cnt = 0;
   // For each statement in the original loop.
   for (auto &S : L->getBody()) {
-    Loop *NL = new Loop(L->getName() + "_split_" + std::to_string(cnt++),
-                        L->getEnd(), L->getStride());
+    Loop *NL = new Loop(newIndexName(L->getName(), "split", cnt++), L->getEnd(),
+                        L->getStride());
 
     // Copy the content.
     CloneCtx map;
@@ -163,7 +170,7 @@ Loop *bistra::peelLoop(Loop *L, unsigned k) {
   CloneCtx map;
   Loop *L2 = (Loop *)L->clone(map);
   L2->setEnd(origTripCount - k);
-  L2->setName(L->getName() + "_peeled");
+  L2->setName(newIndexName(L->getName(), "peeled", 0));
 
   // Update all of the indices in the program to refer to the combination of
   // two indices of the two loops.
