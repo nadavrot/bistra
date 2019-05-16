@@ -58,6 +58,14 @@ struct HotScopeCollector : public NodeVisitor {
   virtual void leave(Stmt *E) override;
 };
 
+/// A visitor class that visits all nodes in the program.
+struct NodeCounter : public NodeVisitor {
+  unsigned stmt{0};
+  unsigned expr{0};
+  virtual void enter(Stmt *S) override { stmt++; }
+  virtual void enter(Expr *E) override { expr++; }
+};
+
 /// Collect all of the indices in \p S into \p indices; If \p filter is set then
 /// only collect indices that access the loop \p filter.
 void collectIndices(ASTNode *S, std::vector<IndexExpr *> &indices,
