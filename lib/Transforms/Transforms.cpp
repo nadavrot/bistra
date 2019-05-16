@@ -154,14 +154,14 @@ static IndexKind getIndexKind(Expr *E, Loop *L) {
     auto RK = getIndexKind(BE->getRHS(), L);
 
     switch (BE->getKind()) {
-        // Mul expressions. Example:  [d * J];
-      case BinaryExpr::BinOpKind::Mul: {
-        if (LK == IndexKind::Uniform && RK == IndexKind::Uniform)
-          return Uniform;
-      }
+      // Mul expressions. Example:  [d * J];
+    case BinaryExpr::BinOpKind::Mul: {
+      if (LK == IndexKind::Uniform && RK == IndexKind::Uniform)
+        return Uniform;
+    }
 
-    // Addition expressions. Example:  [4 + J];
-      case BinaryExpr::BinOpKind::Add: {
+      // Addition expressions. Example:  [4 + J];
+    case BinaryExpr::BinOpKind::Add: {
       if (LK == IndexKind::Other || RK == IndexKind::Other)
         return IndexKind::Other;
       if (LK == IndexKind::Uniform && RK == IndexKind::Uniform)
@@ -170,8 +170,8 @@ static IndexKind getIndexKind(Expr *E, Loop *L) {
     }
 
     default:
-        if (LK == IndexKind::Uniform && RK == IndexKind::Uniform)
-          return Uniform;
+      if (LK == IndexKind::Uniform && RK == IndexKind::Uniform)
+        return Uniform;
       return Other;
     }
   }

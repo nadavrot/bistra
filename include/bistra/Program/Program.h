@@ -364,7 +364,7 @@ public:
 /// A binary arithmetic expression.
 class BinaryExpr : public Expr {
 public:
-  enum BinOpKind { Mul, Add, GT, GTE, LT, LTE, EQ, NEQ };
+  enum BinOpKind { Mul, Add, Div, Sub };
 
 protected:
   /// Left-hand-side of the expression.
@@ -376,8 +376,7 @@ protected:
 
 public:
   BinaryExpr(Expr *LHS, Expr *RHS, BinOpKind kind)
-      : Expr(getExprType(LHS->getType(), RHS->getType(), kind)),
-        LHS_(LHS, this), RHS_(RHS, this), kind_(kind) {
+      : Expr(LHS->getType()), LHS_(LHS, this), RHS_(RHS, this), kind_(kind) {
     assert(LHS->getType() == RHS->getType() && "Invalid expr type");
     assert(LHS != RHS && "Invalid ownership of operands");
   }
@@ -393,10 +392,10 @@ public:
   ExprType getExprType(const ExprType &L, const ExprType &R, BinOpKind kind);
 
   /// \returns the string representation of \p kind_;
-  static const char* getOpSymbol(BinOpKind kind_);
+  static const char *getOpSymbol(BinOpKind kind_);
 
-    /// \returns the string representation of this expression;
-  const char* getOpSymbol() const;
+  /// \returns the string representation of this expression;
+  const char *getOpSymbol() const;
 
   Expr *getLHS() { return LHS_; }
   Expr *getRHS() { return RHS_; }

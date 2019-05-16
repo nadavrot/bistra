@@ -1,5 +1,5 @@
-#include "bistra/Parser/Parser.h"
 #include "bistra/Parser/Lexer.h"
+#include "bistra/Parser/Parser.h"
 #include "bistra/Program/Program.h"
 #include "bistra/Program/Utils.h"
 
@@ -109,11 +109,11 @@ TEST(basic, use_buffer_index) {
 TEST(basic, comperators) {
   const char *comperators = R"(
   def simple_comperator(C:float<I:10>) {
-    C [0] = C[0] > C[1];
+    C [0] = C[0] + C[1];
     for (i in 0 .. 10) {
       for (j in 0 .. 10) {
-        C [1] = i < j;
-        C [2] = i == j;
+        C [1] = C[4] - C[6];
+        C [2] = C[5] / C[7];
       }
     }
   })";
