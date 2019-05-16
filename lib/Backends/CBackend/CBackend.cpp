@@ -103,25 +103,10 @@ public:
 
     // Handle binary expressions.
     if (BinaryExpr *bin = dynamic_cast<BinaryExpr *>(exp)) {
-      std::string op;
-
-      // Figure out which op this is.
-      switch (bin->getKind()) {
-      case BinaryExpr::BinOpKind::Mul:
-        op = ") * (";
-        break;
-      case BinaryExpr::BinOpKind::Add:
-        op = ") + (";
-        break;
-
-      default:
-        assert(false && "Invalid operator");
-      }
-
       // Emit the binary expression.
       sb_ << "((";
       generate(bin->getLHS());
-      sb_ << op;
+      sb_ << ") " << bin->getOpSymbol() << " (";
       generate(bin->getRHS());
       sb_ << "))";
       return;
