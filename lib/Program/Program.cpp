@@ -602,6 +602,16 @@ void Expr::replaceUseWith(Expr *other) {
   delete this;
 }
 
-ASTNode *Expr::getParent() const { return getOwnerHandle()->getParent(); }
+ASTNode *Expr::getParent() const {
+  auto *owner = getOwnerHandle();
+  if (!owner)
+    return nullptr;
+  return owner->getParent();
+}
 
-ASTNode *Stmt::getParent() const { return getOwnerHandle()->getParent(); }
+ASTNode *Stmt::getParent() const {
+  auto *owner = getOwnerHandle();
+  if (!owner)
+    return nullptr;
+  return owner->getParent();
+}
