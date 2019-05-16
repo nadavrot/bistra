@@ -213,6 +213,17 @@ void Loop::dump(unsigned indent) const {
   std::cout << "}\n";
 }
 
+void IfRange::dump(unsigned indent) const {
+  spaces(indent);
+  std::cout << "if"
+            << " (";
+  val_->dump();
+  std::cout << " in " << start_ << " .. " << end_ << ") {\n";
+  Scope::dump(indent + 1);
+  spaces(indent);
+  std::cout << "}\n";
+}
+
 void ConstantExpr::dump() const {
   std::cout << " " + std::to_string(val_) + " ";
 }
@@ -349,6 +360,14 @@ Stmt *Loop::clone(CloneCtx &map) {
   return loop;
 }
 
+Stmt *IfRange::clone(CloneCtx &map) {
+  IfRange *IR = new IfRange(val_->clone(map), start_, end_);
+  for (auto &MH : body_) {
+    IR->addStmt(MH->clone(map));
+  }
+  return IR;
+}
+
 Program *Program::clone() {
   CloneCtx ctx;
 
@@ -397,6 +416,12 @@ void Loop::verify() const {
   assert(end_ % stride_ == 0 && "Trip count must be divisible by the stride");
   assert(stride_ > 0 && stride_ < 1024 && "Invalid stride");
   assert(isLegalName(getName()) && "Invalid character in index name");
+  Scope::verify();
+}
+
+void IfRange::verify() const {
+  assert(end_ >= start_ && "Invalid range");
+  val_->verify();
   Scope::verify();
 }
 
@@ -532,6 +557,11 @@ void Scope::visit(NodeVisitor *visitor) {
 }
 
 void Loop::visit(NodeVisitor *visitor) { Scope::visit(visitor); }
+
+void IfRange::visit(NodeVisitor *visitor) {
+  val_->visit(visitor);
+  Scope::visit(visitor);
+}
 
 void StoreStmt::visit(NodeVisitor *visitor) {
   visitor->enter(this);

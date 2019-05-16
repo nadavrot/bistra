@@ -326,6 +326,172 @@ bool Parser::parseScope(Scope *scope) {
   return false;
 }
 
+Stmt *Parser::parseForStmt() {
+  // "for"
+  consumeToken(TokenKind::kw_for);
+
+  // "("
+  if (!consumeIf(TokenKind::l_paren)) {
+    ctx_.diagnose("Expecting left paren in for loop.");
+    return nullptr;
+  }
+
+  // Indentifier name.
+  std::string indexName;
+  if (parseIdentifier(indexName)) {
+    ctx_.diagnose("Expecting index name in for loop.");
+    return nullptr;
+  }
+
+  // "in" keyword.
+  if (!consumeIf(TokenKind::kw_in)) {
+    ctx_.diagnose("Expecting 'in' keyword in the for loop.");
+    return nullptr;
+  }
+
+  int zero;
+  if (parseIntegerLiteral(zero) || zero != 0) {
+    ctx_.diagnose("Expecting '0' in the for base range.");
+    return nullptr;
+  }
+
+  // ".." range keyword.
+  if (!consumeIf(TokenKind::range)) {
+    ctx_.diagnose("Expecting the '..' range in the for loop.");
+    ctx_.diagnose("Remember the space between the zero and '..'");
+    return nullptr;
+  }
+
+  int endRange = 0;
+  if (parseLiteralOrDimExpr(endRange)) {
+    ctx_.diagnose("Unable to parse loop range.");
+    return nullptr;
+  }
+
+  // ")"
+  if (!consumeIf(TokenKind::r_paren)) {
+    ctx_.diagnose("Expecting right brace in for loop.");
+    return nullptr;
+  }
+
+  // Create the loop.
+  Loop *L = new Loop(indexName, endRange);
+
+  ctx_.pushLoop(L);
+  // Parse the body of the loop.
+  if (parseScope(L)) {
+    return nullptr;
+  }
+  auto *K = ctx_.popLoop();
+  assert(K == L && "Popped an unexpected loop");
+  return L;
+}
+
+Stmt *Parser::parseIfStmt() {
+  // "if"
+  consumeToken(TokenKind::kw_if);
+
+  // "("
+  if (!consumeIf(TokenKind::l_paren)) {
+    ctx_.diagnose("Expecting left paren in for loop.");
+    return nullptr;
+  }
+
+  Expr *indexVal = parseExpr();
+  if (!indexVal) {
+    return nullptr;
+  }
+
+  // "in" keyword.
+  if (!consumeIf(TokenKind::kw_in)) {
+    ctx_.diagnose("Expecting 'in' keyword in the for loop.");
+    return nullptr;
+  }
+
+  int startRange = 0;
+  if (parseLiteralOrDimExpr(startRange)) {
+    ctx_.diagnose("Unable to parse if-range.");
+    return nullptr;
+  }
+
+  // ".." range keyword.
+  if (!consumeIf(TokenKind::range)) {
+    ctx_.diagnose("Expecting the '..' range in the if-range loop.");
+    ctx_.diagnose("Remember the space between the value and '..'");
+    return nullptr;
+  }
+
+  int endRange = 0;
+  if (parseLiteralOrDimExpr(endRange)) {
+    ctx_.diagnose("Unable to parse if-range.");
+    return nullptr;
+  }
+
+  // ")"
+  if (!consumeIf(TokenKind::r_paren)) {
+    ctx_.diagnose("Expecting right brace in for loop.");
+    return nullptr;
+  }
+
+  // Create the if-range.
+  IfRange *IR = new IfRange(indexVal, startRange, endRange);
+
+  // Parse the body of the loop.
+  if (parseScope(IR)) {
+    return nullptr;
+  }
+
+  return IR;
+}
+
+bool Parser::parseLiteralOrDimExpr(int &value) {
+  if (Tok.is(TokenKind::integer_literal)) {
+    // End of index range.
+    if (parseIntegerLiteral(value)) {
+      ctx_.diagnose("Expecting an integer value.");
+      return true;
+    }
+
+    return false;
+  }
+
+  if (Tok.is(identifier)) {
+    std::string varName;
+    if (parseIdentifier(varName)) {
+      ctx_.diagnose("Expecting argument name.");
+      return true;
+    }
+
+    Argument *arg = ctx_.getArgumentByName(varName);
+    if (!arg) {
+      ctx_.diagnose("Unexpected argument name in for loop range: " + varName);
+      return true;
+    }
+
+    if (!consumeIf(TokenKind::period)) {
+      ctx_.diagnose("Expecting a member access in loop range: " + varName);
+      return true;
+    }
+
+    std::string dimName;
+    if (parseIdentifier(dimName)) {
+      ctx_.diagnose("Expecting dimension name in loop range: " + varName);
+      return true;
+    }
+
+    value = arg->getType()->getDimSizeByName(dimName);
+    if (value == 0) {
+      ctx_.diagnose("Invalid dimension name in: " + varName + "." + dimName);
+      return true;
+    }
+
+    return false;
+  }
+
+  ctx_.diagnose("Invalid expression in dimension name.");
+  return true;
+}
+
 /// Parse a single unit (stmt).
 Stmt *Parser::parseOneStmt() {
 
@@ -382,106 +548,16 @@ Stmt *Parser::parseOneStmt() {
     return nullptr;
   }
 
-  // Parse for statements:
+  // Parse for-statements:
   // Example: for (i in 0 .. 100) { ... }
   if (Tok.is(TokenKind::kw_for)) {
-    // "For"
-    consumeToken(TokenKind::kw_for);
+    return parseForStmt();
+  }
 
-    // "("
-    if (!consumeIf(TokenKind::l_paren)) {
-      ctx_.diagnose("Expecting left paren in for loop.");
-      return nullptr;
-    }
-
-    // Indentifier name.
-    std::string indexName;
-    if (parseIdentifier(indexName)) {
-      ctx_.diagnose("Expecting index name in for loop.");
-      return nullptr;
-    }
-
-    // "in" keyword.
-    if (!consumeIf(TokenKind::kw_in)) {
-      ctx_.diagnose("Expecting 'in' keyword in the for loop.");
-      return nullptr;
-    }
-
-    int zero;
-    if (parseIntegerLiteral(zero) || zero != 0) {
-      ctx_.diagnose("Expecting '0' in the for base range.");
-      return nullptr;
-    }
-
-    // ".." range keyword.
-    if (!consumeIf(TokenKind::range)) {
-      ctx_.diagnose("Expecting the '..' range in the for loop.");
-      ctx_.diagnose("Remember the space between the zero and '..'");
-      return nullptr;
-    }
-
-    int endRange = 0;
-    if (Tok.is(TokenKind::integer_literal)) {
-      // End of index range.
-      if (parseIntegerLiteral(endRange)) {
-        ctx_.diagnose("Expecting end of range integer at for loop.");
-        return nullptr;
-      }
-    } else {
-      if (Tok.is(identifier)) {
-        std::string varName;
-        if (parseIdentifier(varName)) {
-          ctx_.diagnose("Expecting buffer name.");
-          return nullptr;
-        }
-
-        Argument *arg = ctx_.getArgumentByName(varName);
-        if (!arg) {
-          ctx_.diagnose("Unexpected argument name in for loop range: " +
-                        varName);
-          return nullptr;
-        }
-
-        if (!consumeIf(TokenKind::period)) {
-          ctx_.diagnose("Expecting a member access in loop range: " + varName);
-          return nullptr;
-        }
-
-        std::string dimName;
-        if (parseIdentifier(dimName)) {
-          ctx_.diagnose("Expecting dimension name in loop range: " + varName);
-          return nullptr;
-        }
-
-        endRange = arg->getType()->getDimSizeByName(dimName);
-        if (endRange == 0) {
-          ctx_.diagnose("Invalid dimension name in: " + varName + "." +
-                        dimName);
-          return nullptr;
-        }
-      } else {
-        ctx_.diagnose("Invalid expression in for loop range.");
-        return nullptr;
-      }
-    }
-
-    // ")"
-    if (!consumeIf(TokenKind::r_paren)) {
-      ctx_.diagnose("Expecting right brace in for loop.");
-      return nullptr;
-    }
-
-    // Create the loop.
-    Loop *L = new Loop(indexName, endRange);
-
-    ctx_.pushLoop(L);
-    // Parse the body of the loop.
-    if (parseScope(L)) {
-      return nullptr;
-    }
-    auto *K = ctx_.popLoop();
-    assert(K == L && "Popped an unexpected loop");
-    return L;
+  // Parse if-statements:
+  // Example: if (i in 34 .. C.x) { ... }
+  if (Tok.is(TokenKind::kw_if)) {
+    return parseIfStmt();
   }
 
   ctx_.diagnose("Unknown statement in scope body.");

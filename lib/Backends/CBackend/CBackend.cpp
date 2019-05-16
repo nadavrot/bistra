@@ -43,6 +43,9 @@ defineVectorFunctions(float, float4)
 defineVectorFunctions(float, float8)
 defineVectorFunctions(float, float16)
 
+inline bool IsInRange(size_t idx, size_t start, size_t end) {
+  return (idx >= start && idx < end);
+}
 /// \returns the index of the element at x,y,z,w.
 inline size_t btr_get4(const size_t *dims, size_t x, size_t y, size_t z,
                           size_t w) {
@@ -167,6 +170,20 @@ public:
           << "; " << name << "+=" << increment << ") {\n";
       // Generate all of the statements in the scope.
       for (auto &SH : l->getBody()) {
+        generate(SH.get());
+      }
+      sb_ << "}\n";
+      return;
+    }
+
+    if (IfRange *ir = dynamic_cast<IfRange *>(stmt)) {
+      auto range = ir->getRange();
+
+      sb_ << "if (IsInRange(";
+      generate(ir->getIndex());
+      sb_ << ", " << range.first << ", " << range.second << ")) {\n";
+      // Generate all of the statements in the scope.
+      for (auto &SH : ir->getBody()) {
         generate(SH.get());
       }
       sb_ << "}\n";

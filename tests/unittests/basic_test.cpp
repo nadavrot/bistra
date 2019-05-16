@@ -212,13 +212,13 @@ TEST(basic, time_simple_loop) {
   auto *st = new StoreStmt(C, {new IndexExpr(I), new IndexExpr(J)}, mul, true);
   K->addStmt(st);
 
+  auto *ir = new IfRange(new IndexExpr(I), 0, 10);
+  I->addStmt(ir);
+
   p->verify();
 
   Program *pp = p->clone();
   delete p;
-
-  auto CB = getBackend("C");
-  CB->evaluateCode(pp, 10);
   delete pp;
 }
 
