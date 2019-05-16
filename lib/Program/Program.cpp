@@ -117,43 +117,21 @@ void Program::dump(unsigned indent) const {
   std::cout << "}\n";
 }
 
-ExprType BinaryExpr::getExprType(const ExprType &L, const ExprType &R,
-                                 BinOpKind kind) {
-  switch (kind) {
-  case BinaryExpr::BinOpKind::Add:
-  case BinaryExpr::BinOpKind::Mul:
-    assert(L.isEqual(R) && "Operand types must be equal");
-    return L;
-
-    case BinaryExpr::BinOpKind::GT:
-    case BinaryExpr::BinOpKind::GTE:
-    case BinaryExpr::BinOpKind::LT:
-    case BinaryExpr::BinOpKind::LTE:
-    case BinaryExpr::BinOpKind::EQ:
-    case BinaryExpr::BinOpKind::NEQ:
-      return ExprType(ElemKind::IndexTy, L.getWidth());
+const char *BinaryExpr::getOpSymbol(BinOpKind kind_) {
+#define CASE(opname, symbol)                                                   \
+  case BinaryExpr::BinOpKind::opname: {                                        \
+    return symbol;                                                             \
   }
-}
-
-const char* BinaryExpr::getOpSymbol(BinOpKind kind_) {
-#define CASE(opname, symbol) case BinaryExpr::BinOpKind:: opname: { return symbol; }
   switch (kind_) {
-      CASE(Add , " + ")
-      CASE(Mul , " * ")
-      CASE(LT , " < ")
-      CASE(LTE , " <= ")
-      CASE(GT , " > ")
-      CASE(GTE , " >= ")
-      CASE(EQ , " == ")
-      CASE(NEQ , " != ")
+    CASE(Add, " + ")
+    CASE(Mul, " * ")
+    CASE(Sub, " - ")
+    CASE(Div, " / ")
   }
 #undef CASE
 }
 
-const char* BinaryExpr::getOpSymbol() const {
-  return getOpSymbol(getKind());
-}
-
+const char *BinaryExpr::getOpSymbol() const { return getOpSymbol(getKind()); }
 
 void Scope::dump(unsigned indent) const {
   for (auto &SH : body_) {
