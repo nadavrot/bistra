@@ -239,6 +239,41 @@ public:
   virtual void visit(NodeVisitor *visitor) override;
 };
 
+/// Represents an if-in-range construct with the half-open range.
+/// The range must be a valid non-zero length range (start <= end).
+/// Example:  if (x in 0 .. 15).
+class IfRange final : public Scope {
+  /// The numeric value to evaluate.
+  ExprHandle val_;
+
+  /// The start of the range.
+  unsigned start_;
+
+  /// The end of the range.
+  unsigned end_;
+
+public:
+  IfRange(Expr *val, unsigned start, unsigned end)
+      : val_(val, this), start_(start), end_(end) {}
+
+  /// Sets the if-range range.
+  void setRange(std::pair<unsigned, unsigned> range) {
+    start_ = range.first;
+    end_ = range.second;
+  }
+
+  /// \returns the index expr.
+  Expr *getIndex() const { return val_.get(); }
+
+  /// \returns the if-range range.
+  std::pair<unsigned, unsigned> getRange() const { return {start_, end_}; }
+
+  virtual void dump(unsigned indent) const override;
+  virtual Stmt *clone(CloneCtx &map) override;
+  virtual void verify() const override;
+  virtual void visit(NodeVisitor *visitor) override;
+};
+
 /// This class represents a program.
 class Program final : public Scope {
   /// The name of the program.

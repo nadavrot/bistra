@@ -97,6 +97,16 @@ private:
   /// Parse a single unit (stmt).
   Stmt *parseOneStmt();
 
+  /// Parse the for stmt.
+  Stmt *parseForStmt();
+
+  /// Parse the for stmt.
+  Stmt *parseIfStmt();
+
+  /// Parse literal or dimension, such as C.x;
+  /// \returns True if an error occured.
+  bool parseLiteralOrDimExpr(int &value);
+
   /// Parse a scope that starts and ends with braces and populate \p s.
   bool parseScope(Scope *s);
 

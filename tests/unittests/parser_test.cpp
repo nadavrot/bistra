@@ -124,3 +124,21 @@ TEST(basic, comperators) {
   EXPECT_EQ(ctx.getNumErrors(), 0);
   ctx.getProgram()->dump();
 }
+
+TEST(basic, if_range_test) {
+  const char *if_range_test = R"(
+  def if_range_test(C:float<x:10>) {
+
+    for (i in 0 .. 34) {
+      if (i in 0 .. C.x) {  }
+    }
+
+    if (56 in 0 .. 10) {  }
+  })";
+
+  ParserContext ctx;
+  Parser P(if_range_test, ctx);
+  P.Parse();
+  EXPECT_EQ(ctx.getNumErrors(), 0);
+  ctx.getProgram()->dump();
+}
