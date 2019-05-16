@@ -122,5 +122,5 @@ TEST(basic, comperators) {
   Parser P(comperators, ctx);
   P.Parse();
   EXPECT_EQ(ctx.getNumErrors(), 0);
-  Program *pg = ctx.getProgram()->dump();
+  ctx.getProgram()->dump();
 }
