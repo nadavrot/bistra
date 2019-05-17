@@ -224,7 +224,7 @@ public:
   /// \returns the end point of the loop.
   unsigned getEnd() const { return end_; }
 
-  /// Sets the trip count;
+  /// Sets the range end point;
   void setEnd(unsigned tc) { end_ = tc; }
 
   /// \returns the loop stride factor.
