@@ -73,17 +73,24 @@ void TilerPass::doIt(Program *p) {
   p->verify();
   nextPass_->doIt(p);
 
-  int tileSizes[] = {32, 64, 128, 256, 512, 1024};
+  int tileSizes[] = {32, 64, 128, 256};
 
   std::vector<Loop *> loops;
   collectLoops(p, loops);
 
   for (auto *l : loops) {
+    // Don't try to tile small loops.
+    if (l->getEnd() < 128)
+      continue;
+
     for (int ts : tileSizes) {
+      // Round the tile size to match the stride steps.
+      unsigned adjustedTileSize = ts - (ts % l->getStride());
+
       CloneCtx map;
       std::unique_ptr<Program> np((Program *)p->clone(map));
       auto *newL = map.get(l);
-      if (!::tile(newL, ts))
+      if (!::tile(newL, adjustedTileSize))
         continue;
 
       for (int i = 0; i < 3; i++) {
