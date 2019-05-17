@@ -272,15 +272,20 @@ public:
   void generateBenchmark(Program *P, unsigned iter) {
     sb_ << "int main() {\n";
     sb_ << "unsigned benchmark_iterations = " << iter << ";\n";
+
+    // Generate random numbers in the range 0..cnt; Start at this non-zero
+    // value.
+    unsigned cnt = 4;
     for (auto *p : P->getArgs()) {
       auto elemTy = p->getType()->getElementName();
       auto name = p->getName();
       auto size = p->getType()->getSize();
+      // Generate the code to allocate the array.
       sb_ << elemTy << " *" << name << " = (" << elemTy << "*) malloc(sizeof("
           << elemTy << ") * " << std::to_string(size) << ");\n";
-
-      sb_ << "bzero(" << name << ", " << size << "* sizeof(" << elemTy
-          << "));\n";
+      // Generate the code that initializes the array with random data.
+      sb_ << "for (int i = 0; i < " << size << "; i++) { " << name
+          << "[i] = (i % " << cnt++ << "); } \n";
     }
     sb_ << benchmark_start;
     sb_ << "for(int i = 0; i < benchmark_iterations; i++)";
@@ -300,6 +305,17 @@ public:
       sb_ << "s_capture((char*)" << name << ");\n";
     }
     sb_ << benchmark_end;
+
+    // Generate the code to perform crc on the array.
+    for (auto *p : P->getArgs()) {
+      auto name = p->getName();
+      auto size = p->getType()->getSize();
+      sb_ << "{\nunsigned crc = 0;\n";
+      sb_ << "for (int i = 0; i < " << size << "; i++) { crc += " << name
+          << "[i]; } \n";
+      sb_ << "printf(\"" << name << " = %d\\n\" , crc);\n}\n";
+    }
+
     sb_ << "}\n";
   }
 };
