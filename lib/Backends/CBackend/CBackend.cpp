@@ -353,5 +353,5 @@ double CBackend::evaluateCode(Program *p, unsigned iter) {
   } catch (...) {
   }
   // Return the time in sec that the program measured internally and reported.
-  return timeInSeconds / iter;
+  return timeInSeconds;
 }
