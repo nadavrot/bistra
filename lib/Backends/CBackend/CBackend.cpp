@@ -1,6 +1,7 @@
 #include "bistra/Backends/CBackend/CBackend.h"
 #include "bistra/Backends/Backend.h"
 #include "bistra/Program/Program.h"
+#include "bistra/Program/Utils.h"
 
 #include <array>
 #include <cstdio>
@@ -349,12 +350,11 @@ static std::string shellExec(const std::string &cmd) {
 }
 
 double CBackend::evaluateCode(Program *p, unsigned iter) {
-  std::string tmpSrcName = std::string(std::tmpnam(nullptr)) + ".cpp";
-  std::string tmpBinName = std::string(std::tmpnam(nullptr)) + ".bin";
+  std::string tmpBase = "/tmp/tmpEvalProgram";
+  std::string tmpSrcName = tmpBase + ".cpp";
+  std::string tmpBinName = tmpBase + ".bin";
   auto content = emitBenchmarkCode(p, iter);
-  std::ofstream out(tmpSrcName);
-  out << content;
-  out.close();
+  writeFile(tmpSrcName, content);
 
   // Compile:
   shellExec(std::string("clang -march=native -Os -ffast-math ") + tmpSrcName +
