@@ -357,8 +357,8 @@ double CBackend::evaluateCode(Program *p, unsigned iter) {
   out.close();
 
   // Compile:
-  shellExec(std::string("clang -mavx2 -Ofast ") + tmpSrcName + " -o " +
-            tmpBinName);
+  shellExec(std::string("clang -march=native -Os -ffast-math ") + tmpSrcName +
+            " -o " + tmpBinName);
 
   std::string::size_type sz;
   double timeInSeconds = 10000;
