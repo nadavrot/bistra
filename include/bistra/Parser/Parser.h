@@ -103,6 +103,9 @@ private:
   /// Parse the for stmt.
   Stmt *parseIfStmt();
 
+  /// Parse a Pragma attribute.
+  Stmt *parsePragma();
+
   /// Parse literal or dimension, such as C.x;
   /// \returns True if an error occured.
   bool parseLiteralOrDimExpr(int &value);

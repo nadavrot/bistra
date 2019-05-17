@@ -6,6 +6,8 @@
 
 namespace bistra {
 
+struct PragmaCommand;
+
 /// Tile the execution of loop \p L with \p blockSize iterations.
 /// \returns the new new Loop if the transform worked or nullptr.
 Loop *tile(Loop *L, unsigned blockSize);
@@ -42,6 +44,10 @@ bool simplify(Stmt *s);
 /// Promote some memory usage from the memory to local variables.
 /// \returns true if the program was modified.
 bool promoteLICM(Program *p);
+
+/// Apply the pragma command \p pc to the requested loop.
+/// \returns true if the program was modified.
+bool applyPragmaCommand(const PragmaCommand &pc);
 
 } // namespace bistra
 

@@ -162,10 +162,10 @@ TEST(basic, pragmas) {
   ctx.getProgram()->dump();
   auto decls = ctx.getPragmaDecls();
   EXPECT_EQ(decls.size(), 3);
-  EXPECT_EQ(decls[2].name_, "vectorize");
+  EXPECT_EQ(decls[2].kind_, PragmaCommand::PragmaKind::vectorize);
   EXPECT_EQ(decls[2].L_->getName(), "i");
-  EXPECT_EQ(decls[1].name_, "widen");
+  EXPECT_EQ(decls[1].kind_, PragmaCommand::PragmaKind::widen);
   EXPECT_EQ(decls[1].L_->getName(), "i");
-  EXPECT_EQ(decls[0].name_, "widen");
+  EXPECT_EQ(decls[0].kind_, PragmaCommand::PragmaKind::widen);
   EXPECT_EQ(decls[0].L_->getName(), "r");
 }

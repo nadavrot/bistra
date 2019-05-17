@@ -47,7 +47,18 @@ int main(int argc, char *argv[]) {
   gflags::ShutDownCommandLineFlags();
 
   auto content = readFile(inFile);
-  Program *p = parseProgram(content.c_str());
+  ParserContext ctx(content.c_str());
+  Parser P(ctx);
+  P.Parse();
+  Program *p = ctx.getProgram();
+
+  // Apply the pragma commands.
+  for (auto &pc : ctx.getPragmaDecls()) {
+    bool res = applyPragmaCommand(pc);
+    if (!res) {
+      ctx.diagnose(pc.loc_, "Unable to apply the pragma");
+    }
+  }
 
   if (FLAGS_dump) {
     p->dump();

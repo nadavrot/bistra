@@ -1,4 +1,5 @@
 #include "bistra/Transforms/Transforms.h"
+#include "bistra/Program/Pragma.h"
 #include "bistra/Program/Program.h"
 #include "bistra/Program/Utils.h"
 
@@ -649,4 +650,27 @@ bool bistra::promoteLICM(Program *p) {
   }
 
   return changed;
+}
+
+bool bistra::applyPragmaCommand(const PragmaCommand &pc) {
+  switch (pc.kind_) {
+  case PragmaCommand::PragmaKind::vectorize:
+    return ::vectorize(pc.L_, pc.param_);
+
+  case PragmaCommand::PragmaKind::unroll:
+    return ::unrollLoop(pc.L_, pc.param_);
+
+  case PragmaCommand::PragmaKind::widen:
+    return ::widen(pc.L_, pc.param_);
+
+  case PragmaCommand::PragmaKind::tile:
+    return ::tile(pc.L_, pc.param_);
+
+  case PragmaCommand::PragmaKind::hoist:
+    return ::hoist(pc.L_, pc.param_);
+
+  default:
+    // Unhandled pragma.
+    return false;
+  }
 }
