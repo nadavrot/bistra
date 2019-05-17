@@ -33,7 +33,7 @@ Loop *bistra::tile(Loop *L, unsigned blockSize) {
                       L->getStride());
 
   // Update the original-loop's trip count.
-  L->setEnd(L->getEnd() / blockSize);
+  L->setEnd(L->getEnd() / blockSize + (needRangeCheck ? 1 : 0));
   L->setStride(1);
 
   // Insert the new loop by moving the content of the original loop. Insert a
