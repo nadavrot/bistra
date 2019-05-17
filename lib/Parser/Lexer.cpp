@@ -24,8 +24,8 @@ static const char *TokenNames[] = {
 
 const char *Token::getName() const { return TokenNames[kind_]; }
 
-Lexer::Lexer(ParserContext &ctx, const char *buffer)
-    : buffer_(buffer), curPtr_(buffer), context_(ctx) {}
+Lexer::Lexer(ParserContext &ctx)
+    : buffer_(ctx.getBuffer()), curPtr_(buffer_), context_(ctx) {}
 
 void Lexer::formToken(TokenKind kind, const char *tokStart, Token &result) {
   result.setToken(kind, tokStart, curPtr_);
@@ -117,7 +117,7 @@ Restart:
 
   switch (*curPtr_++) {
   default:
-    context_.diagnose("Invalid character.");
+    context_.diagnose(curPtr_, "Invalid character.");
     return formToken(unknown, tokStart, result);
 
   case ' ':

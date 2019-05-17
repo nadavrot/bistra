@@ -27,8 +27,8 @@ def matmul(C:float<I:512,J:512>, A:float<I:512,K:512>, B:float<K:512,J:512>) {
 })";
 
 TEST(basic, lexer1) {
-  ParserContext ctx;
-  Lexer L(ctx, "def test (1,2) // comment. ");
+  ParserContext ctx("def test (1,2) // comment. ");
+  Lexer L(ctx);
   Token result;
 
   L.Lex(result);
@@ -50,8 +50,8 @@ TEST(basic, lexer1) {
 }
 
 TEST(basic, parse_decl) {
-  ParserContext ctx;
-  Parser P("def matmul(C:float<I:512,J:512>) {}", ctx);
+  ParserContext ctx("def matmul(C:float<I:512,J:512>) {}");
+  Parser P(ctx);
   P.Parse();
   ctx.getProgram()->dump();
   EXPECT_EQ(ctx.getNumErrors(), 0);
@@ -63,8 +63,9 @@ TEST(basic, parse_decl) {
 }
 
 TEST(basic, parse_for) {
-  ParserContext ctx;
-  Parser P("def matmul(C:float<I:512,J:512>) {  for (i in 0 .. 125) {} }", ctx);
+  ParserContext ctx(
+      "def matmul(C:float<I:512,J:512>) {  for (i in 0 .. 125) {} }");
+  Parser P(ctx);
   P.Parse();
   ctx.getProgram()->dump();
   EXPECT_EQ(ctx.getNumErrors(), 0);
@@ -75,8 +76,8 @@ TEST(basic, parse_for) {
 }
 
 TEST(basic, parse_whole_file) {
-  ParserContext ctx;
-  Parser P(test_program, ctx);
+  ParserContext ctx(test_program);
+  Parser P(ctx);
   P.Parse();
   ctx.getProgram()->dump();
   EXPECT_EQ(ctx.getNumErrors(), 0);
@@ -96,8 +97,8 @@ def use_buffer_index(C:float<I:512,J:512>) {
 })";
 
 TEST(basic, use_buffer_index) {
-  ParserContext ctx;
-  Parser P(use_buffer_index, ctx);
+  ParserContext ctx(use_buffer_index);
+  Parser P(ctx);
   P.Parse();
   EXPECT_EQ(ctx.getNumErrors(), 0);
   Program *pg = ctx.getProgram();
@@ -118,8 +119,8 @@ TEST(basic, comperators) {
     }
   })";
 
-  ParserContext ctx;
-  Parser P(comperators, ctx);
+  ParserContext ctx(comperators);
+  Parser P(ctx);
   P.Parse();
   EXPECT_EQ(ctx.getNumErrors(), 0);
   ctx.getProgram()->dump();
@@ -136,8 +137,8 @@ TEST(basic, if_range_test) {
     if (56 in 0 .. 10) {  }
   })";
 
-  ParserContext ctx;
-  Parser P(if_range_test, ctx);
+  ParserContext ctx(if_range_test);
+  Parser P(ctx);
   P.Parse();
   EXPECT_EQ(ctx.getNumErrors(), 0);
   ctx.getProgram()->dump();

@@ -22,7 +22,7 @@ class Lexer {
 
 public:
   /// Initialize the Lexer.
-  Lexer(ParserContext &ctx, const char *buffer);
+  Lexer(ParserContext &ctx);
   /// Lex the next token.
   void Lex(Token &result);
 
