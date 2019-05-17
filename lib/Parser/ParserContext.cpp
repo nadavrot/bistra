@@ -39,8 +39,32 @@ Argument *ParserContext::getArgumentByName(const std::string &name) {
   return ir->second;
 }
 
-void ParserContext::diagnose(const std::string &message) {
-  std::cout << message << "\n";
+void ParserContext::diagnose(const char *loc, const std::string &message) {
+  const char *start = loc;
+  const char *end = loc;
+  // Find the start of the line.
+  while (start != buffer_ && *(start - 1) != '\n') {
+    start--;
+  }
+
+  // Find the end of the line.
+  while (*end != 0 && *end != '\n') {
+    end++;
+  }
+
+  // Print the context line.
+  std::string line(start, end);
+  std::cout << line << "\n";
+
+  // Print the error marker.
+  while (start != loc) {
+    start++;
+    std::cout << " ";
+  }
+  std::cout << "^\n";
+
+  // Print the error message.
+  std::cout << "Error:" << message << "\n";
   numErrors_++;
 }
 

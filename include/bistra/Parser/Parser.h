@@ -24,7 +24,7 @@ class Parser {
   void operator=(const Parser &) = delete;
 
 public:
-  Parser(const char *buffer, ParserContext &ctx);
+  Parser(ParserContext &ctx);
   ~Parser();
 
   /// The entry point for starting the parsing phase.

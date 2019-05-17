@@ -13,8 +13,8 @@ TEST(opt, tiler) {
     for (i in 0 .. C.x) { C[i] = 19.0 }
   })";
 
-  ParserContext ctx;
-  Parser P(tiler, ctx);
+  ParserContext ctx(tiler);
+  Parser P(ctx);
   P.Parse();
   EXPECT_EQ(ctx.getNumErrors(), 0);
   Program *p = ctx.getProgram();
@@ -34,8 +34,8 @@ TEST(opt, split_loop) {
     for (i in 0 .. A.x) { A[i] = 0.0; B[i] = 1.0 }
   })";
 
-  ParserContext ctx;
-  Parser P(code, ctx);
+  ParserContext ctx(code);
+  Parser P(ctx);
   P.Parse();
   EXPECT_EQ(ctx.getNumErrors(), 0);
   Program *p = ctx.getProgram();

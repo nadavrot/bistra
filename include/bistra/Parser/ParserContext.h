@@ -12,6 +12,9 @@ class Loop;
 
 /// The context that serves the parser while parsing.
 class ParserContext {
+  /// The base pointer for the parsed buffer.
+  const char *buffer_;
+
   /// The parsed program.
   Program *prog_{nullptr};
 
@@ -25,7 +28,9 @@ class ParserContext {
   std::vector<Loop *> loopNextStack_;
 
 public:
-  ParserContext() = default;
+  ParserContext(const char *buffer) : buffer_(buffer) {}
+
+  const char *getBuffer() const { return buffer_; }
 
   /// \returns a loop by name \p name that is currently in the loop nest stack.
   Loop *getLoopByName(const std::string &name);
@@ -52,8 +57,7 @@ public:
   unsigned getNumErrors() { return numErrors_; }
 
   /// Emit an error message.
-  /// TODO: add location information.
-  void diagnose(const std::string &message);
+  void diagnose(const char *loc, const std::string &message);
 };
 
 } // namespace bistra

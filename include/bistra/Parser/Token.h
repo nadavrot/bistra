@@ -52,7 +52,9 @@ public:
     end_ = end;
     assert(end_ > start_ && "Invalid text range");
   }
-  /// Returns the length of the text.
+  /// \returns the start location of the token.
+  const char *getLoc() const { return start_; }
+  /// \returns the length of the text.
   unsigned getLength() const { return end_ - start_; }
   /// Return a textual description for the token.
   const char *getName() const;

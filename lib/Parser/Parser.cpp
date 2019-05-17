@@ -5,8 +5,7 @@
 
 using namespace bistra;
 
-Parser::Parser(const char *buffer, ParserContext &ctx)
-    : L_(new Lexer(ctx, buffer)), ctx_(ctx) {}
+Parser::Parser(ParserContext &ctx) : L_(new Lexer(ctx)), ctx_(ctx) {}
 
 Parser::~Parser() { delete L_; }
 
@@ -45,17 +44,19 @@ void Parser::skipUntil(TokenKind T) {
 
 bool Parser::parseTypePair(std::string &name, int &val) {
   if (parseIdentifier(name)) {
-    ctx_.diagnose("Expecting dimension name.");
+    ctx_.diagnose(Tok.getLoc(), "Expecting dimension name.");
     return true;
   }
 
   if (!consumeIf(TokenKind::colon)) {
-    ctx_.diagnose("Expecting colon after dimension name " + name + ".");
+    ctx_.diagnose(Tok.getLoc(),
+                  "Expecting colon after dimension name " + name + ".");
     return true;
   }
 
   if (parseIntegerLiteral(val)) {
-    ctx_.diagnose("Expecting integer after dimension name " + name + ".");
+    ctx_.diagnose(Tok.getLoc(),
+                  "Expecting integer after dimension name " + name + ".");
     return true;
   }
 
@@ -88,7 +89,7 @@ bool Parser::parseIdentifier(std::string &text) {
   }
   std::string varName;
   if (parseIdentifier(varName)) {
-    ctx_.diagnose("Unexpected identifier.");
+    ctx_.diagnose(Tok.getLoc(), "Unexpected identifier.");
   }
   return true;
 }
@@ -129,7 +130,8 @@ Expr *Parser::parseExpr(unsigned RBP) {
 
 #undef GEN
 
-    ctx_.diagnose("Unsupported operator: '" + operatorSymbol + "'.");
+    ctx_.diagnose(Tok.getLoc(),
+                  "Unsupported operator: '" + operatorSymbol + "'.");
     return nullptr;
   }
 
@@ -163,7 +165,8 @@ Expr *Parser::parseExprPrimary() {
     Argument *A = ctx_.getArgumentByName(varName);
     if (Tok.is(l_square)) {
       if (!A) {
-        ctx_.diagnose("Unknown subscript argument " + varName + ".");
+        ctx_.diagnose(Tok.getLoc(),
+                      "Unknown subscript argument " + varName + ".");
         return nullptr;
       }
 
@@ -175,7 +178,7 @@ Expr *Parser::parseExprPrimary() {
       return new LoadExpr(A, exprs);
     }
 
-    ctx_.diagnose("Unknown identifier: " + varName + ".");
+    ctx_.diagnose(Tok.getLoc(), "Unknown identifier: " + varName + ".");
     return nullptr;
   }
 
@@ -184,7 +187,8 @@ Expr *Parser::parseExprPrimary() {
 
     if (Expr *subExpr = parseExpr()) {
       if (!Tok.is(r_paren)) {
-        ctx_.diagnose("Expected right paren to close the expression.");
+        ctx_.diagnose(Tok.getLoc(),
+                      "Expected right paren to close the expression.");
         return nullptr;
       }
       consumeToken(r_paren);
@@ -194,7 +198,7 @@ Expr *Parser::parseExprPrimary() {
   }
 
   default:
-    ctx_.diagnose("Unknown expression.");
+    ctx_.diagnose(Tok.getLoc(), "Unknown expression.");
     return nullptr;
   }
 }
@@ -202,7 +206,7 @@ Expr *Parser::parseExprPrimary() {
 bool Parser::parseSubscriptList(std::vector<Expr *> &exprs) {
   assert(exprs.empty() && "exprs list not empty");
   if (!consumeIf(TokenKind::l_square)) {
-    ctx_.diagnose("Expecting left square brace for subscript.");
+    ctx_.diagnose(Tok.getLoc(), "Expecting left square brace for subscript.");
     return true;
   }
 
@@ -223,7 +227,7 @@ bool Parser::parseSubscriptList(std::vector<Expr *> &exprs) {
       continue;
     }
 
-    ctx_.diagnose("Expecting comma or end of subscript.");
+    ctx_.diagnose(Tok.getLoc(), "Expecting comma or end of subscript.");
     return true;
   }
 
@@ -236,12 +240,13 @@ bool Parser::parseNamedType(Type &T, std::string &name) {
   name = Tok.getText();
 
   if (!consumeIf(TokenKind::identifier)) {
-    ctx_.diagnose("Expecting buffer argument name.");
+    ctx_.diagnose(Tok.getLoc(), "Expecting buffer argument name.");
     return true;
   }
 
   if (!consumeIf(TokenKind::colon)) {
-    ctx_.diagnose("Expecting colon after typename: " + name + ".");
+    ctx_.diagnose(Tok.getLoc(),
+                  "Expecting colon after typename: " + name + ".");
   }
 
   ElemKind scalarsTy;
@@ -260,13 +265,14 @@ bool Parser::parseNamedType(Type &T, std::string &name) {
     break;
 
   default:
-    ctx_.diagnose(std::string("Expecting colon after typename") + name);
+    ctx_.diagnose(Tok.getLoc(),
+                  std::string("Expecting colon after typename") + name);
     return true;
   }
   consumeToken();
 
   if (!consumeIf(TokenKind::lt)) {
-    ctx_.diagnose(std::string("Expecting dimension list"));
+    ctx_.diagnose(Tok.getLoc(), "Expecting dimension list");
     return true;
   }
 
@@ -288,7 +294,7 @@ bool Parser::parseNamedType(Type &T, std::string &name) {
     consumeToken(TokenKind::comma);
     // Parse the first mandatory dimension.
     if (parseTypePair(dimName, dimVal)) {
-      ctx_.diagnose(std::string("Expecting dimension definition"));
+      ctx_.diagnose(Tok.getLoc(), "Expecting dimension definition");
       skipUntil(TokenKind::gt);
       break;
     }
@@ -297,7 +303,7 @@ bool Parser::parseNamedType(Type &T, std::string &name) {
   }
 
   if (!consumeIf(TokenKind::gt)) {
-    ctx_.diagnose(std::string("Expecting dimension list"));
+    ctx_.diagnose(Tok.getLoc(), "Expecting dimension list");
     skipUntil(TokenKind::gt);
   }
 
@@ -307,7 +313,7 @@ bool Parser::parseNamedType(Type &T, std::string &name) {
 
 bool Parser::parseScope(Scope *scope) {
   if (!consumeIf(TokenKind::l_brace)) {
-    ctx_.diagnose("Expecting left brace for scope body.");
+    ctx_.diagnose(Tok.getLoc(), "Expecting left brace for scope body.");
     return true;
   }
 
@@ -320,7 +326,7 @@ bool Parser::parseScope(Scope *scope) {
   }
 
   if (!consumeIf(TokenKind::r_brace)) {
-    ctx_.diagnose("Expecting closing brace to scope body.");
+    ctx_.diagnose(Tok.getLoc(), "Expecting closing brace to scope body.");
     return true;
   }
   return false;
@@ -332,45 +338,45 @@ Stmt *Parser::parseForStmt() {
 
   // "("
   if (!consumeIf(TokenKind::l_paren)) {
-    ctx_.diagnose("Expecting left paren in for loop.");
+    ctx_.diagnose(Tok.getLoc(), "Expecting left paren in for loop.");
     return nullptr;
   }
 
   // Indentifier name.
   std::string indexName;
   if (parseIdentifier(indexName)) {
-    ctx_.diagnose("Expecting index name in for loop.");
+    ctx_.diagnose(Tok.getLoc(), "Expecting index name in for loop.");
     return nullptr;
   }
 
   // "in" keyword.
   if (!consumeIf(TokenKind::kw_in)) {
-    ctx_.diagnose("Expecting 'in' keyword in the for loop.");
+    ctx_.diagnose(Tok.getLoc(), "Expecting 'in' keyword in the for loop.");
     return nullptr;
   }
 
   int zero;
   if (parseIntegerLiteral(zero) || zero != 0) {
-    ctx_.diagnose("Expecting '0' in the for base range.");
+    ctx_.diagnose(Tok.getLoc(), "Expecting '0' in the for base range.");
     return nullptr;
   }
 
   // ".." range keyword.
   if (!consumeIf(TokenKind::range)) {
-    ctx_.diagnose("Expecting the '..' range in the for loop.");
-    ctx_.diagnose("Remember the space between the zero and '..'");
+    ctx_.diagnose(Tok.getLoc(), "Expecting the '..' range in the for loop.");
+    ctx_.diagnose(Tok.getLoc(), "Remember the space between the zero and '..'");
     return nullptr;
   }
 
   int endRange = 0;
   if (parseLiteralOrDimExpr(endRange)) {
-    ctx_.diagnose("Unable to parse loop range.");
+    ctx_.diagnose(Tok.getLoc(), "Unable to parse loop range.");
     return nullptr;
   }
 
   // ")"
   if (!consumeIf(TokenKind::r_paren)) {
-    ctx_.diagnose("Expecting right brace in for loop.");
+    ctx_.diagnose(Tok.getLoc(), "Expecting right brace in for loop.");
     return nullptr;
   }
 
@@ -393,7 +399,7 @@ Stmt *Parser::parseIfStmt() {
 
   // "("
   if (!consumeIf(TokenKind::l_paren)) {
-    ctx_.diagnose("Expecting left paren in for loop.");
+    ctx_.diagnose(Tok.getLoc(), "Expecting left paren in for loop.");
     return nullptr;
   }
 
@@ -404,32 +410,34 @@ Stmt *Parser::parseIfStmt() {
 
   // "in" keyword.
   if (!consumeIf(TokenKind::kw_in)) {
-    ctx_.diagnose("Expecting 'in' keyword in the for loop.");
+    ctx_.diagnose(Tok.getLoc(), "Expecting 'in' keyword in the for loop.");
     return nullptr;
   }
 
   int startRange = 0;
   if (parseLiteralOrDimExpr(startRange)) {
-    ctx_.diagnose("Unable to parse if-range.");
+    ctx_.diagnose(Tok.getLoc(), "Unable to parse if-range.");
     return nullptr;
   }
 
   // ".." range keyword.
   if (!consumeIf(TokenKind::range)) {
-    ctx_.diagnose("Expecting the '..' range in the if-range loop.");
-    ctx_.diagnose("Remember the space between the value and '..'");
+    ctx_.diagnose(Tok.getLoc(),
+                  "Expecting the '..' range in the if-range loop.");
+    ctx_.diagnose(Tok.getLoc(),
+                  "Remember the space between the value and '..'");
     return nullptr;
   }
 
   int endRange = 0;
   if (parseLiteralOrDimExpr(endRange)) {
-    ctx_.diagnose("Unable to parse if-range.");
+    ctx_.diagnose(Tok.getLoc(), "Unable to parse if-range.");
     return nullptr;
   }
 
   // ")"
   if (!consumeIf(TokenKind::r_paren)) {
-    ctx_.diagnose("Expecting right brace in for loop.");
+    ctx_.diagnose(Tok.getLoc(), "Expecting right brace in for loop.");
     return nullptr;
   }
 
@@ -448,7 +456,7 @@ bool Parser::parseLiteralOrDimExpr(int &value) {
   if (Tok.is(TokenKind::integer_literal)) {
     // End of index range.
     if (parseIntegerLiteral(value)) {
-      ctx_.diagnose("Expecting an integer value.");
+      ctx_.diagnose(Tok.getLoc(), "Expecting an integer value.");
       return true;
     }
 
@@ -458,37 +466,41 @@ bool Parser::parseLiteralOrDimExpr(int &value) {
   if (Tok.is(identifier)) {
     std::string varName;
     if (parseIdentifier(varName)) {
-      ctx_.diagnose("Expecting argument name.");
+      ctx_.diagnose(Tok.getLoc(), "Expecting argument name.");
       return true;
     }
 
     Argument *arg = ctx_.getArgumentByName(varName);
     if (!arg) {
-      ctx_.diagnose("Unexpected argument name in for loop range: " + varName);
+      ctx_.diagnose(Tok.getLoc(),
+                    "Unexpected argument name in for loop range: " + varName);
       return true;
     }
 
     if (!consumeIf(TokenKind::period)) {
-      ctx_.diagnose("Expecting a member access in loop range: " + varName);
+      ctx_.diagnose(Tok.getLoc(),
+                    "Expecting a member access in loop range: " + varName);
       return true;
     }
 
     std::string dimName;
     if (parseIdentifier(dimName)) {
-      ctx_.diagnose("Expecting dimension name in loop range: " + varName);
+      ctx_.diagnose(Tok.getLoc(),
+                    "Expecting dimension name in loop range: " + varName);
       return true;
     }
 
     value = arg->getType()->getDimSizeByName(dimName);
     if (value == 0) {
-      ctx_.diagnose("Invalid dimension name in: " + varName + "." + dimName);
+      ctx_.diagnose(Tok.getLoc(),
+                    "Invalid dimension name in: " + varName + "." + dimName);
       return true;
     }
 
     return false;
   }
 
-  ctx_.diagnose("Invalid expression in dimension name.");
+  ctx_.diagnose(Tok.getLoc(), "Invalid expression in dimension name.");
   return true;
 }
 
@@ -504,13 +516,14 @@ Stmt *Parser::parseOneStmt() {
 
     Argument *arg = ctx_.getArgumentByName(varName);
     if (!arg) {
-      ctx_.diagnose("Accessing unknown variable.");
+      ctx_.diagnose(Tok.getLoc(), "Accessing unknown variable.");
       return nullptr;
     }
 
     if (Tok.is(l_square)) {
       if (!arg) {
-        ctx_.diagnose("Unknown subscript argument " + varName + ".");
+        ctx_.diagnose(Tok.getLoc(),
+                      "Unknown subscript argument " + varName + ".");
         return nullptr;
       }
       std::vector<Expr *> indices;
@@ -532,7 +545,8 @@ Stmt *Parser::parseOneStmt() {
         break;
 
       default:
-        ctx_.diagnose("Expecting assignment operator after buffer access.");
+        ctx_.diagnose(Tok.getLoc(),
+                      "Expecting assignment operator after buffer access.");
         return nullptr;
       }
 
@@ -544,7 +558,8 @@ Stmt *Parser::parseOneStmt() {
       return new StoreStmt(arg, indices, storedValue, accumulate);
     }
 
-    ctx_.diagnose("Expecting subscript after identifier " + varName + ".");
+    ctx_.diagnose(Tok.getLoc(),
+                  "Expecting subscript after identifier " + varName + ".");
     return nullptr;
   }
 
@@ -560,7 +575,7 @@ Stmt *Parser::parseOneStmt() {
     return parseIfStmt();
   }
 
-  ctx_.diagnose("Unknown statement in scope body.");
+  ctx_.diagnose(Tok.getLoc(), "Unknown statement in scope body.");
   return nullptr;
 }
 
@@ -573,12 +588,12 @@ Program *Parser::parseFunctionDecl() {
   // Indentifier name.
   std::string progName = Tok.getText();
   if (parseIdentifier(progName)) {
-    ctx_.diagnose("Expecting function name after def.");
+    ctx_.diagnose(Tok.getLoc(), "Expecting function name after def.");
     return nullptr;
   }
 
   if (!Tok.is(l_paren)) {
-    ctx_.diagnose("Expecting argument list after function name.");
+    ctx_.diagnose(Tok.getLoc(), "Expecting argument list after function name.");
     return nullptr;
   }
 
@@ -605,7 +620,7 @@ Program *Parser::parseFunctionDecl() {
     }
 
     if (ctx_.getArgumentByName(typeName)) {
-      ctx_.diagnose("Argument with this name already exists.");
+      ctx_.diagnose(Tok.getLoc(), "Argument with this name already exists.");
       // Try to recover by ignoring this argument.
       continue;
     }
@@ -616,7 +631,7 @@ Program *Parser::parseFunctionDecl() {
   }
 
   if (!consumeIf(TokenKind::r_paren)) {
-    ctx_.diagnose("Expecting the end of the argument list.");
+    ctx_.diagnose(Tok.getLoc(), "Expecting the end of the argument list.");
     return nullptr;
   }
 
@@ -638,18 +653,18 @@ void Parser::Parse() {
     }
 
     if (!Tok.is(TokenKind::eof)) {
-      ctx_.diagnose("Expecting eof of file after function.");
+      ctx_.diagnose(Tok.getLoc(), "Expecting eof of file after function.");
     }
     return;
   }
 
-  ctx_.diagnose("Expecting function decleration.");
+  ctx_.diagnose(Tok.getLoc(), "Expecting function decleration.");
   return;
 }
 
 Program *bistra::parseProgram(const char *src) {
-  ParserContext ctx;
-  Parser P(src, ctx);
+  ParserContext ctx(src);
+  Parser P(ctx);
   P.Parse();
   return ctx.getProgram();
 }
