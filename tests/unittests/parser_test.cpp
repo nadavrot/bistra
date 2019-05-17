@@ -143,3 +143,29 @@ TEST(basic, if_range_test) {
   EXPECT_EQ(ctx.getNumErrors(), 0);
   ctx.getProgram()->dump();
 }
+
+TEST(basic, pragmas) {
+  const char *pragmas_test = R"(
+  def pragmas_test(C:float<x:10>) {
+    #vectorize 8
+    #widen 3
+    for (i in 0 .. 34) {
+    #widen 4
+      for (r in 0 .. C.x) {  }
+    }
+  })";
+
+  ParserContext ctx(pragmas_test);
+  Parser P(ctx);
+  P.Parse();
+  EXPECT_EQ(ctx.getNumErrors(), 0);
+  ctx.getProgram()->dump();
+  auto decls = ctx.getPragmaDecls();
+  EXPECT_EQ(decls.size(), 3);
+  EXPECT_EQ(decls[2].name_, "vectorize");
+  EXPECT_EQ(decls[2].L_->getName(), "i");
+  EXPECT_EQ(decls[1].name_, "widen");
+  EXPECT_EQ(decls[1].L_->getName(), "i");
+  EXPECT_EQ(decls[0].name_, "widen");
+  EXPECT_EQ(decls[0].L_->getName(), "r");
+}

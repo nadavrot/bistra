@@ -506,6 +506,38 @@ bool Parser::parseLiteralOrDimExpr(int &value) {
 
 /// Parse a single unit (stmt).
 Stmt *Parser::parseOneStmt() {
+  // Parse pragmas such as :
+  // #vectorize 8
+  if (Tok.is(TokenKind::hash)) {
+    auto pragmaLoc = Tok.getLoc();
+    consumeToken(TokenKind::hash);
+    std::string pragmaName;
+    // Parse the pragma name.
+    if (parseIdentifier(pragmaName)) {
+      ctx_.diagnose(Tok.getLoc(), "Unable to parse the pragma name.");
+      return nullptr;
+    }
+    int param;
+    if (parseIntegerLiteral(param)) {
+      ctx_.diagnose(Tok.getLoc(), "Unable to parse the pragma parameter.");
+      return nullptr;
+    }
+
+    // Continue to parse statements recursively. Apply the pragma as the loop
+    // returns.
+    Stmt *K = parseOneStmt();
+    if (!K)
+      return nullptr;
+
+    Loop *L = dynamic_cast<Loop *>(K);
+    if (!L) {
+      ctx_.diagnose(pragmaLoc, "Unable to apply the pragma to non-loop.");
+      return nullptr;
+    }
+
+    ctx_.addPragma(pragmaName, param, L);
+    return L;
+  }
 
   /// Parse variable access:
   ///

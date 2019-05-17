@@ -129,7 +129,8 @@ Restart:
   case 0:
     // This is the end of the buffer.  Return EOF.
     return formToken(eof, tokStart, result);
-
+  case '#':
+    return formToken(hash, tokStart, result);
   case ',':
     return formToken(comma, tokStart, result);
   case ':':

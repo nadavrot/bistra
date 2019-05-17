@@ -16,6 +16,7 @@ BUILTIN_TYPE(float)
 BUILTIN_TYPE(int8)
 BUILTIN_TYPE(index)
 
+PUNCTUATOR(hash,        "#")
 PUNCTUATOR(period,      ".")
 PUNCTUATOR(comma,       ",")
 PUNCTUATOR(colon,       ":")
