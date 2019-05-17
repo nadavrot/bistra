@@ -1,6 +1,7 @@
 #include "bistra/Parser/Parser.h"
 #include "bistra/Parser/Lexer.h"
 #include "bistra/Parser/ParserContext.h"
+#include "bistra/Program/Pragma.h"
 #include "bistra/Program/Program.h"
 
 using namespace bistra;
@@ -393,6 +394,59 @@ Stmt *Parser::parseForStmt() {
   return L;
 }
 
+Stmt *Parser::parsePragma() {
+  assert(Tok.is(TokenKind::hash));
+
+  auto pragmaLoc = Tok.getLoc();
+  consumeToken(TokenKind::hash);
+  std::string pragmaName;
+  // Parse the pragma name.
+  if (parseIdentifier(pragmaName)) {
+    ctx_.diagnose(Tok.getLoc(), "Unable to parse the pragma name.");
+    return nullptr;
+  }
+  int param;
+  if (parseIntegerLiteral(param)) {
+    ctx_.diagnose(Tok.getLoc(), "Unable to parse the pragma parameter.");
+    return nullptr;
+  }
+
+  // Continue to parse statements recursively. Apply the pragma as the loop
+  // returns.
+  Stmt *K = parseOneStmt();
+  if (!K)
+    return nullptr;
+
+  Loop *L = dynamic_cast<Loop *>(K);
+  if (!L) {
+    ctx_.diagnose(pragmaLoc, "Unable to apply the pragma to non-loop.");
+    return nullptr;
+  }
+
+  PragmaCommand::PragmaKind pk = PragmaCommand::PragmaKind::other;
+
+#define MATCH(str, name, kind)                                                 \
+  {                                                                            \
+    if (str == name) {                                                         \
+      pk = kind;                                                               \
+    }                                                                          \
+  }
+  MATCH(pragmaName, "vectorize", PragmaCommand::PragmaKind::vectorize);
+  MATCH(pragmaName, "widen", PragmaCommand::PragmaKind::widen);
+  MATCH(pragmaName, "tile", PragmaCommand::PragmaKind::tile);
+  MATCH(pragmaName, "unroll", PragmaCommand::PragmaKind::unroll);
+  MATCH(pragmaName, "hoist", PragmaCommand::PragmaKind::hoist);
+#undef MATCH
+
+  if (pk == PragmaCommand::PragmaKind::other) {
+    ctx_.diagnose(pragmaLoc, "Unknown pragma \"" + pragmaName + "\".\n");
+    return nullptr;
+  }
+  PragmaCommand pc(pk, param, L, pragmaLoc);
+  ctx_.addPragma(pc);
+  return L;
+}
+
 Stmt *Parser::parseIfStmt() {
   // "if"
   consumeToken(TokenKind::kw_if);
@@ -509,34 +563,7 @@ Stmt *Parser::parseOneStmt() {
   // Parse pragmas such as :
   // #vectorize 8
   if (Tok.is(TokenKind::hash)) {
-    auto pragmaLoc = Tok.getLoc();
-    consumeToken(TokenKind::hash);
-    std::string pragmaName;
-    // Parse the pragma name.
-    if (parseIdentifier(pragmaName)) {
-      ctx_.diagnose(Tok.getLoc(), "Unable to parse the pragma name.");
-      return nullptr;
-    }
-    int param;
-    if (parseIntegerLiteral(param)) {
-      ctx_.diagnose(Tok.getLoc(), "Unable to parse the pragma parameter.");
-      return nullptr;
-    }
-
-    // Continue to parse statements recursively. Apply the pragma as the loop
-    // returns.
-    Stmt *K = parseOneStmt();
-    if (!K)
-      return nullptr;
-
-    Loop *L = dynamic_cast<Loop *>(K);
-    if (!L) {
-      ctx_.diagnose(pragmaLoc, "Unable to apply the pragma to non-loop.");
-      return nullptr;
-    }
-
-    ctx_.addPragma(pragmaName, param, L);
-    return L;
+    return parsePragma();
   }
 
   /// Parse variable access:

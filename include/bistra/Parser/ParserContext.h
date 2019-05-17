@@ -1,6 +1,8 @@
 #ifndef BISTRA_PARSER_PARSERCONTEXT_H
 #define BISTRA_PARSER_PARSERCONTEXT_H
 
+#include "bistra/Program/Pragma.h"
+
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -9,18 +11,6 @@ namespace bistra {
 class Program;
 class Argument;
 class Loop;
-
-/// Represents a pragma that was applied to some loop.
-struct PragmaDecl {
-  PragmaDecl(const std::string &name, int param, Loop *L)
-      : name_(name), param_(param), L_(L) {}
-  /// The name of the pragma.
-  std::string name_;
-  /// The parameter for the pragma.
-  int param_;
-  /// The the loop that this pragma applies to.
-  Loop *L_;
-};
 
 /// The context that serves the parser while parsing.
 class ParserContext {
@@ -34,7 +24,7 @@ class ParserContext {
   unsigned numErrors_{0};
 
   /// A list of pragma declerations.
-  std::vector<PragmaDecl> pragmas_;
+  std::vector<PragmaCommand> pragmas_;
 
   /// Indexes arguments by name.
   std::unordered_map<std::string, Argument *> argMap_;
@@ -72,10 +62,10 @@ public:
   unsigned getNumErrors() { return numErrors_; }
 
   /// \returns the pragma declerations that were applied to loops.
-  std::vector<PragmaDecl> &getPragmaDecls() { return pragmas_; }
+  std::vector<PragmaCommand> &getPragmaDecls() { return pragmas_; }
 
-  /// Adds the pragma to the list of unassigned pragmas.
-  void addPragma(const std::string &name, int param, Loop *L);
+  /// Adds the pragma to the list of applied pragmas.
+  void addPragma(PragmaCommand &pc);
 
   /// Emit an error message.
   void diagnose(const char *loc, const std::string &message);

@@ -39,9 +39,7 @@ Argument *ParserContext::getArgumentByName(const std::string &name) {
   return ir->second;
 }
 
-void ParserContext::addPragma(const std::string &name, int param, Loop *L) {
-  pragmas_.emplace_back(name, param, L);
-}
+void ParserContext::addPragma(PragmaCommand &pc) { pragmas_.push_back(pc); }
 
 void ParserContext::diagnose(const char *loc, const std::string &message) {
   const char *start = loc;
