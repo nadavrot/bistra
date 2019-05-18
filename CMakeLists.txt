@@ -42,4 +42,5 @@ file(GLOB_RECURSE header_files include/bistra/*.h)
 add_subdirectory(lib/)
 add_subdirectory(tools/)
 add_subdirectory(tests/)
+add_subdirectory(examples/)
 
