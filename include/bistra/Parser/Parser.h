@@ -94,6 +94,9 @@ private:
   /// Example (the subscript part):  A[1, 2, j*2, i + 3 ]
   bool parseSubscriptList(std::vector<Expr *> &exprs);
 
+  /// Parse and store the Let statement.
+  bool parseLetStmt();
+
   /// Parse a single unit (stmt).
   Stmt *parseOneStmt();
 

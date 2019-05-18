@@ -9,6 +9,7 @@
 
 namespace bistra {
 class Program;
+class Expr;
 class Argument;
 class Loop;
 
@@ -32,6 +33,9 @@ class ParserContext {
   /// Contains the next of loops while parsing.
   std::vector<Loop *> loopNextStack_;
 
+  /// Contains the next of loops while parsing.
+  std::vector<std::pair<std::string, Expr *>> letStack_;
+
 public:
   ParserContext(const char *buffer) : buffer_(buffer) {}
 
@@ -45,6 +49,20 @@ public:
 
   /// Remove the top loop from the loop stack.
   Loop *popLoop();
+
+  /// \returns the size of the stack that keeps the 'let' expression. This
+  /// allows us to unwind and get rid of unused lets when the 'let' go out of
+  /// scope.
+  unsigned getLetStackLevel() const;
+
+  /// Restore the 'let' stack to the level of \p handle.
+  void restoreLetStack(unsigned handle);
+
+  /// \returns the stored expression or nullptr if the name was not found.
+  Expr *getLetExprByName(const std::string &name) const;
+
+  /// Register the expression \p e under the name \p name.
+  void registerLetValue(const std::string &name, Expr *e);
 
   /// Registers a new argument.
   void registerNewArgument(Argument *arg);
