@@ -179,6 +179,12 @@ Expr *Parser::parseExprPrimary() {
       return new LoadExpr(A, exprs);
     }
 
+    // Check if this is a 'let' clause:
+    if (auto *E = ctx_.getLetExprByName(varName)) {
+      CloneCtx map;
+      return E->clone(map);
+    }
+
     ctx_.diagnose(Tok.getLoc(), "Unknown identifier: " + varName + ".");
     return nullptr;
   }
@@ -313,12 +319,21 @@ bool Parser::parseNamedType(Type &T, std::string &name) {
 }
 
 bool Parser::parseScope(Scope *scope) {
+  // Remember the state of the let expression stack.
+  unsigned letStackHandle = ctx_.getLetStackLevel();
+
   if (!consumeIf(TokenKind::l_brace)) {
     ctx_.diagnose(Tok.getLoc(), "Expecting left brace for scope body.");
     return true;
   }
 
   while (!Tok.is(TokenKind::r_brace)) {
+    // Parse the let statements at the beginning of the scope.
+    while (Tok.is(TokenKind::kw_let)) {
+      if (parseLetStmt())
+        return true;
+    }
+
     if (Stmt *S = parseOneStmt()) {
       scope->addStmt(S);
     } else {
@@ -330,6 +345,8 @@ bool Parser::parseScope(Scope *scope) {
     ctx_.diagnose(Tok.getLoc(), "Expecting closing brace to scope body.");
     return true;
   }
+
+  ctx_.restoreLetStack(letStackHandle);
   return false;
 }
 
@@ -558,6 +575,31 @@ bool Parser::parseLiteralOrDimExpr(int &value) {
   return true;
 }
 
+bool Parser::parseLetStmt() {
+  assert(Tok.is(TokenKind::kw_let));
+  consumeToken(TokenKind::kw_let);
+
+  std::string varName;
+  // Parse the pragma name.
+  if (parseIdentifier(varName)) {
+    ctx_.diagnose(Tok.getLoc(), "Expecting a variable name in 'let' expr.");
+    return true;
+  }
+
+  if (!consumeIf(TokenKind::assign)) {
+    ctx_.diagnose(Tok.getLoc(), "Expecting assignment in let expression.");
+    return true;
+  }
+
+  Expr *storedValue = parseExpr();
+  if (!storedValue) {
+    return true;
+  }
+
+  ctx_.registerLetValue(varName, storedValue);
+  return false;
+}
+
 /// Parse a single unit (stmt).
 Stmt *Parser::parseOneStmt() {
   // Parse pragmas such as :
@@ -704,6 +746,12 @@ Program *Parser::parseFunctionDecl() {
 void Parser::Parse() {
   // Prime the Lexer!
   consumeToken();
+
+  // Parse let statements in the beginning of the program.
+  while (Tok.is(TokenKind::kw_let)) {
+    if (parseLetStmt())
+      return;
+  }
 
   // Only allow function declerations in the top-level scope.
   if (Tok.is(kw_def)) {

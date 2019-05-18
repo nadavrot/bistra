@@ -24,6 +24,31 @@ Loop *ParserContext::popLoop() {
   return L;
 }
 
+unsigned ParserContext::getLetStackLevel() const { return letStack_.size(); }
+
+void ParserContext::restoreLetStack(unsigned handle) {
+  assert(letStack_.size() >= handle && "Invalid state");
+  while (letStack_.size() > handle) {
+    delete letStack_.back().second;
+    letStack_.pop_back();
+  }
+}
+
+Expr *ParserContext::getLetExprByName(const std::string &name) const {
+  // Go over the 'let' expression in reverse to find the last decleration of the
+  // variable.
+  for (int i = letStack_.size() - 1; i >= 0; i--) {
+    auto let = letStack_[i];
+    if (let.first == name)
+      return let.second;
+  }
+  return nullptr;
+}
+
+void ParserContext::registerLetValue(const std::string &name, Expr *e) {
+  letStack_.push_back(std::make_pair(name, e));
+}
+
 void ParserContext::registerNewArgument(Argument *arg) {
   assert(getArgumentByName(arg->getName()) == nullptr &&
          "Argument already registered");

@@ -11,6 +11,7 @@ KEYWORD(for)
 KEYWORD(in)
 KEYWORD(if)
 KEYWORD(var)
+KEYWORD(let)
 
 BUILTIN_TYPE(float)
 BUILTIN_TYPE(int8)
