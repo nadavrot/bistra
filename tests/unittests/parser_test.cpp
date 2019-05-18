@@ -169,3 +169,26 @@ TEST(basic, pragmas) {
   EXPECT_EQ(decls[0].kind_, PragmaCommand::PragmaKind::widen);
   EXPECT_EQ(decls[0].L_->getName(), "r");
 }
+
+TEST(basic, let_expr) {
+  const char *let_expr = R"(
+  let width = 3.0;
+  let offset = 2;
+
+  def let_exprs(C:float<x:10>) {
+    let foo = 1.0;
+    let offset2 = 2;
+    C[offset + offset2] = width + foo;
+  })";
+
+  ParserContext ctx(let_expr);
+  Parser P(ctx);
+  P.Parse();
+  EXPECT_EQ(ctx.getNumErrors(), 0);
+  ctx.getProgram()->dump();
+  auto *p = ctx.getProgram();
+  NodeCounter counter;
+  p->visit(&counter);
+  EXPECT_EQ(counter.stmt, 2);
+  EXPECT_EQ(counter.expr, 6);
+}
