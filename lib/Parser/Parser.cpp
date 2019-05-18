@@ -541,6 +541,14 @@ bool Parser::parseLiteralOrDimExpr(int &value) {
       return true;
     }
 
+    // Is this a 'let' variable that contains an integer?
+    if (auto *E = ctx_.getLetExprByName(varName)) {
+      if (ConstantExpr *C = dynamic_cast<ConstantExpr *>(E)) {
+        value = C->getValue();
+        return false;
+      }
+    }
+
     Argument *arg = ctx_.getArgumentByName(varName);
     if (!arg) {
       ctx_.diagnose(Tok.getLoc(),
