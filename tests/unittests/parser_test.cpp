@@ -179,6 +179,10 @@ TEST(basic, let_expr) {
     let foo = 1.0;
     let offset2 = 2;
     C[offset + offset2] = width + foo;
+    for (i in 0 .. offset2) {
+      let offset2 = 300; // Redefine offset2.
+      for (j in 0 .. offset2) { }
+    }
   })";
 
   ParserContext ctx(let_expr);
@@ -189,6 +193,8 @@ TEST(basic, let_expr) {
   auto *p = ctx.getProgram();
   NodeCounter counter;
   p->visit(&counter);
-  EXPECT_EQ(counter.stmt, 2);
+  EXPECT_EQ(counter.stmt, 4);
   EXPECT_EQ(counter.expr, 6);
+  // Make sure that the inner scope clobbers 'offset2'.
+  EXPECT_EQ(::getLoopByName(p, "j")->getEnd(), 300);
 }
