@@ -2,6 +2,9 @@
 #include "bistra/Program/Program.h"
 #include "bistra/Program/Utils.h"
 
+#include <algorithm>
+#include <array>
+
 using namespace bistra;
 
 static bool isConst(Expr *e) {
@@ -25,6 +28,57 @@ static bool isZero(Expr *e) {
   if (auto *CE = dynamic_cast<ConstantFPExpr *>(e)) {
     return CE->getValue() == 0.0;
   }
+  return false;
+}
+
+bool bistra::computeKnownIntegerRange(Expr *e, std::pair<int, int> &range) {
+  // Estimate the range of constants expressions.
+  if (auto *CE = dynamic_cast<ConstantExpr *>(e)) {
+    // The lower and upper bound are the constant itself.
+    range.first = CE->getValue();
+    range.second = CE->getValue();
+    return true;
+  }
+
+  // Estimate the range for loop indices.
+  if (auto *IE = dynamic_cast<IndexExpr *>(e)) {
+    // Use the upper and lower bounds of the loop.
+    range.first = 0;
+    range.second = IE->getLoop()->getEnd();
+    return true;
+  }
+
+  // Estimate the range of binary expressions.
+  if (auto *BE = dynamic_cast<BinaryExpr *>(e)) {
+    std::pair<int, int> L, R;
+    // Compute the range of both sides:
+    if (!computeKnownIntegerRange(BE->getLHS(), L) ||
+        !computeKnownIntegerRange(BE->getRHS(), R))
+      return false;
+
+    switch (BE->getKind()) {
+    case BinaryExpr::Mul: {
+      // Try all combinations.
+      std::array<int, 4> perm{{L.first * R.first, L.first * R.second,
+                               L.second * R.first, L.second * R.second}};
+      range.first = *std::min_element(perm.begin(), perm.end());
+      range.second = *std::max_element(perm.begin(), perm.end());
+      return true;
+    }
+    case BinaryExpr::Add: {
+      // Try all combinations.
+      std::array<int, 4> perm{{L.first + R.first, L.first + R.second,
+                               L.second + R.first, L.second + R.second}};
+      range.first = *std::min_element(perm.begin(), perm.end());
+      range.second = *std::max_element(perm.begin(), perm.end());
+      return true;
+    }
+    case BinaryExpr::Div:
+    case BinaryExpr::Sub:
+      return false;
+    }
+  }
+
   return false;
 }
 
@@ -153,17 +207,31 @@ struct ExprSimplify : public NodeVisitor {
 };
 } // namespace
 
-bool bistra::simplify(Stmt *s) {
+enum RangeRelation { Intersect, Disjoint, Subset };
+/// \returns the relationship between sets A and B.
+static RangeRelation getRangeRelation(std::pair<int, int> A,
+                                      std::pair<int, int> B) {
+  // A is contained inside B.
+  if (A.first >= B.first && A.second <= B.second) {
+    return RangeRelation::Subset;
+  }
+
+  // A and B are disjoint.
+  if (A.second <= B.first || A.second <= B.first) {
+    return RangeRelation::Disjoint;
+  }
+
+  // A and B overlap.
+  return RangeRelation::Intersect;
+}
+
+/// Removes empty loops.
+/// \returns True if some code was modified.
+static bool removeEmptyLoops(Stmt *s) {
   std::vector<Loop *> loops;
   collectLoops(s, loops);
 
   bool changed = false;
-
-  // Simplify all of the expressions in the graph.
-  ExprSimplify ES;
-  s->visit(&ES);
-  changed |= ES.changed_;
-
   // Remove empty loops:
   for (auto *L : loops) {
     if (L->isEmpty()) {
@@ -171,10 +239,15 @@ bool bistra::simplify(Stmt *s) {
       changed = true;
     }
   }
+  return changed;
+}
 
-  // Scan the program for loops again because some loops were deleted.
-  loops.clear();
+/// Removes loops that execute once.
+/// \returns True if some code was modified.
+static bool removeTrip1Loops(Stmt *s) {
+  std::vector<Loop *> loops;
   collectLoops(s, loops);
+  bool changed = false;
 
   // Remove loops of tripcount-1:
   for (auto *L : loops) {
@@ -200,6 +273,76 @@ bool bistra::simplify(Stmt *s) {
     parent->removeStmt(L);
     changed = true;
   }
+  return changed;
+}
+
+/// Simplify all of the Ifs.
+/// \returns True if some code was modified.
+static bool simplifyIfs(Stmt *s) {
+  bool changed = false;
+  std::vector<IfRange *> ifs;
+  collectIfs(s, ifs);
+
+  // Eliminate ifs that are statically known not to be executed.
+  for (auto *ifs : ifs) {
+    // The index range.
+    std::pair<int, int> ir;
+    // Try to assess the if index range.
+    if (!computeKnownIntegerRange(ifs->getIndex(), ir))
+      continue;
+
+    // Compute the relationship between the index and if ranges.
+    auto rel = getRangeRelation(ir, ifs->getRange());
+
+    switch (rel) {
+    case Intersect: {
+      // No useful information. Do nothing.
+      continue;
+    }
+
+    case RangeRelation::Disjoint: {
+      // Remove the IF if the ranges don't intersect.
+      ((Scope *)ifs->getParent())->removeStmt(ifs);
+      changed = true;
+      continue;
+    }
+    case Subset:
+      // The index always falls within the if range. Remove the if and keep
+      // the if content.
+      CloneCtx map;
+      Scope *parent = ((Scope *)ifs->getParent());
+      for (auto &S : ifs->getBody()) {
+        // Clone the body of the IF right before the IF.
+        parent->insertBeforeStmt(S->clone(map), ifs);
+      }
+
+      // Remove the IF.
+      parent->removeStmt(ifs);
+      changed = true;
+      continue;
+      ;
+    }
+  }
+
+  return changed;
+}
+
+bool bistra::simplify(Stmt *s) {
+  std::vector<Loop *> loops;
+  collectLoops(s, loops);
+
+  bool changed = false;
+
+  // Simplify all of the expressions in the graph.
+  ExprSimplify ES;
+  s->visit(&ES);
+  changed |= ES.changed_;
+
+  changed |= removeEmptyLoops(s);
+
+  changed |= simplifyIfs(s);
+
+  changed |= removeTrip1Loops(s);
 
   return changed;
 }
