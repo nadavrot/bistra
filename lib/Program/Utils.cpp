@@ -95,13 +95,24 @@ struct IndexCollector : public NodeVisitor {
 } // namespace
 
 namespace {
-/// A visitor class that visits all nodes in the program.
+/// A visitor class that visits all loops in the program.
 struct LoopCollector : public NodeVisitor {
   std::vector<Loop *> &loops_;
   LoopCollector(std::vector<Loop *> &loops) : loops_(loops) {}
   virtual void enter(Stmt *E) override {
     if (Loop *L = dynamic_cast<Loop *>(E)) {
       loops_.push_back(L);
+    }
+  }
+};
+
+/// A visitor class that visits all ifs in the program.
+struct IfCollector : public NodeVisitor {
+  std::vector<IfRange *> &ifs_;
+  IfCollector(std::vector<IfRange *> &ifs) : ifs_(ifs) {}
+  virtual void enter(Stmt *E) override {
+    if (auto *I = dynamic_cast<IfRange *>(E)) {
+      ifs_.push_back(I);
     }
   }
 };
@@ -173,6 +184,11 @@ bool bistra::dependsOnLoop(ASTNode *N, Loop *L) {
 
 void bistra::collectLoops(Stmt *S, std::vector<Loop *> &loops) {
   LoopCollector IC(loops);
+  S->visit(&IC);
+}
+
+void bistra::collectIfs(Stmt *S, std::vector<IfRange *> &ifs) {
+  IfCollector IC(ifs);
   S->visit(&IC);
 }
 

@@ -18,6 +18,7 @@ class IndexExpr;
 class LoadLocalExpr;
 class StoreLocalStmt;
 class Loop;
+class IfRange;
 class ASTNode;
 class LocalVar;
 class Argument;
@@ -85,6 +86,9 @@ void collectLoadStores(ASTNode *S, std::vector<LoadExpr *> &loads,
 
 /// Collect all of the loops under statement \p S into \p loops;
 void collectLoops(Stmt *S, std::vector<Loop *> &loops);
+
+/// Collect all of the ifs under statement \p S into \p ifs;
+void collectIfs(Stmt *S, std::vector<IfRange *> &ifs);
 
 /// \returns a loop that has the index with the name \p name or nullptr.
 Loop *getLoopByName(Stmt *S, const std::string &name);

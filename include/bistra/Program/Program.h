@@ -247,17 +247,17 @@ class IfRange final : public Scope {
   ExprHandle val_;
 
   /// The start of the range.
-  unsigned start_;
+  int start_;
 
   /// The end of the range.
-  unsigned end_;
+  int end_;
 
 public:
-  IfRange(Expr *val, unsigned start, unsigned end)
+  IfRange(Expr *val, int start, int end)
       : val_(val, this), start_(start), end_(end) {}
 
   /// Sets the if-range range.
-  void setRange(std::pair<unsigned, unsigned> range) {
+  void setRange(std::pair<int, int> range) {
     start_ = range.first;
     end_ = range.second;
   }
@@ -266,7 +266,7 @@ public:
   ExprHandle &getIndex() { return val_; }
 
   /// \returns the if-range range.
-  std::pair<unsigned, unsigned> getRange() const { return {start_, end_}; }
+  std::pair<int, int> getRange() const { return {start_, end_}; }
 
   virtual void dump(unsigned indent) const override;
   virtual Stmt *clone(CloneCtx &map) override;
