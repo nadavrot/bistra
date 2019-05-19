@@ -18,8 +18,6 @@ TEST(opt, tiler) {
   P.Parse();
   EXPECT_EQ(ctx.getNumErrors(), 0);
   Program *p = ctx.getProgram();
-  p->dump();
-
   Loop *I = ::getLoopByName(p, "i");
   ::widen(I, 3);
   EXPECT_EQ(I->getStride(), 3);
@@ -39,13 +37,31 @@ TEST(opt, split_loop) {
   P.Parse();
   EXPECT_EQ(ctx.getNumErrors(), 0);
   Program *p = ctx.getProgram();
-  Loop *I = ::getLoopByName(p, "i");
-  ::split(I);
+  p->dump();
+  ::simplify(p);
+}
 
+TEST(opt, simplifyExpr) {
+  const char *code = R"(
+  def split_me(A:float<x:100>, B:float<x:100>) {
+    A[0] = 4.0 + 5.0
+    A[1] = B[0] * 0.0 + B[1 * 3] + 0.0 + B[0 + 2] * 1.0
+    for (i in 0 .. 24) {
+      A[(2 * 2)] = B[(0 + 1)] + 2.0 + B[(2 * i)] + 1.0
+    }
+    if ((102 + 32) in 0 .. 34) { A[3 + 0] = 3.0 + 34.0 }
+  })";
+
+  ParserContext ctx(code);
+  Parser P(ctx);
+  P.Parse();
+  EXPECT_EQ(ctx.getNumErrors(), 0);
+  Program *p = ctx.getProgram();
+  ::simplify(p);
   p->dump();
 
   NodeCounter counter;
   p->visit(&counter);
-  EXPECT_EQ(counter.stmt, 5);
-  EXPECT_EQ(counter.expr, 4);
+  EXPECT_EQ(counter.stmt, 7);
+  EXPECT_EQ(counter.expr, 23);
 }

@@ -2,6 +2,7 @@
 #include "bistra/Program/Pragma.h"
 #include "bistra/Program/Program.h"
 #include "bistra/Program/Utils.h"
+#include "bistra/Transforms/Simplify.h"
 
 #include <set>
 
@@ -501,11 +502,59 @@ bool bistra::widen(Loop *L, unsigned wf) {
   return true;
 }
 
+namespace {
+/// A visitor class that collects all loads/stores to locals.
+struct ExprSimplify : public NodeVisitor {
+  ExprSimplify() = default;
+
+  bool changed_{false};
+
+  virtual void enter(Expr *E) override {
+    if (LoadExpr *LE = dynamic_cast<LoadExpr *>(E)) {
+      for (auto &E : LE->getIndices()) {
+        process(E);
+      }
+    }
+  }
+
+  /// Try to simplify the value in handle \p H and update the 'changed' flag.
+  void process(ExprHandle &H) {
+    auto *E = H.get();
+    auto *N = ::simplifyExpr(E);
+    if (N != E) {
+      changed_ = true;
+      H.setReference(N);
+    }
+  }
+
+  virtual void enter(Stmt *S) override {
+    // Simplify statements that use expressions:
+    if (StoreStmt *SS = dynamic_cast<StoreStmt *>(S)) {
+      for (auto &E : SS->getIndices()) {
+        process(E);
+      }
+      process(SS->getValue());
+    }
+    if (StoreLocalStmt *SLS = dynamic_cast<StoreLocalStmt *>(S)) {
+      return process(SLS->getValue());
+    }
+    if (IfRange *IR = dynamic_cast<IfRange *>(S)) {
+      return process(IR->getIndex());
+    }
+  }
+};
+} // namespace
+
 bool bistra::simplify(Stmt *s) {
   std::vector<Loop *> loops;
   collectLoops(s, loops);
 
   bool changed = false;
+
+  // Simplify all of the expressions in the graph.
+  ExprSimplify ES;
+  s->visit(&ES);
+  changed |= ES.changed_;
 
   // Remove empty loops:
   for (auto *L : loops) {
