@@ -42,6 +42,8 @@ int main() {
 
   ::simplify(p);
   ::promoteLICM(p);
+  ::simplify(p);
+
   p->dump();
 
   auto CB = getBackend("C");
