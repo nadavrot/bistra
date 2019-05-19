@@ -51,6 +51,12 @@ int main(int argc, char *argv[]) {
   ParserContext ctx(content.c_str());
   Parser P(ctx);
   P.Parse();
+
+  // Abort the program if there were any errors.
+  if (ctx.getNumErrors() > 0) {
+    return 0;
+  }
+
   Program *p = ctx.getProgram();
 
   // Apply the pragma commands.
