@@ -263,7 +263,7 @@ public:
   }
 
   /// \returns the index expr.
-  Expr *getIndex() const { return val_.get(); }
+  ExprHandle &getIndex() { return val_; }
 
   /// \returns the if-range range.
   std::pair<unsigned, unsigned> getRange() const { return {start_, end_}; }
@@ -432,8 +432,12 @@ public:
   /// \returns the string representation of this expression;
   const char *getOpSymbol() const;
 
-  Expr *getLHS() { return LHS_; }
-  Expr *getRHS() { return RHS_; }
+  Expr *getLHS() const { return LHS_.get(); }
+  Expr *getRHS() const { return RHS_.get(); }
+
+  void setLHS(Expr *e) { return LHS_.setReference(e); }
+  void setRHS(Expr *e) { return RHS_.setReference(e); }
+
   virtual void dump() const override;
   virtual Expr *clone(CloneCtx &map) override;
   virtual void verify() const override;
@@ -471,7 +475,10 @@ public:
   Argument *getDest() { return arg_; }
 
   /// \returns the indices indexing into the array.
-  const std::vector<ExprHandle> &getIndices() { return indices_; }
+  const std::vector<ExprHandle> &getIndices() const { return indices_; }
+
+  /// \returns the indices indexing into the array.
+  std::vector<ExprHandle> &getIndices() { return indices_; }
 
   LoadExpr(Argument *arg, const std::vector<Expr *> &indices, ExprType elemTy)
       : LoadExpr(arg, indices) {
@@ -532,7 +539,10 @@ public:
   Argument *getDest() { return arg_; }
 
   /// \returns the indices indexing into the array.
-  const std::vector<ExprHandle> &getIndices() { return indices_; }
+  const std::vector<ExprHandle> &getIndices() const { return indices_; }
+
+  /// \returns the indices indexing into the array.
+  std::vector<ExprHandle> &getIndices() { return indices_; }
 
   /// \returns the expression of the last index.
   const ExprHandle &getLastIndex() const {
