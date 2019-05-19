@@ -1,6 +1,7 @@
 #include "bistra/Parser/Parser.h"
 #include "bistra/Program/Program.h"
 #include "bistra/Program/Utils.h"
+#include "bistra/Transforms/Simplify.h"
 #include "bistra/Transforms/Transforms.h"
 
 #include "gtest/gtest.h"
