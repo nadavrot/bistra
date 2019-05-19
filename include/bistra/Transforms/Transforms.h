@@ -36,11 +36,6 @@ bool vectorize(Loop *L, unsigned vf);
 /// Example: A[i] = 3 becomes A[i] = 3; A[i+1] = 3;
 bool widen(Loop *L, unsigned wf);
 
-/// Simplify the program by eliminating dead code and simplifying the
-/// program structure.
-/// \returns true if the program was modified.
-bool simplify(Stmt *s);
-
 /// Promote some memory usage from the memory to local variables.
 /// \returns true if the program was modified.
 bool promoteLICM(Program *p);
