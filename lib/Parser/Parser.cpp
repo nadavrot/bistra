@@ -38,7 +38,16 @@ void Parser::skipUntil(TokenKind T) {
     default:
       consumeToken();
       break;
-      // TODO: Handle paren/brace/bracket recovery.
+    }
+  }
+}
+
+void Parser::skipUntilOneOf(TokenKind A, TokenKind B) {
+  while (!Tok.is(eof) && !Tok.is(A) && !Tok.is(B)) {
+    switch (Tok.getKind()) {
+    default:
+      consumeToken();
+      break;
     }
   }
 }
@@ -154,6 +163,7 @@ Expr *Parser::parseExprPrimary() {
   }
 
   case identifier: {
+    auto argLoc = Tok.getLoc();
     std::string varName;
     parseIdentifier(varName);
 
@@ -173,6 +183,13 @@ Expr *Parser::parseExprPrimary() {
 
       std::vector<Expr *> exprs;
       if (parseSubscriptList(exprs)) {
+        return nullptr;
+      }
+
+      // Check that the number of subscript arguments is correct.
+      if (A->getType()->getNumDims() != exprs.size()) {
+        ctx_.diagnose(argLoc,
+                      "Invalid number of indices for buffer subscript.");
         return nullptr;
       }
 
@@ -292,7 +309,7 @@ bool Parser::parseNamedType(Type &T, std::string &name) {
 
   // Parse the first mandatory dimension.
   if (parseTypePair(dimName, dimVal)) {
-    return true;
+    skipUntilOneOf(TokenKind::comma, TokenKind::r_paren);
   }
   names.push_back(dimName);
   sizes.push_back(dimVal);
@@ -302,7 +319,6 @@ bool Parser::parseNamedType(Type &T, std::string &name) {
     consumeToken(TokenKind::comma);
     // Parse the first mandatory dimension.
     if (parseTypePair(dimName, dimVal)) {
-      ctx_.diagnose(Tok.getLoc(), "expecting dimension definition");
       skipUntil(TokenKind::gt);
       break;
     }
@@ -634,6 +650,7 @@ Stmt *Parser::parseOneStmt() {
   ///
   /// Example: A[1,I * 8, 12] += 2
   if (Tok.is(TokenKind::identifier)) {
+    auto argLoc = Tok.getLoc();
     std::string varName;
     parseIdentifier(varName);
 
@@ -675,6 +692,13 @@ Stmt *Parser::parseOneStmt() {
 
       Expr *storedValue = parseExpr();
       if (!storedValue) {
+        return nullptr;
+      }
+
+      // Check that the number of subscript arguments is correct.
+      if (arg->getType()->getNumDims() != indices.size()) {
+        ctx_.diagnose(argLoc,
+                      "Invalid number of indices for argument subscript");
         return nullptr;
       }
 
