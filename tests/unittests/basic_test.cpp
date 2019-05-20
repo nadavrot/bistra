@@ -71,14 +71,6 @@ TEST(basic, builder) {
   EXPECT_EQ(ld->getParent(), val);
   EXPECT_EQ(val->getParent(), store);
 
-  HotScopeCollector HCS;
-  p->visit(&HCS);
-  EXPECT_EQ(HCS.getFrequency(p), 1);  // The main is executed once.
-  EXPECT_EQ(HCS.getFrequency(L), 1);  // The loop is still executed once.
-  EXPECT_EQ(HCS.getFrequency(K), 10); // The inner loop is executed 10 times.
-  EXPECT_EQ(HCS.getMaxScope().second, 10);
-  EXPECT_EQ(HCS.getMaxScope().first, K);
-
   Program *pp = p->clone();
   delete p;
   pp->dump();
