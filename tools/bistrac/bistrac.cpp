@@ -16,6 +16,8 @@
 using namespace bistra;
 
 DEFINE_bool(dump, false, "Dump the texttual representation of the program.");
+DEFINE_bool(stats, false, "Dump the roofline model stats for the program.");
+DEFINE_bool(opt, false, "Optimize the program.");
 DEFINE_bool(tune, false, "Executes and auto-tune the program.");
 DEFINE_bool(time, false, "Executes and times the program.");
 DEFINE_string(out, "", "Output destination file to save the compiled program.");
@@ -67,21 +69,27 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  if (FLAGS_opt) {
+    ::simplify(p);
+    ::promoteLICM(p);
+  }
+
   if (FLAGS_dump) {
     p->dump();
   }
 
   if (FLAGS_time) {
-    ::simplify(p);
-    ::promoteLICM(p);
     auto CB = getBackend("C");
     auto res = CB->evaluateCode(p, 10);
     std::cout << "The program \"" << p->getName() << "\" completed in " << res
               << " seconds. \n";
   }
 
-  if (FLAGS_tune) {
+  if (FLAGS_stats) {
+    dumpProgramFrequencies(p);
+  }
 
+  if (FLAGS_tune) {
     std::string outFile = "/tmp/file.cc";
     if (FLAGS_out.size()) {
       outFile = FLAGS_out;

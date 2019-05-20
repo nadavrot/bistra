@@ -42,23 +42,6 @@ public:
 
 class Scope;
 
-/// A visitor that collects the hot statements in the program.
-struct HotScopeCollector : public NodeVisitor {
-  /// Counts the number of times the statement is expected to be called.
-  uint64_t frequency_{1};
-  /// Maps statements to their execution frequencies.
-  std::vector<std::pair<Scope *, uint64_t>> freqPairs_;
-
-  /// \returns the frequency of the valid scope \p S;
-  uint64_t getFrequency(Scope *S);
-
-  /// \returns the hottest scope;
-  std::pair<Scope *, uint64_t> getMaxScope();
-
-  virtual void enter(Stmt *E) override;
-  virtual void leave(Stmt *E) override;
-};
-
 /// A visitor class that visits all nodes in the program.
 struct NodeCounter : public NodeVisitor {
   unsigned stmt{0};
@@ -114,6 +97,13 @@ void writeFile(const std::string &filename, const std::string &content);
 
 /// \returns the content of file \p filename or aborts.
 std::string readFile(const std::string &filename);
+
+/// Compute cost type: num memory ops, num arithmetic.
+using ComputeCostTy = std::pair<uint64_t, uint64_t>;
+/// Estimate the compute cost for all expressions and statements in \p S by
+/// updating the map \p heatmap.
+void estimateCompute(Stmt *S,
+                     std::unordered_map<ASTNode *, ComputeCostTy> &heatmap);
 
 } // namespace bistra
 
