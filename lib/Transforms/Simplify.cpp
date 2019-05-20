@@ -74,8 +74,15 @@ bool bistra::computeKnownIntegerRange(Expr *e, std::pair<int, int> &range) {
       return true;
     }
     case BinaryExpr::Div:
-    case BinaryExpr::Sub:
       return false;
+    case BinaryExpr::Sub: {
+      // Try all combinations.
+      std::array<int, 4> perm{{L.first - R.first, L.first - R.second,
+                               L.second - R.first, L.second - R.second}};
+      range.first = *std::min_element(perm.begin(), perm.end());
+      range.second = *std::max_element(perm.begin(), perm.end());
+      return true;
+    }
     }
   }
 
