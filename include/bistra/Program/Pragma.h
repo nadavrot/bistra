@@ -6,7 +6,7 @@ class Loop;
 
 /// Represents a pragma command that the user requested to apply to some loop.
 struct PragmaCommand {
-  enum PragmaKind { vectorize, unroll, widen, tile, hoist, other };
+  enum PragmaKind { vectorize, unroll, widen, tile, peel, hoist, other };
 
   PragmaCommand(PragmaKind kind, int param, Loop *L, const char *loc)
       : kind_(kind), param_(param), L_(L), loc_(loc) {}

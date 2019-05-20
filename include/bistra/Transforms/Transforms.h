@@ -24,8 +24,9 @@ bool hoist(Loop *L, unsigned levels);
 bool unrollLoop(Loop *L, unsigned maxTripCount);
 
 /// Splits the loop into two consecutive loops in the ranges [0..k], [k..n];
+/// Negative peel values \p k means peel from the end.
 /// Return the new loop if the transform worked or nullptr.
-Loop *peelLoop(Loop *L, unsigned k);
+Loop *peelLoop(Loop *L, int k);
 
 /// Try to vectorize the loop \p L for the vectorization factor \p vf.
 bool vectorize(Loop *L, unsigned vf);

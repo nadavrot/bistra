@@ -503,6 +503,7 @@ parse_loop:
   MATCH(pragmaName, "vectorize", PragmaCommand::PragmaKind::vectorize);
   MATCH(pragmaName, "widen", PragmaCommand::PragmaKind::widen);
   MATCH(pragmaName, "tile", PragmaCommand::PragmaKind::tile);
+  MATCH(pragmaName, "peel", PragmaCommand::PragmaKind::peel);
   MATCH(pragmaName, "unroll", PragmaCommand::PragmaKind::unroll);
   MATCH(pragmaName, "hoist", PragmaCommand::PragmaKind::hoist);
 #undef MATCH
