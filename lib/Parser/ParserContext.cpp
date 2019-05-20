@@ -67,6 +67,9 @@ Argument *ParserContext::getArgumentByName(const std::string &name) {
 void ParserContext::addPragma(PragmaCommand &pc) { pragmas_.push_back(pc); }
 
 void ParserContext::diagnose(const char *loc, const std::string &message) {
+  // Print the error message.
+  std::cout << "Error:" << message << "\n";
+
   const char *start = loc;
   const char *end = loc;
   // Find the start of the line.
@@ -88,10 +91,7 @@ void ParserContext::diagnose(const char *loc, const std::string &message) {
     start++;
     std::cout << " ";
   }
-  std::cout << "^\n";
-
-  // Print the error message.
-  std::cout << "Error:" << message << "\n";
+  std::cout << "^\n\n";
   numErrors_++;
 }
 
