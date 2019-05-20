@@ -322,7 +322,11 @@ struct ComputeEstimator : public NodeVisitor {
     if (auto *SL = dynamic_cast<StoreLocalStmt *>(E)) {
       auto val = SL->getValue().get();
       assert(heatmap_.count(val));
-      heatmap_[SL] = heatmap_[val];
+      ComputeCostTy total = heatmap_[val];
+      if (SL->isAccumulate()) {
+        total.second += 1;
+      }
+      heatmap_[SL] = total;
       return;
     }
 
