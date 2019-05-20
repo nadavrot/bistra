@@ -144,6 +144,7 @@ Expr *Parser::parseExpr(unsigned RBP) {
     auto operatorSymbol = Tok.getText();
 
     // Remove the operand and continue parsing.
+    auto loc = Tok.getLoc();
     consumeToken();
 
     Expr *RHS = parseExpr(LBP);
@@ -153,6 +154,10 @@ Expr *Parser::parseExpr(unsigned RBP) {
 
 #define GEN(str, sym, kind)                                                    \
   if (str == sym) {                                                            \
+    if (!LHS->getType().isEqual(RHS->getType())) {                             \
+      ctx_.diagnose(loc, "operator types mismatch");                           \
+      return nullptr;                                                          \
+    }                                                                          \
     LHS = new BinaryExpr(LHS, RHS, BinaryExpr::BinOpKind::kind);               \
     continue;                                                                  \
   }
