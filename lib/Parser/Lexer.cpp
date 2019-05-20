@@ -85,7 +85,11 @@ void Lexer::lexIdentifier(Token &result) {
 /// LexNumber - Match [0-9]+
 void Lexer::lexNumber(Token &result) {
   const char *tokStart = curPtr_ - 1;
-  assert(isdigit(*tokStart) && "Unexpected start");
+  assert(isdigit(*tokStart) || *tokStart == '-' && "Unexpected start");
+
+  if (*curPtr_ == '-') {
+    ++curPtr_;
+  }
 
   bool seenPoint = false;
   // Lex [0-9]*
@@ -175,6 +179,9 @@ Restart:
     }
     return formToken(plus, tokStart, result);
   case '-':
+    if (isdigit(curPtr_[0])) {
+      return lexNumber(result);
+    }
     return formToken(minus, tokStart, result);
   case '*':
     return formToken(mult, tokStart, result);
