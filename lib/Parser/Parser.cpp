@@ -64,9 +64,10 @@ bool Parser::parseTypePair(std::string &name, int &val) {
     return true;
   }
 
-  if (parseIntegerLiteral(val)) {
+  if (parseIntegerLiteralOrLetConstant(val)) {
     ctx_.diagnose(Tok.getLoc(),
-                  "expecting integer after dimension name " + name + ".");
+                  "expecting integer or constant after dimension name " + name +
+                      ".");
     return true;
   }
 
@@ -76,9 +77,36 @@ bool Parser::parseTypePair(std::string &name, int &val) {
 bool Parser::parseIntegerLiteral(int &val) {
   if (Tok.is(TokenKind::integer_literal)) {
     val = std::atoi(Tok.getText().c_str());
-    consumeIf(TokenKind::integer_literal);
+    consumeToken(TokenKind::integer_literal);
     return false;
   }
+  return true;
+}
+
+bool Parser::parseIntegerLiteralOrLetConstant(int &val) {
+  // Parse integers.
+  if (!parseIntegerLiteral(val))
+    return false;
+
+  // Parse let literals.
+  if (Tok.is(identifier)) {
+    auto loc = Tok.getLoc();
+    std::string varName;
+    parseIdentifier(varName);
+
+    // Is this a 'let' variable that contains an integer?
+    if (auto *E = ctx_.getLetExprByName(varName)) {
+      if (ConstantExpr *C = dynamic_cast<ConstantExpr *>(E)) {
+        val = C->getValue();
+        return false;
+      }
+      ctx_.diagnose(loc, "variable '" + varName + "' is not a simple constant");
+      return true;
+    }
+    ctx_.diagnose(loc, "Unknown identifier '" + varName + "'");
+    return true;
+  }
+
   return true;
 }
 
@@ -94,12 +122,8 @@ bool Parser::parseFloatLiteral(double &val) {
 bool Parser::parseIdentifier(std::string &text) {
   if (Tok.is(TokenKind::identifier)) {
     text = Tok.getText();
-    consumeIf(TokenKind::identifier);
+    consumeToken(TokenKind::identifier);
     return false;
-  }
-  std::string varName;
-  if (parseIdentifier(varName)) {
-    ctx_.diagnose(Tok.getLoc(), "unexpected identifier.");
   }
   return true;
 }

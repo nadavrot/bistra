@@ -1,7 +1,11 @@
-// Perform GEMM on matrices C = A * B;
-def gemm(C:float<I:512,J:512>,
-         A:float<I:512,K:512>,
-         B:float<K:512,J:512>) {
+
+let m = 512
+let n = 512
+let k = 512
+
+def gemm(C:float<I:m, J:n>,
+         A:float<I:m, K:k>,
+         B:float<K:k, J:n>) {
   #widen 4
   for (i in 0 .. C.I) {
     #widen 3

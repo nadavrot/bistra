@@ -198,3 +198,13 @@ TEST(basic, let_expr) {
   // Make sure that the inner scope clobbers 'offset2'.
   EXPECT_EQ(::getLoopByName(p, "j")->getEnd(), 300);
 }
+
+TEST(basic, let_expr_type) {
+  const char *let_expr_type = R"(
+  let val = 2;
+  def let_exprs(C:float<x:val>) { })";
+  ParserContext ctx(let_expr_type);
+  Parser P(ctx);
+  P.Parse();
+  EXPECT_EQ(ctx.getNumErrors(), 0);
+}
