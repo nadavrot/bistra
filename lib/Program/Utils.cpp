@@ -118,42 +118,6 @@ struct IfCollector : public NodeVisitor {
 };
 } // namespace
 
-uint64_t HotScopeCollector::getFrequency(Scope *S) {
-  for (auto &p : freqPairs_) {
-    if (p.first == S)
-      return p.second;
-  }
-  return 0;
-}
-
-std::pair<Scope *, uint64_t> HotScopeCollector::getMaxScope() {
-  unsigned idx = 0;
-  for (unsigned i = 1, e = freqPairs_.size(); i < e; i++) {
-    if (freqPairs_[i].second > freqPairs_[idx].second) {
-      idx = i;
-    }
-  }
-  return freqPairs_[idx];
-}
-
-void HotScopeCollector::enter(Stmt *E) {
-  if (auto *S = dynamic_cast<Scope *>(E)) {
-    freqPairs_.push_back({S, frequency_});
-  }
-  // The inner part will be executed more times, based on the trip count.
-  if (Loop *L = dynamic_cast<Loop *>(E)) {
-    frequency_ *= L->getEnd() / L->getStride();
-  }
-}
-
-void HotScopeCollector::leave(Stmt *E) {
-  // When the loop is done we divide the frequency to match the frequency of the
-  // outer scope. See the implementation of 'enter'.
-  if (Loop *L = dynamic_cast<Loop *>(E)) {
-    frequency_ /= (L->getEnd() / L->getStride());
-  }
-}
-
 void bistra::collectLocals(ASTNode *S, std::vector<LoadLocalExpr *> &loads,
                            std::vector<StoreLocalStmt *> &stores,
                            LocalVar *filter) {
@@ -243,15 +207,155 @@ bool bistra::areLoadsStoresDisjoint(const std::vector<LoadExpr *> &loads,
   return true;
 }
 
-void bistra::dumpProgramFrequencies(Scope *P) {
-  HotScopeCollector HSC;
-  P->visit(&HSC);
-  for (auto &pair : HSC.freqPairs_) {
-    if (auto *L = dynamic_cast<Loop *>(pair.first)) {
-      std::cout << "Loop " << L->getName() << " stride: " << L->getStride()
-                << " body: " << L->getBody().size() << " freq "
-                << pair.second * (L->getEnd() / L->getStride()) << "\n";
+namespace {
+/// Calculates the roofline model for the program.
+struct ComputeEstimator : public NodeVisitor {
+  std::unordered_map<ASTNode *, ComputeCostTy> &heatmap_;
+
+  ComputeEstimator(std::unordered_map<ASTNode *, ComputeCostTy> &heatmap)
+      : heatmap_(heatmap) {}
+
+  virtual void leave(Expr *E) override {
+    // Loads count as one memory op and zero compute.
+    if (auto *LE = dynamic_cast<LoadExpr *>(E)) {
+      heatmap_[LE] = {1, 0};
+      return;
     }
+    // Load locals count as zeo memory op and zero compute.
+    if (auto *LL = dynamic_cast<LoadLocalExpr *>(E)) {
+      heatmap_[LL] = {0, 0};
+      return;
+    }
+    // Binary ops add one arithmetic cost to the cost of both sides.
+    if (auto *BE = dynamic_cast<BinaryExpr *>(E)) {
+      assert(heatmap_.count(BE->getLHS()));
+      assert(heatmap_.count(BE->getRHS()));
+      auto LHS = heatmap_[BE->getLHS()];
+      auto RHS = heatmap_[BE->getRHS()];
+      // Don't count loop and index arithmetic as arithmetic.
+      int cost = BE->getLHS()->getType().isIndexTy() ? 0 : 1;
+      heatmap_[BE] = {LHS.first + RHS.first, cost + LHS.second + RHS.second};
+      return;
+    }
+    // Broadcast counts as one arithmetic op.
+    if (auto *BE = dynamic_cast<BroadcastExpr *>(E)) {
+      assert(heatmap_.count(BE->getValue()));
+      auto V = heatmap_[BE->getValue()];
+      heatmap_[BE] = {V.first, 1 + V.second};
+      return;
+    }
+    // Constants and indices have no cost.
+    if (dynamic_cast<IndexExpr *>(E) || dynamic_cast<ConstantExpr *>(E) ||
+        dynamic_cast<ConstantFPExpr *>(E)) {
+      heatmap_[E] = {0, 0};
+      return;
+    }
+    assert(false && "Unknown expression");
+  }
+
+  virtual void leave(Stmt *E) override {
+    // Loop expressions multipliy the cost of the sum of the body cost.
+    if (auto *LE = dynamic_cast<Loop *>(E)) {
+      ComputeCostTy total = {0, 0};
+      auto tripcount = LE->getEnd() / LE->getStride();
+      // Add the cost of all sub-expressions.
+      for (auto &s : LE->getBody()) {
+        assert(heatmap_.count(s.get()));
+        auto res = heatmap_[s.get()];
+        total.first += res.first * tripcount;
+        total.second += res.second * tripcount;
+      }
+      heatmap_[LE] = total;
+      return;
+    }
+
+    // If expressions accumulate the cost of sub-stmt and add the cost of the
+    // if-check. We assume 100% success rate.
+    if (auto *IR = dynamic_cast<IfRange *>(E)) {
+      auto idx = IR->getIndex().get();
+      assert(heatmap_.count(idx));
+      ComputeCostTy total = heatmap_[idx];
+
+      // Add the cost of all sub-expressions.
+      for (auto &s : IR->getBody()) {
+        assert(heatmap_.count(s.get()));
+        auto res = heatmap_[s.get()];
+        total.first += res.first;
+        total.second += res.second;
+      }
+      heatmap_[IR] = total;
+      return;
+    }
+
+    // Programs accumulate the cost of sub-stmts.
+    if (auto *P = dynamic_cast<Program *>(E)) {
+      ComputeCostTy total = {0, 0};
+      // Add the cost of all sub-expressions.
+      for (auto &s : P->getBody()) {
+        assert(heatmap_.count(s.get()));
+        auto res = heatmap_[s.get()];
+        total.first += res.first;
+        total.second += res.second;
+      }
+      heatmap_[P] = total;
+      return;
+    }
+
+    // Stores are considered as one memory op, plus the cost of the value.
+    if (auto *SS = dynamic_cast<StoreStmt *>(E)) {
+      auto val = SS->getValue().get();
+      assert(heatmap_.count(val));
+      ComputeCostTy total = heatmap_[val];
+      total.first += 1;
+      if (SS->isAccumulate()) {
+        // Accumulate is load+add+store.
+        total.first += 2;
+        total.second += 1;
+      } else {
+        total.first += 1;
+      }
+      heatmap_[SS] = total;
+      return;
+    }
+
+    // Stores to locals are considered as zero memory ops.
+    if (auto *SL = dynamic_cast<StoreLocalStmt *>(E)) {
+      auto val = SL->getValue().get();
+      assert(heatmap_.count(val));
+      heatmap_[SL] = heatmap_[val];
+      return;
+    }
+
+    assert(false && "Unknown statement");
+  }
+};
+} // namespace
+
+void bistra::estimateCompute(
+    Stmt *S, std::unordered_map<ASTNode *, ComputeCostTy> &heatmap) {
+  ComputeEstimator CE(heatmap);
+  S->visit(&CE);
+}
+
+void bistra::dumpProgramFrequencies(Scope *P) {
+  std::unordered_map<ASTNode *, ComputeCostTy> heatmap;
+  estimateCompute(P, heatmap);
+
+  std::vector<Loop *> loops;
+  collectLoops(P, loops);
+
+  assert(heatmap.count(P) && "No information for the program");
+  auto info = heatmap[P];
+  std::cout << "Total cost:\n"
+            << "\tmem ops: " << info.first << "\n\tarith ops: " << info.second
+            << "\n";
+
+  for (auto *L : loops) {
+    assert(heatmap.count(L) && "No information for the loop");
+    auto info = heatmap[L];
+    std::cout << "\tLoop " << L->getName() << " stride: " << L->getStride()
+              << " body: " << L->getBody().size() << " mem ops: " << info.first
+              << " arith ops: " << info.second << "\n";
   }
 }
 
