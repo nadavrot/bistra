@@ -57,6 +57,10 @@ private:
   /// without consuming it.
   void skipUntil(TokenKind T);
 
+  /// Read tokens until we get to one of the tokens \p A or \p B, then return
+  /// without consuming it.
+  void skipUntilOneOf(TokenKind A, TokenKind B);
+
   Expr *parseExprBinaryRHS(Expr *InputLHS, unsigned MinPrec = 1);
 
   /// Parse a simple expression.
