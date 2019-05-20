@@ -159,11 +159,22 @@ bool bistra::unrollLoop(Loop *L, unsigned maxTripCount) {
   return true;
 }
 
-Loop *bistra::peelLoop(Loop *L, unsigned k) {
-  unsigned origTripCount = L->getEnd();
+Loop *bistra::peelLoop(Loop *L, int k) {
+  unsigned origLoopEndRange = L->getEnd();
+  // If K is a negative number then peel from the end of the loop.
+  if (k < 1) {
+    // Check if the k fits within the loop range:
+    if ((-k) < origLoopEndRange) {
+      // Adding K because it is negative.
+      k = origLoopEndRange + k;
+    } else {
+      return nullptr;
+    }
+  }
+
   // Trip count must be smaller than the partition size, and the peeled portion
   // must be a multiple of the loop stride.
-  if (origTripCount < k || k % L->getStride())
+  if (origLoopEndRange < k || k % L->getStride())
     return nullptr;
 
   // Update the new and original-loop's trip count.
@@ -171,7 +182,7 @@ Loop *bistra::peelLoop(Loop *L, unsigned k) {
 
   CloneCtx map;
   Loop *L2 = (Loop *)L->clone(map);
-  L2->setEnd(origTripCount - k);
+  L2->setEnd(origLoopEndRange - k);
   L2->setName(newIndexName(L->getName(), "peeled", 0));
 
   // Update all of the indices in the program to refer to the combination of
@@ -621,11 +632,17 @@ bool bistra::applyPragmaCommand(const PragmaCommand &pc) {
   case PragmaCommand::PragmaKind::tile:
     return ::tile(pc.L_, pc.param_);
 
+  case PragmaCommand::peel:
+    return ::peelLoop(pc.L_, pc.param_);
+    break;
   case PragmaCommand::PragmaKind::hoist:
     return ::hoist(pc.L_, pc.param_);
 
-  default:
-    // Unhandled pragma.
+  case PragmaCommand::other:
+    assert(false && "Invalid pragma");
     return false;
   }
+
+  assert(false && "Unhandled pragma");
+  return false;
 }
