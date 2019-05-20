@@ -27,7 +27,7 @@ def matmul(C:float<I:512,J:512>, A:float<I:512,K:512>, B:float<K:512,J:512>) {
 })";
 
 TEST(basic, lexer1) {
-  ParserContext ctx("def test (1,2) // comment. ");
+  ParserContext ctx("def test (1,-2) // comment. ");
   Lexer L(ctx);
   Token result;
 
