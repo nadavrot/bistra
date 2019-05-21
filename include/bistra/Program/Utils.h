@@ -98,6 +98,10 @@ void writeFile(const std::string &filename, const std::string &content);
 /// \returns the content of file \p filename or aborts.
 std::string readFile(const std::string &filename);
 
+/// Print a large number into a small number with quantiti suffix, such as K, M,
+/// G, etc.
+std::string prettyPrintNumber(uint64_t num);
+
 /// Compute cost type: num memory ops, num arithmetic.
 using ComputeCostTy = std::pair<uint64_t, uint64_t>;
 /// Estimate the compute cost for all expressions and statements in \p S by
