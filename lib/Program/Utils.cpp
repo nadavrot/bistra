@@ -218,7 +218,8 @@ struct ComputeEstimator : public NodeVisitor {
   virtual void leave(Expr *E) override {
     // Loads count as one memory op and zero compute.
     if (auto *LE = dynamic_cast<LoadExpr *>(E)) {
-      heatmap_[LE] = {1, 0};
+      int width = LE->getType().getWidth();
+      heatmap_[LE] = {width, 0};
       return;
     }
     // Load locals count as zeo memory op and zero compute.
@@ -232,8 +233,9 @@ struct ComputeEstimator : public NodeVisitor {
       assert(heatmap_.count(BE->getRHS()));
       auto LHS = heatmap_[BE->getLHS()];
       auto RHS = heatmap_[BE->getRHS()];
-      // Don't count loop and index arithmetic as arithmetic.
-      int cost = BE->getLHS()->getType().isIndexTy() ? 0 : 1;
+      int width = BE->getType().getWidth();
+      // Don't count index arithmetic as arithmetic.
+      int cost = BE->getLHS()->getType().isIndexTy() ? 0 : width;
       heatmap_[BE] = {LHS.first + RHS.first, cost + LHS.second + RHS.second};
       return;
     }
@@ -304,15 +306,15 @@ struct ComputeEstimator : public NodeVisitor {
     // Stores are considered as one memory op, plus the cost of the value.
     if (auto *SS = dynamic_cast<StoreStmt *>(E)) {
       auto val = SS->getValue().get();
+      int width = val->getType().getWidth();
       assert(heatmap_.count(val));
       ComputeCostTy total = heatmap_[val];
-      total.first += 1;
       if (SS->isAccumulate()) {
         // Accumulate is load+add+store.
-        total.first += 2;
-        total.second += 1;
+        total.first += 2 * width;
+        total.second += 1 * width;
       } else {
-        total.first += 1;
+        total.first += 1 * width;
       }
       heatmap_[SS] = total;
       return;
@@ -321,10 +323,11 @@ struct ComputeEstimator : public NodeVisitor {
     // Stores to locals are considered as zero memory ops.
     if (auto *SL = dynamic_cast<StoreLocalStmt *>(E)) {
       auto val = SL->getValue().get();
+      int width = val->getType().getWidth();
       assert(heatmap_.count(val));
       ComputeCostTy total = heatmap_[val];
       if (SL->isAccumulate()) {
-        total.second += 1;
+        total.second += width;
       }
       heatmap_[SL] = total;
       return;
