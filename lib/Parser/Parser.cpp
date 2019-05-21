@@ -477,7 +477,7 @@ Stmt *Parser::parsePragma() {
     goto parse_loop;
   }
   // Parse the parameter.
-  if (parseIntegerLiteral(param)) {
+  if (parseIntegerLiteralOrLetConstant(param)) {
     ctx_.diagnose(
         pragmaLoc,
         "expecting a numeric pragma parameter after the pragma name.");
@@ -663,7 +663,7 @@ bool Parser::parseLetStmt() {
   if (!storedValue) {
     return true;
   }
-
+  
   ctx_.registerLetValue(varName, storedValue);
   return false;
 }
