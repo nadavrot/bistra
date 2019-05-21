@@ -101,7 +101,7 @@ bool bistra::hoist(Loop *L, unsigned levels) {
   if (levels == 0)
     return false;
 
-  Loop *parent = dynamic_cast<Loop *>(L->getParent());
+  Scope *parent = dynamic_cast<Scope *>(L->getParent());
   if (!parent)
     return false;
 
