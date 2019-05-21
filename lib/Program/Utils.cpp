@@ -351,15 +351,16 @@ void bistra::dumpProgramFrequencies(Scope *P) {
   assert(heatmap.count(P) && "No information for the program");
   auto info = heatmap[P];
   std::cout << "Total cost:\n"
-            << "\tmem ops: " << info.first << "\n\tarith ops: " << info.second
-            << "\n";
+            << "\tmem ops: " << prettyPrintNumber(info.first)
+            << "\n\tarith ops: " << prettyPrintNumber(info.second) << "\n";
 
   for (auto *L : loops) {
     assert(heatmap.count(L) && "No information for the loop");
     auto info = heatmap[L];
     std::cout << "\tLoop " << L->getName() << " stride: " << L->getStride()
-              << " body: " << L->getBody().size() << " mem ops: " << info.first
-              << " arith ops: " << info.second << "\n";
+              << " body: " << L->getBody().size()
+              << " mem ops: " << prettyPrintNumber(info.first)
+              << " arith ops: " << prettyPrintNumber(info.second) << "\n";
   }
 }
 
@@ -388,4 +389,17 @@ std::string bistra::readFile(const std::string &filename) {
     result += line + "\n";
   }
   return result;
+}
+
+std::string bistra::prettyPrintNumber(uint64_t num) {
+
+  const char *units[] = {"", "K", "M", "G", "T", "P", "E"};
+
+  int unit = 0;
+  while (num > 1000) {
+    num = num / 1000;
+    unit++;
+  }
+
+  return std::to_string(num) + units[unit];
 }
