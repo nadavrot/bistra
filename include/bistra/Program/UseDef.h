@@ -42,9 +42,18 @@ public:
     verify();
   }
 
+  /// \returns a copy of the owned ptr.
   RefTy *get() const {
     verify();
     return ref_;
+  }
+
+  /// Take the pointer away from this handle and set it to nullptr.
+  RefTy *take() {
+    verify();
+    auto *old = ref_;
+    setReference(nullptr);
+    return old;
   }
 
   RefTy *operator->() {

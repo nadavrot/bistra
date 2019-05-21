@@ -316,11 +316,10 @@ static bool simplifyIfs(Stmt *s) {
     case Subset:
       // The index always falls within the if range. Remove the if and keep
       // the if content.
-      CloneCtx map;
       Scope *parent = ((Scope *)ifs->getParent());
       for (auto &S : ifs->getBody()) {
         // Clone the body of the IF right before the IF.
-        parent->insertBeforeStmt(S->clone(map), ifs);
+        parent->insertBeforeStmt(S.take(), ifs);
       }
 
       // Remove the IF.
