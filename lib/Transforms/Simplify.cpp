@@ -197,8 +197,9 @@ static bool simplifyIfs(Stmt *s) {
   for (auto *ifs : ifs) {
     // The index range.
     std::pair<int, int> ir;
+    std::set<Expr *> frozen;
     // Try to assess the if index range.
-    if (!computeKnownIntegerRange(ifs->getIndex(), ir))
+    if (!computeKnownIntegerRange(ifs->getIndex(), ir, frozen))
       continue;
 
     // Compute the relationship between the index and if ranges.

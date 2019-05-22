@@ -230,7 +230,15 @@ bool bistra::isZero(Expr *e) {
   return false;
 }
 
-bool bistra::computeKnownIntegerRange(Expr *e, std::pair<int, int> &range) {
+bool bistra::computeKnownIntegerRange(Expr *e, std::pair<int, int> &range,
+                                      const std::set<Expr*> &frozen) {
+
+  // The value is known to be frozen at the value zero.
+  if (frozen.count(e)) {
+    range.first = 0;
+    range.second = 0;
+  }
+
   // Estimate the range of constants expressions.
   if (auto *CE = dynamic_cast<ConstantExpr *>(e)) {
     // The lower and upper bound are the constant itself.
@@ -251,8 +259,8 @@ bool bistra::computeKnownIntegerRange(Expr *e, std::pair<int, int> &range) {
   if (auto *BE = dynamic_cast<BinaryExpr *>(e)) {
     std::pair<int, int> L, R;
     // Compute the range of both sides:
-    if (!computeKnownIntegerRange(BE->getLHS(), L) ||
-        !computeKnownIntegerRange(BE->getRHS(), R))
+    if (!computeKnownIntegerRange(BE->getLHS(), L, frozen) ||
+        !computeKnownIntegerRange(BE->getRHS(), R, frozen))
       return false;
 
     switch (BE->getKind()) {
