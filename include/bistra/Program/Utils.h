@@ -102,13 +102,6 @@ std::string readFile(const std::string &filename);
 /// G, etc.
 std::string prettyPrintNumber(uint64_t num);
 
-/// Compute cost type: num memory ops, num arithmetic.
-using ComputeCostTy = std::pair<uint64_t, uint64_t>;
-/// Estimate the compute cost for all expressions and statements in \p S by
-/// updating the map \p heatmap.
-void estimateCompute(Stmt *S,
-                     std::unordered_map<ASTNode *, ComputeCostTy> &heatmap);
-
 } // namespace bistra
 
 #endif // BISTRA_PROGRAM_UTILS_H
