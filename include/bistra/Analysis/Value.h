@@ -41,6 +41,9 @@ void collectLoadStores(ASTNode *S, std::vector<LoadExpr *> &loads,
 /// Collect all of the loops under statement \p S into \p loops;
 void collectLoops(Stmt *S, std::vector<Loop *> &loops);
 
+/// \returns all of the loops under statement \p S.
+std::vector<Loop *> collectLoops(Stmt *S);
+
 /// Collect all of the ifs under statement \p S into \p ifs;
 void collectIfs(Stmt *S, std::vector<IfRange *> &ifs);
 

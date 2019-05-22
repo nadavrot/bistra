@@ -150,6 +150,12 @@ void bistra::collectLoops(Stmt *S, std::vector<Loop *> &loops) {
   S->visit(&IC);
 }
 
+std::vector<Loop *> bistra::collectLoops(Stmt *S) {
+  std::vector<Loop *>loops;
+  collectLoops(S, loops);
+  return loops;
+}
+
 void bistra::collectIfs(Stmt *S, std::vector<IfRange *> &ifs) {
   IfCollector IC(ifs);
   S->visit(&IC);
