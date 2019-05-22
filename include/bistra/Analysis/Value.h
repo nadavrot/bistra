@@ -3,6 +3,7 @@
 
 #include <unordered_map>
 #include <utility>
+#include <set>
 
 namespace bistra {
 
@@ -60,8 +61,11 @@ bool areLoadsStoresDisjoint(const std::vector<LoadExpr *> &loads,
 
 /// This is similar to LLVM's simplify demanded bits.
 /// Updates the possible range in \p range.
+/// The values in \p frozen are fixed to be zero. This parameter is used when
+/// performing analysis for a specific context like parts of a loop.
 /// \returns True if the range was computed;
-bool computeKnownIntegerRange(Expr *e, std::pair<int, int> &range);
+  bool computeKnownIntegerRange(Expr *e, std::pair<int, int> &range,
+                                const std::set<Expr*> &frozen);
 
 /// \returns True if \e is a constant (int or fp).
 bool isConst(Expr *e);
