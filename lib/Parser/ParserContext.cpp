@@ -66,9 +66,23 @@ Argument *ParserContext::getArgumentByName(const std::string &name) {
 
 void ParserContext::addPragma(PragmaCommand &pc) { pragmas_.push_back(pc); }
 
-void ParserContext::diagnose(const char *loc, const std::string &message) {
+void ParserContext::diagnose(DiagnoseKind kind, const char *loc,
+                             const std::string &message) {
   // Print the error message.
-  std::cout << "Error:" << message << "\n";
+  switch (kind) {
+  case DiagnoseKind::Error:
+    std::cout << "Error:" << message << "\n";
+    numErrors_++;
+    break;
+  case Warning:
+    std::cout << "Warning:" << message << "\n";
+    numWarnings_++;
+    break;
+  case Note:
+    std::cout << "Node:" << message << "\n";
+    numNotes_++;
+    break;
+  }
 
   const char *start = loc;
   const char *end = loc;
@@ -92,7 +106,6 @@ void ParserContext::diagnose(const char *loc, const std::string &message) {
     std::cout << " ";
   }
   std::cout << "^\n\n";
-  numErrors_++;
 }
 
 void ParserContext::registerProgram(Program *p) { prog_ = p; }

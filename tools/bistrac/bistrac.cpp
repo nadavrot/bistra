@@ -65,7 +65,8 @@ int main(int argc, char *argv[]) {
   for (auto &pc : ctx.getPragmaDecls()) {
     bool res = applyPragmaCommand(pc);
     if (!res) {
-      ctx.diagnose(pc.loc_, "Unable to apply the pragma");
+      ctx.diagnose(ParserContext::DiagnoseKind::Error, pc.loc_,
+                   "unable to apply the pragma");
     }
   }
 
