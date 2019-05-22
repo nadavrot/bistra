@@ -110,7 +110,10 @@ bool bistra::hoist(Loop *L, unsigned levels) {
   if (parent->getBody().size() != 1)
     return false;
 
+  // Check if we have a parent.
   auto *PH = parent->getOwnerHandle();
+  if (!PH)
+    return false;
 
   // Swap this loop and the one above it.
   parent->clear();
