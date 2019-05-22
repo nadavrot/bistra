@@ -4,6 +4,7 @@ add_executable(tuner
 
 target_link_libraries(tuner
                       PUBLIC
+                        Analysis
                         Backends
                         Program
                         Transforms

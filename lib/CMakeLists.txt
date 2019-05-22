@@ -1,3 +1,4 @@
+add_subdirectory(Analysis)
 add_subdirectory(Backends)
 add_subdirectory(Program)
 add_subdirectory(Transforms)

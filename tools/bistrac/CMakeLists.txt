@@ -4,11 +4,12 @@ add_executable(bistrac
 
 target_link_libraries(bistrac
                       PUBLIC
+                        Analysis
                         Backends
+                        Optimizer
+                        Parser
                         Program
                         Transforms
-                        Parser
-                        Optimizer
                         gflags::gflags
                      )
 

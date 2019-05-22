@@ -30,6 +30,7 @@ target_link_libraries(
     Backends
     Transforms
     Optimizer
+    Analysis
     )
 
 add_test(
@@ -52,6 +53,7 @@ target_link_libraries(
     Transforms
     Optimizer
     Parser
+    Analysis
     )
 
 add_test(
