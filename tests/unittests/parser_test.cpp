@@ -210,3 +210,16 @@ TEST(basic, let_expr_type) {
   P.Parse();
   EXPECT_EQ(ctx.getNumErrors(), 0);
 }
+
+TEST(basic, debug_loc) {
+  const char *debug_loc = R"(
+  def debug_loc(C:float<x:10>) { for (i in 0 .. 10) {} })";
+  ParserContext ctx(debug_loc);
+  Parser P(ctx);
+  P.Parse();
+  EXPECT_EQ(ctx.getNumErrors(), 0);
+  auto *p = ctx.getProgram();
+
+  // The loop is at the 34th char.
+  EXPECT_EQ(::getLoopByName(p, "i")->getLoc().getStart(), debug_loc + 34);
+}

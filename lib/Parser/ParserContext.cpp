@@ -1,4 +1,5 @@
 #include "bistra/Parser/ParserContext.h"
+#include "bistra/Base/Base.h"
 #include "bistra/Program/Program.h"
 
 #include <iostream>
@@ -66,7 +67,7 @@ Argument *ParserContext::getArgumentByName(const std::string &name) {
 
 void ParserContext::addPragma(PragmaCommand &pc) { pragmas_.push_back(pc); }
 
-void ParserContext::diagnose(DiagnoseKind kind, const char *loc,
+void ParserContext::diagnose(DiagnoseKind kind, DebugLoc loc,
                              const std::string &message) {
   // Print the error message.
   switch (kind) {
@@ -79,13 +80,13 @@ void ParserContext::diagnose(DiagnoseKind kind, const char *loc,
     numWarnings_++;
     break;
   case Note:
-    std::cout << "Node:" << message << "\n";
+    std::cout << "Note:" << message << "\n";
     numNotes_++;
     break;
   }
 
-  const char *start = loc;
-  const char *end = loc;
+  const char *start = loc.getStart();
+  const char *end = loc.getStart();
   // Find the start of the line.
   while (start != buffer_ && *(start - 1) != '\n') {
     start--;
@@ -101,7 +102,7 @@ void ParserContext::diagnose(DiagnoseKind kind, const char *loc,
   std::cout << line << "\n";
 
   // Print the error marker.
-  while (start != loc) {
+  while (start != loc.getStart()) {
     start++;
     std::cout << " ";
   }

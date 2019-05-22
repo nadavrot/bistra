@@ -42,12 +42,13 @@ void LocalVar::dump() const {
   std::cout << name_ << " : " << type_.getTypename();
 }
 
-Program::Program(const std::string &name) : name_(name) {}
+Program::Program(const std::string &name, DebugLoc loc)
+    : Scope(loc), name_(name) {}
 
 Program::Program(const std::string &name, const std::vector<Stmt *> &body,
                  const std::vector<Argument *> &args,
-                 const std::vector<LocalVar *> &vars)
-    : Scope(body), name_(name), args_(args), vars_(vars) {}
+                 const std::vector<LocalVar *> &vars, DebugLoc loc)
+    : Scope(body, loc), name_(name), args_(args), vars_(vars) {}
 
 Program::~Program() {
   for (auto *arg : args_) {
@@ -311,7 +312,8 @@ Expr *ConstantFPExpr::clone(CloneCtx &map) {
 }
 
 Expr *BinaryExpr::clone(CloneCtx &map) {
-  return new BinaryExpr(LHS_->clone(map), RHS_->clone(map), getKind());
+  return new BinaryExpr(LHS_->clone(map), RHS_->clone(map), getKind(),
+                        getLoc());
 }
 
 Expr *BroadcastExpr::clone(CloneCtx &map) {
@@ -325,26 +327,26 @@ Expr *LoadExpr::clone(CloneCtx &map) {
     indices.push_back(E->clone(map));
   }
 
-  return new LoadExpr(arg, indices, getType());
+  return new LoadExpr(arg, indices, getType(), getLoc());
 }
 
 Expr *LoadLocalExpr::clone(CloneCtx &map) {
   LocalVar *var = map.get(var_);
   verify();
-  return new LoadLocalExpr(var);
+  return new LoadLocalExpr(var, getLoc());
 }
 
 Stmt *StoreStmt::clone(CloneCtx &map) {
   Argument *arg = map.get(arg_);
   verify();
   std::vector<Expr *> indices = cloneIndicesPtr(map);
-  return new StoreStmt(arg, indices, value_->clone(map), accumulate_);
+  return new StoreStmt(arg, indices, value_->clone(map), accumulate_, getLoc());
 }
 
 Stmt *StoreLocalStmt::clone(CloneCtx &map) {
   LocalVar *var = map.get(var_);
   verify();
-  return new StoreLocalStmt(var, value_->clone(map), accumulate_);
+  return new StoreLocalStmt(var, value_->clone(map), accumulate_, getLoc());
 }
 
 Expr *IndexExpr::clone(CloneCtx &map) {
@@ -353,7 +355,7 @@ Expr *IndexExpr::clone(CloneCtx &map) {
 }
 
 Stmt *Loop::clone(CloneCtx &map) {
-  Loop *loop = new Loop(indexName_, end_, stride_);
+  Loop *loop = new Loop(indexName_, getLoc(), end_, stride_);
   map.map(this, loop);
   for (auto &MH : body_) {
     loop->addStmt(MH->clone(map));
@@ -362,7 +364,7 @@ Stmt *Loop::clone(CloneCtx &map) {
 }
 
 Stmt *IfRange::clone(CloneCtx &map) {
-  IfRange *IR = new IfRange(val_->clone(map), start_, end_);
+  IfRange *IR = new IfRange(val_->clone(map), start_, end_, getLoc());
   for (auto &MH : body_) {
     IR->addStmt(MH->clone(map));
   }
@@ -377,7 +379,7 @@ Program *Program::clone() {
 
 Stmt *Program::clone(CloneCtx &map) {
   verify();
-  Program *np = new Program(getName());
+  Program *np = new Program(getName(), getLoc());
   std::vector<Argument *> newArgs;
   std::vector<LocalVar *> newVars;
 

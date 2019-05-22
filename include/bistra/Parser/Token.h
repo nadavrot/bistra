@@ -1,6 +1,8 @@
 #ifndef BISTRA_PARSER_TOKEN_H
 #define BISTRA_PARSER_TOKEN_H
 
+#include "bistra/Base/Base.h"
+
 #include <string>
 
 namespace bistra {
@@ -53,7 +55,7 @@ public:
     assert(end_ > start_ && "Invalid text range");
   }
   /// \returns the start location of the token.
-  const char *getLoc() const { return start_; }
+  DebugLoc getLoc() const { return DebugLoc(start_); }
   /// \returns the length of the text.
   unsigned getLength() const { return end_ - start_; }
   /// Return a textual description for the token.
