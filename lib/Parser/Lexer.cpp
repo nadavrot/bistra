@@ -121,7 +121,8 @@ Restart:
 
   switch (*curPtr_++) {
   default:
-    context_.diagnose(curPtr_, "Invalid character.");
+    context_.diagnose(ParserContext::DiagnoseKind::Error, curPtr_,
+                      "Invalid character.");
     return formToken(unknown, tokStart, result);
 
   case ' ':

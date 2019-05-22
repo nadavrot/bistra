@@ -23,6 +23,10 @@ class ParserContext {
 
   /// Counts the number of errors that were emitted.
   unsigned numErrors_{0};
+  /// Counts the number of warnings that were emitted.
+  unsigned numWarnings_{0};
+  /// Counts the number of notes that were emitted.
+  unsigned numNotes_{0};
 
   /// A list of pragma declerations.
   std::vector<PragmaCommand> pragmas_;
@@ -85,8 +89,9 @@ public:
   /// Adds the pragma to the list of applied pragmas.
   void addPragma(PragmaCommand &pc);
 
+  enum DiagnoseKind { Error, Warning, Note };
   /// Emit an error message.
-  void diagnose(const char *loc, const std::string &message);
+  void diagnose(DiagnoseKind kind, const char *loc, const std::string &message);
 };
 
 } // namespace bistra
