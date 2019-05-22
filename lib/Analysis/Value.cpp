@@ -251,7 +251,7 @@ bool bistra::computeKnownIntegerRange(Expr *e, std::pair<int, int> &range,
 
     // Use the upper and lower bounds of the loop.
     range.first = 0;
-    range.second = IE->getLoop()->getEnd();
+    range.second = IE->getLoop()->getEnd() - 1;
     return true;
   }
 
@@ -447,4 +447,21 @@ void bistra::estimateCompute(
     Stmt *S, std::unordered_map<ASTNode *, ComputeCostTy> &heatmap) {
   ComputeEstimator CE(heatmap);
   S->visit(&CE);
+}
+
+uint64_t bistra::getAccessedMemoryForLoad(LoadExpr *ld,
+                                          std::set<Loop *> &live) {
+  int span = 1;
+  // Multipliy the accessed range of all indices. The range that the load can
+  // access is defined as the multiplication of all of the indices, where
+  // non-live loops are fixed to zero. For example, for the live loops 'i' and
+  // 'j' and the fixed loop k: A[i, j, k] -> range(i) * range(j) * 1
+  for (auto &idx : ld->getIndices()) {
+    std::pair<int, int> range;
+    if (!computeKnownIntegerRange(idx.get(), range, &live))
+      return 0;
+    span *= range.second - range.first + 1;
+  }
+
+  return span;
 }
