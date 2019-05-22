@@ -8,6 +8,7 @@ target_link_libraries(
     gtest_main
     Program
     Parser
+    Analysis
     )
 
 add_test(
