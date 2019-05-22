@@ -1,6 +1,8 @@
 #ifndef BISTRA_PROGRAM_PRAGMA_H
 #define BISTRA_PROGRAM_PRAGMA_H
 
+#include "bistra/Base/Base.h"
+
 namespace bistra {
 class Loop;
 
@@ -8,7 +10,7 @@ class Loop;
 struct PragmaCommand {
   enum PragmaKind { vectorize, unroll, widen, tile, peel, hoist, other };
 
-  PragmaCommand(PragmaKind kind, int param, Loop *L, const char *loc)
+  PragmaCommand(PragmaKind kind, int param, Loop *L, DebugLoc loc)
       : kind_(kind), param_(param), L_(L), loc_(loc) {}
 
   /// The name of the pragma.
@@ -18,7 +20,7 @@ struct PragmaCommand {
   /// The the loop that this pragma applies to.
   Loop *L_;
   /// The location of the pragma.
-  const char *loc_;
+  DebugLoc loc_;
 };
 
 } // namespace bistra

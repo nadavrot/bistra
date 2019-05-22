@@ -1,6 +1,7 @@
 #ifndef BISTRA_PROGRAM_PROGRAM_H
 #define BISTRA_PROGRAM_PROGRAM_H
 
+#include "bistra/Base/Base.h"
 #include "bistra/Program/Types.h"
 #include "bistra/Program/UseDef.h"
 
@@ -74,7 +75,16 @@ public:
 class Program;
 
 class ASTNode {
+  DebugLoc loc_;
+
 public:
+  ASTNode() = delete;
+  ASTNode(const ASTNode &) = delete;
+
+  /// \returns the debug location for the node.
+  DebugLoc getLoc() const { return loc_; }
+
+  ASTNode(DebugLoc loc) : loc_(loc) {}
   /// \returns the parent expression that holds the node of this expression.
   virtual ASTNode *getParent() const = 0;
   /// Crash if the program is in an invalid state.
@@ -93,6 +103,10 @@ class Stmt : public ASTNode {
   StmtHandle *user_{nullptr};
 
 public:
+  Stmt() = delete;
+  Stmt(const Stmt &) = delete;
+  Stmt(DebugLoc loc) : ASTNode(loc) {}
+
   /// Prints the statement.
   virtual void dump(unsigned indent) const = 0;
   virtual ~Stmt() = default;
@@ -116,9 +130,9 @@ class Expr : public ASTNode {
   ExprHandle *user_{nullptr};
 
 public:
-  Expr(const ExprType &ty) : type_(ty) {}
+  Expr(const ExprType &ty, DebugLoc loc) : ASTNode(loc), type_(ty) {}
 
-  Expr(ElemKind &kind) : type_(ExprType(kind)) {}
+  Expr(ElemKind &kind, DebugLoc loc) : ASTNode(loc), type_(ExprType(kind)) {}
 
   /// Replaces the handle that references this expression with \p other.
   /// Delete this expression since no one is using it.
@@ -158,13 +172,13 @@ protected:
   std::vector<StmtHandle> body_;
 
 public:
-  Scope(const std::vector<Stmt *> &body) : body_() {
+  Scope(const std::vector<Stmt *> &body, DebugLoc loc) : Stmt(loc), body_() {
     for (auto *stmt : body) {
       body_.emplace_back(stmt, this);
     }
   }
 
-  Scope() = default;
+  Scope(DebugLoc loc) : Stmt(loc) {}
 
   /// \returns True if the body of the loop is empty.
   bool isEmpty() { return !body_.size(); }
@@ -212,8 +226,8 @@ class Loop final : public Scope {
   unsigned stride_{1};
 
 public:
-  Loop(std::string name, unsigned end, unsigned stride = 1)
-      : indexName_(name), end_(end), stride_(stride) {}
+  Loop(std::string name, DebugLoc loc, unsigned end, unsigned stride = 1)
+      : Scope(loc), indexName_(name), end_(end), stride_(stride) {}
 
   /// \returns the name of the induction variable.
   const std::string &getName() const { return indexName_; }
@@ -253,8 +267,8 @@ class IfRange final : public Scope {
   int end_;
 
 public:
-  IfRange(Expr *val, int start, int end)
-      : val_(val, this), start_(start), end_(end) {}
+  IfRange(Expr *val, int start, int end, DebugLoc loc)
+      : Scope(loc), val_(val, this), start_(start), end_(end) {}
 
   /// Sets the if-range range.
   void setRange(std::pair<int, int> range) {
@@ -286,7 +300,7 @@ class Program final : public Scope {
 public:
   ~Program();
 
-  Program(const std::string &name);
+  Program(const std::string &name, DebugLoc loc);
 
   /// \returns the name of the program.
   const std::string &getName() const { return name_; }
@@ -294,7 +308,7 @@ public:
   /// Construct a new program with the body \p body and arguments \p args.
   Program(const std::string &name, const std::vector<Stmt *> &body,
           const std::vector<Argument *> &args,
-          const std::vector<LocalVar *> &vars);
+          const std::vector<LocalVar *> &vars, DebugLoc loc);
 
   /// Argument getter.
   std::vector<Argument *> &getArgs() { return args_; }
@@ -349,9 +363,11 @@ class IndexExpr final : public Expr {
   Loop *loop_;
 
 public:
-  IndexExpr(Loop *loop) : Expr(ElemKind::IndexTy), loop_(loop) {}
+  IndexExpr(Loop *loop)
+      : Expr(ElemKind::IndexTy, loop->getLoc()), loop_(loop) {}
 
-  IndexExpr(Loop *loop, const ExprType &ty) : Expr(ty), loop_(loop) {}
+  IndexExpr(Loop *loop, const ExprType &ty)
+      : Expr(ty, loop->getLoc()), loop_(loop) {}
 
   /// \returns the loop that this expression indexes.
   Loop *getLoop() const { return loop_; }
@@ -368,7 +384,8 @@ class ConstantExpr final : public Expr {
   int64_t val_;
 
 public:
-  ConstantExpr(int64_t val) : Expr(ElemKind::IndexTy), val_(val) {}
+  ConstantExpr(int64_t val)
+      : Expr(ElemKind::IndexTy, DebugLoc::npos()), val_(val) {}
 
   /// \returns the value stored by this constant.
   int64_t getValue() const { return val_; }
@@ -385,7 +402,8 @@ class ConstantFPExpr final : public Expr {
   float val_;
 
 public:
-  ConstantFPExpr(float val) : Expr(ElemKind::Float32Ty), val_(val) {}
+  ConstantFPExpr(float val)
+      : Expr(ElemKind::Float32Ty, DebugLoc::npos()), val_(val) {}
 
   /// \returns the value stored by this constant.
   float getValue() const { return val_; }
@@ -410,8 +428,9 @@ protected:
   BinOpKind kind_;
 
 public:
-  BinaryExpr(Expr *LHS, Expr *RHS, BinOpKind kind)
-      : Expr(LHS->getType()), LHS_(LHS, this), RHS_(RHS, this), kind_(kind) {
+  BinaryExpr(Expr *LHS, Expr *RHS, BinOpKind kind, DebugLoc loc)
+      : Expr(LHS->getType(), loc), LHS_(LHS, this), RHS_(RHS, this),
+        kind_(kind) {
     assert(LHS->getType() == RHS->getType() && "Invalid expr type");
     assert(LHS != RHS && "Invalid ownership of operands");
   }
@@ -453,7 +472,8 @@ class BroadcastExpr : public Expr {
 
 public:
   BroadcastExpr(Expr *val, unsigned vf)
-      : Expr(val->getType().asVector(vf)), val_(val, this), vf_(vf) {}
+      : Expr(val->getType().asVector(vf), val->getLoc()), val_(val, this),
+        vf_(vf) {}
 
   Expr *getValue() { return val_; }
 
@@ -480,14 +500,15 @@ public:
   /// \returns the indices indexing into the array.
   std::vector<ExprHandle> &getIndices() { return indices_; }
 
-  LoadExpr(Argument *arg, const std::vector<Expr *> &indices, ExprType elemTy)
-      : LoadExpr(arg, indices) {
+  LoadExpr(Argument *arg, const std::vector<Expr *> &indices, ExprType elemTy,
+           DebugLoc loc)
+      : LoadExpr(arg, indices, loc) {
     // Override the type that we guess in the untyped ctor.
     setType(elemTy);
   }
 
-  LoadExpr(Argument *arg, const std::vector<Expr *> &indices)
-      : Expr(ElemKind::IndexTy), arg_(arg), indices_() {
+  LoadExpr(Argument *arg, const std::vector<Expr *> &indices, DebugLoc loc)
+      : Expr(ElemKind::IndexTy, loc), arg_(arg), indices_() {
     for (auto *E : indices) {
       assert(E->getType().isIndexTy() && "Argument must be of index kind");
       indices_.emplace_back(E, this);
@@ -515,7 +536,8 @@ public:
   /// \returns the accessed variable.
   LocalVar *getDest() { return var_; }
 
-  LoadLocalExpr(LocalVar *var) : Expr(var->getType()), var_(var) {}
+  LoadLocalExpr(LocalVar *var, DebugLoc loc)
+      : Expr(var->getType(), loc), var_(var) {}
 
   virtual void dump() const override;
   virtual Expr *clone(CloneCtx &map) override;
@@ -560,8 +582,9 @@ public:
   bool isAccumulate() { return accumulate_; }
 
   StoreStmt(Argument *arg, const std::vector<Expr *> &indices, Expr *value,
-            bool accumulate)
-      : arg_(arg), indices_(), value_(value, this), accumulate_(accumulate) {
+            bool accumulate, DebugLoc loc)
+      : Stmt(loc), arg_(arg), indices_(), value_(value, this),
+        accumulate_(accumulate) {
     assert(arg->getType()->getNumDims() == indices.size() &&
            "Invalid number of indices");
     for (auto *E : indices) {
@@ -599,8 +622,8 @@ public:
   /// destination.
   bool isAccumulate() { return accumulate_; }
 
-  StoreLocalStmt(LocalVar *var, Expr *value, bool accumulate)
-      : var_(var), value_(value, this), accumulate_(accumulate) {
+  StoreLocalStmt(LocalVar *var, Expr *value, bool accumulate, DebugLoc loc)
+      : Stmt(loc), var_(var), value_(value, this), accumulate_(accumulate) {
     assert(value->getType() == var->getType() && "invalid stored type");
   }
 

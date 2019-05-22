@@ -163,7 +163,7 @@ Expr *Parser::parseExpr(unsigned RBP) {
       ctx_.diagnose(DiagnoseKind::Error, loc, "operator types mismatch");      \
       return nullptr;                                                          \
     }                                                                          \
-    LHS = new BinaryExpr(LHS, RHS, BinaryExpr::BinOpKind::kind);               \
+    LHS = new BinaryExpr(LHS, RHS, BinaryExpr::BinOpKind::kind, loc);          \
     continue;                                                                  \
   }
 
@@ -227,7 +227,7 @@ Expr *Parser::parseExprPrimary() {
         return nullptr;
       }
 
-      return new LoadExpr(A, exprs);
+      return new LoadExpr(A, exprs, argLoc);
     }
 
     // Check if this is a 'let' clause:
@@ -412,6 +412,7 @@ end_scope:
 }
 
 Stmt *Parser::parseForStmt() {
+  auto forLoc = Tok.getLoc();
   // "for"
   consumeToken(TokenKind::kw_for);
 
@@ -470,7 +471,7 @@ end_loop_decl:
   }
 
   // Create the loop.
-  Loop *L = new Loop(indexName, endRange);
+  Loop *L = new Loop(indexName, forLoc, endRange);
 
   ctx_.pushLoop(L);
   // Parse the body of the loop.
@@ -545,6 +546,7 @@ parse_loop:
 }
 
 Stmt *Parser::parseIfStmt() {
+  auto ifLoc = Tok.getLoc();
   // "if"
   consumeToken(TokenKind::kw_if);
 
@@ -603,7 +605,7 @@ end_loop_decl:
   }
 
   // Create the if-range.
-  IfRange *IR = new IfRange(indexVal, startRange, endRange);
+  IfRange *IR = new IfRange(indexVal, startRange, endRange, ifLoc);
 
   // Parse the body of the loop.
   if (parseScope(IR)) {
@@ -738,6 +740,7 @@ Stmt *Parser::parseOneStmt() {
 
       bool accumulate;
 
+      auto asLoc = Tok.getLoc();
       switch (Tok.getKind()) {
       case TokenKind::plusEquals:
         consumeToken();
@@ -767,7 +770,7 @@ Stmt *Parser::parseOneStmt() {
         return nullptr;
       }
 
-      return new StoreStmt(arg, indices, storedValue, accumulate);
+      return new StoreStmt(arg, indices, storedValue, accumulate, asLoc);
     }
 
     ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
@@ -806,7 +809,7 @@ Program *Parser::parseFunctionDecl() {
     skipUntil(TokenKind::l_paren);
   }
 
-  Program *p = new Program(progName);
+  Program *p = new Program(progName, Tok.getLoc());
 
   if (!consumeIf(TokenKind::l_paren)) {
     ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),

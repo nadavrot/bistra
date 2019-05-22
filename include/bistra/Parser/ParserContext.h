@@ -1,6 +1,7 @@
 #ifndef BISTRA_PARSER_PARSERCONTEXT_H
 #define BISTRA_PARSER_PARSERCONTEXT_H
 
+#include "bistra/Base/Base.h"
 #include "bistra/Program/Pragma.h"
 
 #include <string>
@@ -91,7 +92,7 @@ public:
 
   enum DiagnoseKind { Error, Warning, Note };
   /// Emit an error message.
-  void diagnose(DiagnoseKind kind, const char *loc, const std::string &message);
+  void diagnose(DiagnoseKind kind, DebugLoc loc, const std::string &message);
 };
 
 } // namespace bistra

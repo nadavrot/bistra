@@ -32,8 +32,8 @@ Loop *bistra::tile(Loop *L, unsigned blockSize) {
   auto origLoopRange = L->getEnd();
 
   // Create a new loop.
-  Loop *NL = new Loop(newIndexName(L->getName(), "tile", blockSize), blockSize,
-                      L->getStride());
+  Loop *NL = new Loop(newIndexName(L->getName(), "tile", blockSize),
+                      L->getLoc(), blockSize, L->getStride());
 
   // Update the original-loop's trip count.
   L->setEnd(L->getEnd() / blockSize + (needRangeCheck ? 1 : 0));
@@ -42,7 +42,7 @@ Loop *bistra::tile(Loop *L, unsigned blockSize) {
   // Insert the new loop by moving the content of the original loop. Insert a
   // range check if needed.
   if (needRangeCheck) {
-    Scope *IR = new IfRange(new IndexExpr(L), 0, origLoopRange);
+    Scope *IR = new IfRange(new IndexExpr(L), 0, origLoopRange, L->getLoc());
     IR->takeContent(L);
     NL->addStmt(IR);
   } else {
@@ -58,9 +58,9 @@ Loop *bistra::tile(Loop *L, unsigned blockSize) {
   for (auto *idx : indices) {
     // I -> (I * bs) + I.tile;
     auto *mul = new BinaryExpr(new IndexExpr(L), new ConstantExpr(blockSize),
-                               BinaryExpr::BinOpKind::Mul);
-    auto *expr =
-        new BinaryExpr(new IndexExpr(NL), mul, BinaryExpr::BinOpKind::Add);
+                               BinaryExpr::BinOpKind::Mul, L->getLoc());
+    auto *expr = new BinaryExpr(new IndexExpr(NL), mul,
+                                BinaryExpr::BinOpKind::Add, L->getLoc());
     idx->replaceUseWith(expr);
   }
 
@@ -75,8 +75,8 @@ bool bistra::split(Loop *L) {
   unsigned cnt = 0;
   // For each statement in the original loop.
   for (auto &S : L->getBody()) {
-    Loop *NL = new Loop(newIndexName(L->getName(), "split", cnt++), L->getEnd(),
-                        L->getStride());
+    Loop *NL = new Loop(newIndexName(L->getName(), "split", cnt++), L->getLoc(),
+                        L->getEnd(), L->getStride());
 
     // Copy the content.
     CloneCtx map;
@@ -192,7 +192,7 @@ Loop *bistra::peelLoop(Loop *L, int k) {
   collectIndices(L2, indices, L2);
   for (auto *idx : indices) {
     auto *expr = new BinaryExpr(new ConstantExpr(k), new IndexExpr(L2),
-                                BinaryExpr::BinOpKind::Add);
+                                BinaryExpr::BinOpKind::Add, L->getLoc());
     idx->replaceUseWith(expr);
   }
 
@@ -347,7 +347,7 @@ static Expr *vectorizeExpr(Expr *E, Loop *L, unsigned vf) {
     }
 
     if (BinaryExpr *BE = dynamic_cast<BinaryExpr *>(E)) {
-      return new BinaryExpr(VL, VR, BE->getKind());
+      return new BinaryExpr(VL, VR, BE->getKind(), BE->getLoc());
     }
   }
 
@@ -367,7 +367,7 @@ static Expr *vectorizeExpr(Expr *E, Loop *L, unsigned vf) {
       indices.push_back(E.get());
 
     // Create a new vectorized load.
-    auto *VLE = new LoadExpr(LE->getDest(), indices);
+    auto *VLE = new LoadExpr(LE->getDest(), indices, LE->getLoc());
     VLE->setType(ExprType(VLE->getType().getElementType(), vf));
     return VLE;
   }
@@ -393,7 +393,8 @@ static StoreStmt *vectorizeStore(StoreStmt *S, Loop *L, unsigned vf) {
   for (auto &E : S->getIndices())
     indices.push_back(E.get());
 
-  return new StoreStmt(S->getDest(), indices, val, S->isAccumulate());
+  return new StoreStmt(S->getDest(), indices, val, S->isAccumulate(),
+                       S->getLoc());
 }
 
 bool bistra::vectorize(Loop *L, unsigned vf) {
@@ -456,7 +457,7 @@ static void widenStore(StoreStmt *S, Loop *L, unsigned offset) {
   for (auto *idx : indices) {
     // I -> (I + offset);
     auto *expr = new BinaryExpr(new IndexExpr(L), new ConstantExpr(offset),
-                                BinaryExpr::BinOpKind::Add);
+                                BinaryExpr::BinOpKind::Add, S->getLoc());
     idx->replaceUseWith(expr);
   }
 
@@ -544,11 +545,11 @@ static bool hoistLoads(Program *p, Loop *L) {
 
     CloneCtx map;
     // Load the memory into a local before the loop.
-    auto *save = new StoreLocalStmt(var, ld->clone(map), false);
+    auto *save = new StoreLocalStmt(var, ld->clone(map), false, ld->getLoc());
     parentScope->insertBeforeStmt(save, L);
 
     // Load the value during the loop.
-    ld->replaceUseWith(new LoadLocalExpr(var));
+    ld->replaceUseWith(new LoadLocalExpr(var, ld->getLoc()));
   }
 
   return false;
@@ -588,17 +589,18 @@ static bool sinkStores(Program *p, Loop *L) {
 
     // Zero the accumulator before the loop.
     CloneCtx map;
-    auto *init = new StoreLocalStmt(var, getZeroExpr(ty), false);
+    auto *init = new StoreLocalStmt(var, getZeroExpr(ty), false, st->getLoc());
     parentScope->insertBeforeStmt(init, L);
 
     // Store the variable after the loop.
     auto *flush = new StoreStmt(st->getDest(), st->cloneIndicesPtr(map),
-                                new LoadLocalExpr(var), st->isAccumulate());
+                                new LoadLocalExpr(var, st->getLoc()),
+                                st->isAccumulate(), st->getLoc());
     parentScope->insertAfterStmt(flush, L);
 
     // Save into the temporary local variable.
-    auto *save =
-        new StoreLocalStmt(var, st->getValue()->clone(map), st->isAccumulate());
+    auto *save = new StoreLocalStmt(var, st->getValue()->clone(map),
+                                    st->isAccumulate(), st->getLoc());
     L->replaceStmt(save, st);
     changed = true;
   }
