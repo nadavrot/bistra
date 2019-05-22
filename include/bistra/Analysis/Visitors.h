@@ -3,6 +3,9 @@
 
 namespace bistra {
 
+class Stmt;
+class Expr;
+
 /// A visitor class that visits all nodes in the program.
 class NodeVisitor {
 public:
