@@ -87,6 +87,13 @@ using ComputeCostTy = std::pair<uint64_t, uint64_t>;
 void estimateCompute(Stmt *S,
                      std::unordered_map<ASTNode *, ComputeCostTy> &heatmap);
 
+/// \returns the number of elements that the load \p ld accesses for the live
+/// loops \p live, or zero if the load can't be processed. For example, the loop
+/// for (i in 0..100) { B[i,j] = C[i,j]; } accesses 100 elements, if the loop
+/// "i" is alive and the parent loop "j" is fixed.
+
+uint64_t getAccessedMemoryForLoad(LoadExpr *ld, std::set<Loop *> &live);
+
 } // end namespace bistra
 
 #endif
