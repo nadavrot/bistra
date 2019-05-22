@@ -1,3 +1,4 @@
+#include "bistra/Analysis/Visitors.h"
 #include "bistra/Backends/Backend.h"
 #include "bistra/Backends/Backends.h"
 #include "bistra/Program/Program.h"

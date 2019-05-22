@@ -1,4 +1,5 @@
 #include "bistra/Transforms/Transforms.h"
+#include "bistra/Analysis/Value.h"
 #include "bistra/Program/Pragma.h"
 #include "bistra/Program/Program.h"
 #include "bistra/Program/Utils.h"
