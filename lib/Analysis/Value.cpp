@@ -231,14 +231,7 @@ bool bistra::isZero(Expr *e) {
 }
 
 bool bistra::computeKnownIntegerRange(Expr *e, std::pair<int, int> &range,
-                                      const std::set<Expr*> &frozen) {
-
-  // The value is known to be frozen at the value zero.
-  if (frozen.count(e)) {
-    range.first = 0;
-    range.second = 0;
-  }
-
+                                      const std::set<Loop *> *liveLoops) {
   // Estimate the range of constants expressions.
   if (auto *CE = dynamic_cast<ConstantExpr *>(e)) {
     // The lower and upper bound are the constant itself.
@@ -249,6 +242,13 @@ bool bistra::computeKnownIntegerRange(Expr *e, std::pair<int, int> &range,
 
   // Estimate the range for loop indices.
   if (auto *IE = dynamic_cast<IndexExpr *>(e)) {
+    // This is a frozen loop. Assume that the range is fixed on 0.
+    if (liveLoops && !liveLoops->count(IE->getLoop())) {
+      range.first = 0;
+      range.second = 0;
+      return true;
+    }
+
     // Use the upper and lower bounds of the loop.
     range.first = 0;
     range.second = IE->getLoop()->getEnd();
@@ -259,8 +259,8 @@ bool bistra::computeKnownIntegerRange(Expr *e, std::pair<int, int> &range,
   if (auto *BE = dynamic_cast<BinaryExpr *>(e)) {
     std::pair<int, int> L, R;
     // Compute the range of both sides:
-    if (!computeKnownIntegerRange(BE->getLHS(), L, frozen) ||
-        !computeKnownIntegerRange(BE->getRHS(), R, frozen))
+    if (!computeKnownIntegerRange(BE->getLHS(), L, liveLoops) ||
+        !computeKnownIntegerRange(BE->getRHS(), R, liveLoops))
       return false;
 
     switch (BE->getKind()) {
