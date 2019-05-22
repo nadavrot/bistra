@@ -6,9 +6,57 @@
 
 namespace bistra {
 
-class Expr;
-class ASTNode;
 class Stmt;
+class Expr;
+class IndexExpr;
+class LoadLocalExpr;
+class StoreLocalStmt;
+class Loop;
+class IfRange;
+class ASTNode;
+class LocalVar;
+class Argument;
+class StoreStmt;
+class LoadExpr;
+struct ExprType;
+
+/// Collect all of the indices in \p S into \p indices; If \p filter is set then
+/// only collect indices that access the loop \p filter.
+void collectIndices(ASTNode *S, std::vector<IndexExpr *> &indices,
+                    Loop *filter = nullptr);
+
+/// Collect all of the load/store accesses to locals.
+/// If \p filter is set then only accesses to \p filter are collected.
+void collectLocals(ASTNode *S, std::vector<LoadLocalExpr *> &loads,
+                   std::vector<StoreLocalStmt *> &stores,
+                   LocalVar *filter = nullptr);
+
+/// Collect all of the load/store accesses to arguments.
+/// If \p filter is set then only accesses to \p filter are collected.
+void collectLoadStores(ASTNode *S, std::vector<LoadExpr *> &loads,
+                       std::vector<StoreStmt *> &stores,
+                       Argument *filter = nullptr);
+
+/// Collect all of the loops under statement \p S into \p loops;
+void collectLoops(Stmt *S, std::vector<Loop *> &loops);
+
+/// Collect all of the ifs under statement \p S into \p ifs;
+void collectIfs(Stmt *S, std::vector<IfRange *> &ifs);
+
+/// \returns a loop that has the index with the name \p name or nullptr.
+Loop *getLoopByName(Stmt *S, const std::string &name);
+
+/// \return True if the \p N depends on the loop index \p L.
+/// Example: "A[i] = 4" depends on i, but not on j;
+bool dependsOnLoop(ASTNode *N, Loop *L);
+
+/// Generate the zero vector of type \p T.
+Expr *getZeroExpr(ExprType &T);
+
+/// \returns true if we can show that the loads and stores operate on different
+/// buffers and don't interfer with oneanother.
+bool areLoadsStoresDisjoint(const std::vector<LoadExpr *> &loads,
+                            const std::vector<StoreStmt *> &stores);
 
 /// This is similar to LLVM's simplify demanded bits.
 /// Updates the possible range in \p range.

@@ -1,5 +1,6 @@
 #include "bistra/Transforms/Simplify.h"
 #include "bistra/Analysis/Value.h"
+#include "bistra/Analysis/Visitors.h"
 #include "bistra/Program/Program.h"
 #include "bistra/Program/Utils.h"
 

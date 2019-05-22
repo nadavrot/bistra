@@ -1,3 +1,4 @@
+#include "bistra/Analysis/Value.h"
 #include "bistra/Backends/Backend.h"
 #include "bistra/Backends/Backends.h"
 #include "bistra/Optimizer/Optimizer.h"

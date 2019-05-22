@@ -1,3 +1,5 @@
+#include "bistra/Analysis/Value.h"
+#include "bistra/Analysis/Visitors.h"
 #include "bistra/Parser/Parser.h"
 #include "bistra/Program/Program.h"
 #include "bistra/Program/Utils.h"
