@@ -13,11 +13,6 @@ class Stmt;
 /// expression.
 Expr *simplifyExpr(Expr *e);
 
-/// This is similar to LLVM's simplify demanded bits.
-/// Updates the possible range in \p range.
-/// \returns True if the range was computed;
-bool computeKnownIntegerRange(Expr *e, std::pair<int, int> &range);
-
 /// Simplify the program by eliminating dead code and simplifying the
 /// program structure.
 /// \returns true if the program was modified.
