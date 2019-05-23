@@ -67,20 +67,41 @@ Argument *ParserContext::getArgumentByName(const std::string &name) {
 
 void ParserContext::addPragma(PragmaCommand &pc) { pragmas_.push_back(pc); }
 
+std::pair<unsigned, unsigned> ParserContext::getLineCol(DebugLoc pos) {
+  const char *p = buffer_;
+  const char *end = pos.getStart();
+  const char *bufferEnd = buffer_ + strlen(buffer_);
+  assert(bufferEnd > end && "Invalid buffer position");
+  unsigned line = 0;
+  unsigned col = 0;
+  while (p < end) {
+    col++;
+    p++;
+    if (*p == '\n') {
+      col = 0;
+      line++;
+    }
+  }
+  return {line, col};
+}
+
 void ParserContext::diagnose(DiagnoseKind kind, DebugLoc loc,
                              const std::string &message) {
+
+  auto cur = getLineCol(loc);
+  std::cout << filename_ << ":" << cur.first << ":" << cur.second << ":";
   // Print the error message.
   switch (kind) {
   case DiagnoseKind::Error:
-    std::cout << "Error:" << message << "\n";
+    std::cout << " error: " << message << "\n";
     numErrors_++;
     break;
   case Warning:
-    std::cout << "Warning:" << message << "\n";
+    std::cout << " warning: " << message << "\n";
     numWarnings_++;
     break;
   case Note:
-    std::cout << "Note:" << message << "\n";
+    std::cout << " note: " << message << "\n";
     numNotes_++;
     break;
   }

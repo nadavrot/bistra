@@ -1,6 +1,8 @@
 #ifndef BISTRA_ANALYSIS_PROGRAM_H
 #define BISTRA_ANALYSIS_PROGRAM_H
 
+#include <cinttypes>
+
 namespace bistra {
 
 class Loop;

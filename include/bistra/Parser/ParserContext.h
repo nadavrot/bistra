@@ -16,6 +16,8 @@ class Loop;
 
 /// The context that serves the parser while parsing.
 class ParserContext {
+  /// The name of the file that we parse.
+  std::string filename_;
   /// The base pointer for the parsed buffer.
   const char *buffer_;
 
@@ -42,7 +44,8 @@ class ParserContext {
   std::vector<std::pair<std::string, Expr *>> letStack_;
 
 public:
-  ParserContext(const char *buffer) : buffer_(buffer) {}
+  ParserContext(const char *buffer, const std::string &filename = "")
+      : filename_(filename), buffer_(buffer) {}
 
   const char *getBuffer() const { return buffer_; }
 
@@ -89,6 +92,9 @@ public:
 
   /// Adds the pragma to the list of applied pragmas.
   void addPragma(PragmaCommand &pc);
+
+  /// \returns the line and column for the position \p pos.
+  std::pair<unsigned, unsigned> getLineCol(DebugLoc pos);
 
   enum DiagnoseKind { Error, Warning, Note };
   /// Emit an error message.
