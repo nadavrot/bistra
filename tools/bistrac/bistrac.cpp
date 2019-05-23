@@ -1,3 +1,5 @@
+#include "bistra/Analysis/Program.h"
+#include "bistra/Analysis/Value.h"
 #include "bistra/Backends/Backend.h"
 #include "bistra/Backends/Backends.h"
 #include "bistra/Optimizer/Optimizer.h"
@@ -33,6 +35,50 @@ void tune(Program *p, const std::string &outName) {
   auto *p6 = new TilerPass(p5);
   auto *p7 = new TilerPass(p6);
   p7->doIt(p);
+}
+
+/// \returns the containing loop or nullptr.
+Loop *getContainingLoop(Stmt *s) {
+  ASTNode *p = s;
+  while (p) {
+    p = p->getParent();
+    if (Loop *L = dynamic_cast<Loop *>(p))
+      return L;
+  }
+  return nullptr;
+}
+
+void warnIfLoopNotProperlyTiled(Loop *L, ParserContext &ctx) {
+  Loop *PL = getContainingLoop(L);
+  if (!PL)
+    return;
+
+  auto IOL = getNumLoadsInLoop(L);
+  auto IOPL = getNumLoadsInLoop(PL);
+
+  if (IOL < 1024 * 4 && (IOPL / IOL) > 50 && IOPL > 1024 * 32) {
+    std::string message = "consider tiling a loop that touches " +
+                          prettyPrintNumber(IOPL) + " elements";
+    ctx.diagnose(ParserContext::DiagnoseKind::Warning, PL->getLoc(), message);
+    ctx.diagnose(ParserContext::DiagnoseKind::Note, L->getLoc(),
+                 "possible inner loop candidate is here");
+  }
+}
+
+void analyzeProgram(Program *p, ParserContext &ctx) {
+  std::unordered_map<ASTNode *, ComputeCostTy> heatmap;
+  estimateCompute(p, heatmap);
+  assert(heatmap.count(p) && "No information for the program");
+  auto info = heatmap[p];
+
+  std::string message = "the program performs " + std::to_string(info.second) +
+                        " arithmetic ops and " + std::to_string(info.first) +
+                        " memory ops";
+  ctx.diagnose(ParserContext::Note, p->getLoc(), message);
+
+  for (auto &L : collectLoops(p)) {
+    warnIfLoopNotProperlyTiled(L, ctx);
+  }
 }
 
 int main(int argc, char *argv[]) {
@@ -87,7 +133,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (FLAGS_stats) {
-    dumpProgramFrequencies(p);
+    analyzeProgram(p, ctx);
   }
 
   if (FLAGS_tune) {
