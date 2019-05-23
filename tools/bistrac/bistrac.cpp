@@ -96,7 +96,7 @@ int main(int argc, char *argv[]) {
   gflags::ShutDownCommandLineFlags();
 
   auto content = readFile(inFile);
-  ParserContext ctx(content.c_str());
+  ParserContext ctx(content.c_str(), inFile);
   Parser P(ctx);
   P.Parse();
 
