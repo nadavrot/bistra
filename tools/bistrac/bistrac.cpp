@@ -24,19 +24,6 @@ DEFINE_bool(tune, false, "Executes and auto-tune the program.");
 DEFINE_bool(time, false, "Executes and times the program.");
 DEFINE_string(out, "", "Output destination file to save the compiled program.");
 
-void tune(Program *p, const std::string &outName) {
-
-  auto *p0 = new EvaluatorPass(outName);
-  auto *p1 = new FilterPass(p0);
-  auto *p2 = new PromoterPass(p1);
-  auto *p3 = new WidnerPass(p2);
-  auto *p4 = new WidnerPass(p3);
-  auto *p5 = new VectorizerPass(p4);
-  auto *p6 = new TilerPass(p5);
-  auto *p7 = new TilerPass(p6);
-  p7->doIt(p);
-}
-
 /// \returns the containing loop or nullptr.
 Loop *getContainingLoop(Stmt *s) {
   ASTNode *p = s;
@@ -116,6 +103,18 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  if (FLAGS_tune) {
+    std::string outFile = "/tmp/file.cc";
+    if (FLAGS_out.size()) {
+      outFile = FLAGS_out;
+    } else {
+      std::cout << "Output flag (--out) is not set. Using the default: "
+                << outFile << "\n";
+    }
+
+    optimizeEvaluate(p, outFile);
+  }
+
   if (FLAGS_opt) {
     ::simplify(p);
     ::promoteLICM(p);
@@ -134,18 +133,6 @@ int main(int argc, char *argv[]) {
 
   if (FLAGS_stats) {
     analyzeProgram(p, ctx);
-  }
-
-  if (FLAGS_tune) {
-    std::string outFile = "/tmp/file.cc";
-    if (FLAGS_out.size()) {
-      outFile = FLAGS_out;
-    } else {
-      std::cout << "Output flag (--out) is not set. Using the default: "
-                << outFile << "\n";
-    }
-
-    tune(p, outFile);
   }
 
   return 0;

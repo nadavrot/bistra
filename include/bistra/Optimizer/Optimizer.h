@@ -65,8 +65,9 @@ public:
 };
 
 /// Construct an optimization pipeline and evaluate different configurations for
-/// the program \p. \returns the best program.
-Program *optimizeEvaluate(Program *p);
+/// the program \p. Save intermediate results to \p filename.
+/// \returns the best program.
+Program *optimizeEvaluate(Program *p, const std::string &filename);
 
 } // namespace bistra
 
