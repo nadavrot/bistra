@@ -24,6 +24,38 @@ DEFINE_bool(tune, false, "Executes and auto-tune the program.");
 DEFINE_bool(time, false, "Executes and times the program.");
 DEFINE_string(out, "", "Output destination file to save the compiled program.");
 
+/// \returns the most expensive operation in the program and it's costt.
+std::pair<Expr *, uint64_t> getExpensiveOp(Scope *S) {
+  std::vector<LoadExpr *> loads;
+  std::vector<StoreStmt *> stores;
+  collectLoadStores(S, loads, stores);
+
+  // Insert all of the sub loops into the live set.
+  std::vector<Loop *> loops = collectLoops(S);
+  std::set<Loop *> live(loops.begin(), loops.end());
+
+  uint64_t mx = 0;
+  Expr *mxE = nullptr;
+
+  for (auto *ld : loads) {
+    auto io = getAccessedMemoryForSubscript(ld->getIndices(), &live);
+    if (mx < io) {
+      mx = io;
+      mxE = ld;
+    }
+  }
+
+  for (auto *st : stores) {
+    auto io = getAccessedMemoryForSubscript(st->getIndices(), &live);
+    if (mx < io) {
+      mx = io;
+      mxE = st->getValue();
+    }
+  }
+
+  return {mxE, mx};
+}
+
 /// \returns the containing loop or nullptr.
 Loop *getContainingLoop(Stmt *s) {
   ASTNode *p = s;
@@ -58,11 +90,24 @@ void analyzeProgram(Program *p, ParserContext &ctx) {
   assert(heatmap.count(p) && "No information for the program");
   auto info = heatmap[p];
 
+  // Report general information //
   std::string message = "the program performs " + std::to_string(info.second) +
                         " arithmetic ops and " + std::to_string(info.first) +
                         " memory ops";
   ctx.diagnose(ParserContext::Note, p->getLoc(), message);
 
+  // Make sure that loops are vectorized //
+  auto EC = getExpensiveOp(p);
+  if (EC.first) {
+    if (EC.first->getType().getWidth() == 1) {
+      std::string message = "an expensive expression performs " +
+                            prettyPrintNumber(EC.second) +
+                            " unvectorized operations";
+      ctx.diagnose(ParserContext::Note, EC.first->getLoc(), message);
+    }
+  }
+
+  // Analyze loop cache utilization //
   for (auto &L : collectLoops(p)) {
     warnIfLoopNotProperlyTiled(L, ctx);
   }

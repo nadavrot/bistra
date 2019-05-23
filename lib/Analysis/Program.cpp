@@ -22,7 +22,7 @@ uint64_t bistra::getNumLoadsInLoop(Loop *L) {
   uint64_t mx = 0;
 
   for (auto *ld : loads) {
-    mx += getAccessedMemoryForLoad(ld, live);
+    mx += getAccessedMemoryForSubscript(ld->getIndices(), &live);
   }
   return mx;
 }

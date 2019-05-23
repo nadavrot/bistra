@@ -72,35 +72,9 @@ public:
   void verify() const;
 };
 
-class Program;
-
-class ASTNode {
-  DebugLoc loc_;
-
-public:
-  ASTNode() = delete;
-  ASTNode(const ASTNode &) = delete;
-
-  /// \returns the debug location for the node.
-  DebugLoc getLoc() const { return loc_; }
-
-  ASTNode(DebugLoc loc) : loc_(loc) {}
-  /// \returns the parent expression that holds the node of this expression.
-  virtual ASTNode *getParent() const = 0;
-  /// Crash if the program is in an invalid state.
-  virtual void verify() const = 0;
-  /// A node visitor that visits all of the nodes in the program.
-  virtual void visit(NodeVisitor *visitor) = 0;
-  /// Walk up the chain and find the owning program. The node must be owned.
-  Program *getProgram() const;
-};
-
-using ExprHandle = ASTHandle<Expr, ASTNode>;
-using StmtHandle = ASTHandle<Stmt, ASTNode>;
-
 class Stmt : public ASTNode {
   /// A nullable pointer to the handle that may contain this statement.
-  StmtHandle *user_{nullptr};
+  bistra::StmtHandle *user_{nullptr};
 
 public:
   Stmt() = delete;

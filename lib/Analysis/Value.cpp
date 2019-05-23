@@ -455,16 +455,16 @@ void bistra::estimateCompute(
   S->visit(&CE);
 }
 
-uint64_t bistra::getAccessedMemoryForLoad(LoadExpr *ld,
-                                          std::set<Loop *> &live) {
+uint64_t bistra::getAccessedMemoryForSubscript(std::vector<ExprHandle> &indices,
+                                               std::set<Loop *> *live) {
   int span = 1;
   // Multipliy the accessed range of all indices. The range that the load can
   // access is defined as the multiplication of all of the indices, where
   // non-live loops are fixed to zero. For example, for the live loops 'i' and
   // 'j' and the fixed loop k: A[i, j, k] -> range(i) * range(j) * 1
-  for (auto &idx : ld->getIndices()) {
+  for (auto &idx : indices) {
     std::pair<int, int> range;
-    if (!computeKnownIntegerRange(idx.get(), range, &live))
+    if (!computeKnownIntegerRange(idx.get(), range, live))
       return 0;
     span *= range.second - range.first + 1;
   }
