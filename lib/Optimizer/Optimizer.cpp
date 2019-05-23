@@ -59,6 +59,9 @@ void FilterPass::doIt(Program *p) {
 }
 
 void VectorizerPass::doIt(Program *p) {
+  p->verify();
+  nextPass_->doIt(p);
+
   std::vector<Loop *> loops;
   collectLoops(p, loops);
   for (auto *l : loops) {
@@ -133,8 +136,8 @@ void PromoterPass::doIt(Program *p) {
   nextPass_->doIt(np.get());
 }
 
-Program *bistra::optimizeEvaluate(Program *p) {
-  auto *p0 = new EvaluatorPass();
+Program *bistra::optimizeEvaluate(Program *p, const std::string &filename) {
+  auto *p0 = new EvaluatorPass(filename);
   auto *p1 = new PromoterPass(p0);
   auto *p2 = new WidnerPass(p1);
   auto *p3 = new WidnerPass(p2);
