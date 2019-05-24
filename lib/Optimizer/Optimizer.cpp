@@ -87,15 +87,6 @@ static ComputeCostTy getComputeIOInfo(Loop *L) {
   return heatmap[L];
 }
 
-/// \returns True if \p L is an innermost loop.
-static bool isInnermostLoop(Loop *L) {
-  for (auto &S : L->getBody()) {
-    if (dynamic_cast<Scope *>(S.get()))
-      return false;
-  }
-  return true;
-}
-
 /// Calcualte a possible tile size that matches the stride.
 static unsigned roundTileSize(unsigned tileSize, unsigned stride) {
   return tileSize - (tileSize % stride);
@@ -172,7 +163,8 @@ void TilerPass::doIt(Program *p) {
           continue;
 
         // Hoist the loop twice.
-        changed |= ::hoist(newL, 1) && ::hoist(newL, 1);
+        changed |= ::hoist(newL, 1);
+        changed |= ::hoist(newL, 1);
       } // Loop hierarchy.
       if (changed) {
         nextPass_->doIt(np.get());
