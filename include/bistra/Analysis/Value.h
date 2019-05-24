@@ -23,6 +23,8 @@ class StoreStmt;
 class LoadExpr;
 struct ExprType;
 
+/// \returns True if \p L is an innermost loop.
+bool isInnermostLoop(Loop *L);
 
 /// \returns the containing loop or nullptr.
 Loop *getContainingLoop(Stmt *s);
