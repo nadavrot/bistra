@@ -8,6 +8,16 @@
 
 using namespace bistra;
 
+Loop *bistra::getContainingLoop(Stmt *s) {
+  ASTNode *p = s;
+  while (p) {
+    p = p->getParent();
+    if (Loop *L = dynamic_cast<Loop *>(p))
+      return L;
+  }
+  return nullptr;
+}
+
 namespace {
 /// A visitor class that collects all loads/stores to locals.
 struct LocalsCollector : public NodeVisitor {

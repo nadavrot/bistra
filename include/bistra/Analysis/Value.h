@@ -23,6 +23,10 @@ class StoreStmt;
 class LoadExpr;
 struct ExprType;
 
+
+/// \returns the containing loop or nullptr.
+Loop *getContainingLoop(Stmt *s);
+
 /// Collect all of the indices in \p S into \p indices; If \p filter is set then
 /// only collect indices that access the loop \p filter.
 void collectIndices(ASTNode *S, std::vector<IndexExpr *> &indices,
