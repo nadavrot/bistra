@@ -1,4 +1,5 @@
 #include "bistra/Optimizer/Optimizer.h"
+#include "bistra/Analysis/Program.h"
 #include "bistra/Analysis/Value.h"
 #include "bistra/Backends/Backend.h"
 #include "bistra/Backends/Backends.h"
@@ -7,6 +8,7 @@
 #include "bistra/Transforms/Simplify.h"
 #include "bistra/Transforms/Transforms.h"
 
+#include <array>
 #include <iostream>
 #include <set>
 
@@ -34,13 +36,15 @@ void EvaluatorPass::doIt(Program *p) {
 void FilterPass::doIt(Program *p) {
   std::vector<Loop *> loops;
   collectLoops(p, loops);
-  // For each loop.
+
+  // Don't allow innerloops with huge bodies or with too many local registers.
   for (auto *l : loops) {
     // This loop body is too big.
     if (l->getBody().size() > 64) {
       return;
     }
 
+    // Count local registers.
     unsigned local = 0;
     for (auto &s : l->getBody()) {
       if (dynamic_cast<StoreLocalStmt *>(s.get())) {
@@ -62,6 +66,7 @@ void VectorizerPass::doIt(Program *p) {
   p->verify();
   nextPass_->doIt(p);
 
+  // The vectorizer pass is pretty simple. Just try to vectorize all loops.
   std::vector<Loop *> loops;
   collectLoops(p, loops);
   for (auto *l : loops) {
@@ -74,37 +79,106 @@ void VectorizerPass::doIt(Program *p) {
   }
 }
 
+/// Compute the arithmetic and IO properties for the loop \p L.
+static ComputeCostTy getComputeIOInfo(Loop *L) {
+  std::unordered_map<ASTNode *, ComputeCostTy> heatmap;
+  estimateCompute(L, heatmap);
+  assert(heatmap.count(L) && "No information for the program");
+  return heatmap[L];
+}
+
+/// \returns True if \p L is an innermost loop.
+static bool isInnermostLoop(Loop *L) {
+  for (auto &S : L->getBody()) {
+    if (dynamic_cast<Scope *>(S.get()))
+      return false;
+  }
+  return true;
+}
+
+/// Calcualte a possible tile size that matches the stride.
+static unsigned roundTileSize(unsigned tileSize, unsigned stride) {
+  return tileSize - (tileSize % stride);
+}
+
 void TilerPass::doIt(Program *p) {
+  std::array<int, 6> tileSize = {8, 16, 32, 64, 128, 256};
+  unsigned numTiles = tileSize.size();
   p->verify();
   nextPass_->doIt(p);
 
-  int tileSizes[] = {32, 64, 128, 256};
-
-  std::vector<Loop *> loops;
-  collectLoops(p, loops);
-
+  // Collect the innermost loops.
+  auto loops = collectLoops(p);
+  std::vector<Loop *> innermost;
   for (auto *l : loops) {
-    // Don't try to tile small loops.
-    if (l->getEnd() < 128)
+    if (isInnermostLoop(l))
+      innermost.push_back(l);
+  }
+
+  for (auto *inner : innermost) {
+    // Collect the loop nestt that contain the current loop.
+    std::vector<Loop *> hierarchy;
+    Loop *lptr = inner;
+    for (int i = 0; lptr && i < 4; i++) {
+      hierarchy.push_back(lptr);
+      lptr = getContainingLoop(lptr);
+    }
+
+    // Don't tile a single loop.
+    if (hierarchy.size() < 2)
       continue;
 
-    for (int ts : tileSizes) {
-      // Round the tile size to match the stride steps.
-      unsigned adjustedTileSize = ts - (ts % l->getStride());
+    Loop *top = hierarchy[hierarchy.size() - 1];
+
+    // Don't touch loops that have zero compute (just write memory).
+    if (getComputeIOInfo(top).second == 0)
+      continue;
+
+    // Ignore loops that don't touch much memory.
+    auto IOPL = getNumLoadsInLoop(top);
+    if (IOPL < (1 << 13))
+      continue;
+
+    // Calculate how many different combinations of blocks to try. This number
+    // encodes all possible combinations. One way to view this is where each
+    // tile size is a letter in the alphabet and we iterate over the words and
+    // extract one letter at a time.
+    unsigned numTries = 1;
+    bool changed = false;
+    for (int i = 0; i < hierarchy.size(); i++) {
+      numTries *= numTiles;
+    }
+    assert(numTries < 1e6 && "Too many combinations!");
+
+    // Try all possible block size combinations (see comment above).
+    for (int attemptID = 0; attemptID < numTries; attemptID++) {
 
       CloneCtx map;
       std::unique_ptr<Program> np((Program *)p->clone(map));
-      auto *newL = map.get(l);
-      if (!::tile(newL, adjustedTileSize))
-        continue;
 
-      for (int i = 0; i < 3; i++) {
-        if (::hoist(newL, 1)) {
-          nextPass_->doIt(np.get());
-        }
+      int ctr = attemptID;
+      for (auto *l : hierarchy) {
+        // Pick the last
+        int currBlockSize = tileSize[ctr % numTiles];
+        ctr = ctr / numTiles;
+
+        // Adjust the tile size to the loop stride.
+        auto ts = roundTileSize(currBlockSize, l->getStride());
+        if (ts == 0)
+          continue;
+
+        auto *newL = map.get(l);
+        if (!::tile(newL, ts))
+          continue;
+
+        // Hoist the loop twice.
+        changed |= ::hoist(newL, 1) && ::hoist(newL, 1);
+      } // Loop hierarchy.
+      if (changed) {
+        nextPass_->doIt(np.get());
       }
-    }
-  }
+    } // Tiling attempt.
+  }   // Each innermost loop.
 }
 
 void WidnerPass::doIt(Program *p) {
@@ -116,6 +190,10 @@ void WidnerPass::doIt(Program *p) {
   collectLoops(p, loops);
 
   for (auto *l : loops) {
+    // Don't touch loops that have zero compute (just write memory).
+    if (getComputeIOInfo(l).second == 0)
+      continue;
+
     for (int ws : widths) {
       CloneCtx map;
       std::unique_ptr<Program> np((Program *)p->clone(map));
@@ -130,6 +208,7 @@ void WidnerPass::doIt(Program *p) {
 void PromoterPass::doIt(Program *p) {
   p->verify();
   CloneCtx map;
+  // This is a simple cleanup pass.
   std::unique_ptr<Program> np((Program *)p->clone(map));
   ::simplify(np.get());
   ::promoteLICM(np.get());
@@ -137,14 +216,13 @@ void PromoterPass::doIt(Program *p) {
 }
 
 Program *bistra::optimizeEvaluate(Program *p, const std::string &filename) {
-  auto *p0 = new EvaluatorPass(filename);
-  auto *p1 = new PromoterPass(p0);
-  auto *p2 = new WidnerPass(p1);
-  auto *p3 = new WidnerPass(p2);
-  auto *p4 = new VectorizerPass(p3);
-  auto *p5 = new TilerPass(p4);
-  auto *p6 = new TilerPass(p5);
-  p6->doIt(p);
-
-  return p0->getBestProgram();
+  auto *ev = new EvaluatorPass(filename);
+  Pass *ps = new FilterPass(ev);
+  ps = new PromoterPass(ps);
+  ps = new WidnerPass(ps);
+  ps = new WidnerPass(ps);
+  ps = new VectorizerPass(ps);
+  ps = new TilerPass(ps);
+  ps->doIt(p);
+  return ev->getBestProgram();
 }
