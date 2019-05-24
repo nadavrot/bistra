@@ -78,9 +78,12 @@ void warnIfLoopNotProperlyTiled(Loop *L, ParserContext &ctx) {
   if (IOL < 1024 * 4 && (IOPL / IOL) > 50 && IOPL > 1024 * 32) {
     std::string message = "consider tiling a loop that touches " +
                           prettyPrintNumber(IOPL) + " elements";
+
     ctx.diagnose(ParserContext::DiagnoseKind::Warning, PL->getLoc(), message);
-    ctx.diagnose(ParserContext::DiagnoseKind::Note, L->getLoc(),
-                 "possible inner loop candidate is here");
+    std::string messageHint =
+        "here is a possible inner loop that touches only " +
+        prettyPrintNumber(IOL) + " elements";
+    ctx.diagnose(ParserContext::DiagnoseKind::Note, L->getLoc(), messageHint);
   }
 }
 
@@ -103,7 +106,7 @@ void analyzeProgram(Program *p, ParserContext &ctx) {
       std::string message = "an expensive expression performs " +
                             prettyPrintNumber(EC.second) +
                             " unvectorized operations";
-      ctx.diagnose(ParserContext::Note, EC.first->getLoc(), message);
+      ctx.diagnose(ParserContext::Warning, EC.first->getLoc(), message);
     }
   }
 
