@@ -56,17 +56,6 @@ std::pair<Expr *, uint64_t> getExpensiveOp(Scope *S) {
   return {mxE, mx};
 }
 
-/// \returns the containing loop or nullptr.
-Loop *getContainingLoop(Stmt *s) {
-  ASTNode *p = s;
-  while (p) {
-    p = p->getParent();
-    if (Loop *L = dynamic_cast<Loop *>(p))
-      return L;
-  }
-  return nullptr;
-}
-
 void warnIfLoopNotProperlyTiled(Loop *L, ParserContext &ctx) {
   Loop *PL = getContainingLoop(L);
   if (!PL)
