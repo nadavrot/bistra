@@ -8,6 +8,14 @@
 
 using namespace bistra;
 
+bool bistra::isInnermostLoop(Loop *L) {
+  for (auto &S : L->getBody()) {
+    if (dynamic_cast<Scope *>(S.get()))
+      return false;
+  }
+  return true;
+}
+
 Loop *bistra::getContainingLoop(Stmt *s) {
   ASTNode *p = s;
   while (p) {
