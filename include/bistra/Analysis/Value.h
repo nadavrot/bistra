@@ -23,6 +23,9 @@ class StoreStmt;
 class LoadExpr;
 struct ExprType;
 
+/// \returns True if \p s is a scope.
+bool isScope(Stmt *s);
+
 /// \returns True if \p L is an innermost loop.
 bool isInnermostLoop(Loop *L);
 
