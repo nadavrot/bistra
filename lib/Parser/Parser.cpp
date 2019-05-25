@@ -203,7 +203,7 @@ Expr *Parser::parseExprPrimary() {
 
     // Check if this identifier is a loop index.
     if (Loop *L = ctx_.getLoopByName(varName)) {
-      return new IndexExpr(L);
+      return new IndexExpr(L, argLoc);
     }
 
     // Check if this is a buffer access.
