@@ -16,6 +16,13 @@ Loop *tile(Loop *L, unsigned blockSize);
 /// \returns True if the transform worked.
 bool split(Loop *L);
 
+/// Split the loop to multiple consecutive loops but keep non-scope statements
+/// together. This creates a structure that allows loop interchange because
+/// loops are either innermost loops with content or contain one other nested
+/// loop.
+/// \returns True if the transform worked.
+bool splitScopes(Loop *L);
+
 /// Try to hoist the loop \p level levels up.
 bool hoist(Loop *L, unsigned levels);
 

@@ -98,6 +98,64 @@ bool bistra::split(Loop *L) {
   return true;
 }
 
+bool bistra::splitScopes(Loop *L) {
+  L->verify();
+  // Divide the statements in the original loop into packets of statements that
+  // go together. Scopes must reside in their own packet.
+  std::vector<std::vector<Stmt *>> packets;
+  bool lastIterWasScope = true;
+  for (auto &S : L->getBody()) {
+    if (isScope(S)) {
+      // Push a new packet.
+      packets.push_back({S});
+      lastIterWasScope = true;
+      continue;
+    }
+
+    // Non-scope stmts.
+    if (lastIterWasScope) {
+      lastIterWasScope = false;
+      // Open a new packet.
+      packets.push_back({S});
+    } else {
+      // Add to existing packet.
+      packets.back().push_back(S);
+    }
+  }
+
+  // Check if there is anything to split.
+  if (packets.size() < 2)
+    return false;
+
+  unsigned cnt = 0;
+  // For each packet of statement in the original loop.
+  for (auto &packet : packets) {
+    // Start a loop for this packet.
+    Loop *NL = new Loop(newIndexName(L->getName(), "split", cnt++), L->getLoc(),
+                        L->getEnd(), L->getStride());
+
+    // Copy the content.
+    CloneCtx map;
+    for (Stmt *ss : packet) {
+      NL->addStmt(ss->clone(map));
+    }
+
+    // Replace the indices of the old loop with the new looop.
+    std::vector<IndexExpr *> indices;
+    collectIndices(NL, indices, L);
+    for (auto *IE : indices) {
+      IE->replaceUseWith(new IndexExpr(NL));
+    }
+
+    // Insert before to preserve the original stmt order.
+    ((Scope *)L->getParent())->insertBeforeStmt(NL, L);
+  }
+
+  // Remove the original loop.
+  ((Scope *)L->getParent())->removeStmt(L);
+  return true;
+}
+
 bool bistra::hoist(Loop *L, unsigned levels) {
   if (levels == 0)
     return false;
