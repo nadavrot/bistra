@@ -8,6 +8,8 @@
 
 using namespace bistra;
 
+bool bistra::isScope(Stmt *s) { return dynamic_cast<Scope *>(s); }
+
 bool bistra::isInnermostLoop(Loop *L) {
   for (auto &S : L->getBody()) {
     if (dynamic_cast<Scope *>(S.get()))
