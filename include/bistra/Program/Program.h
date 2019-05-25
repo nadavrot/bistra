@@ -340,6 +340,9 @@ public:
   IndexExpr(Loop *loop)
       : Expr(ElemKind::IndexTy, loop->getLoc()), loop_(loop) {}
 
+  IndexExpr(Loop *loop, DebugLoc loc)
+      : Expr(ElemKind::IndexTy, loc), loop_(loop) {}
+
   IndexExpr(Loop *loop, const ExprType &ty)
       : Expr(ty, loop->getLoc()), loop_(loop) {}
 
