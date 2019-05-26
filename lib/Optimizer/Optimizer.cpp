@@ -194,6 +194,10 @@ void WidnerPass::doIt(Program *p) {
     if (getComputeIOInfo(l).second == 0)
       continue;
 
+    // Don't try to widen innermost loop because this is exactly like unrolling.
+    if (isInnermostLoop(l))
+      continue;
+
     for (int ws : widths) {
       CloneCtx map;
       std::unique_ptr<Program> np((Program *)p->clone(map));
