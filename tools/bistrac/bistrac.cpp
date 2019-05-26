@@ -64,7 +64,7 @@ void warnIfLoopNotProperlyTiled(Loop *L, ParserContext &ctx) {
   auto IOL = getNumLoadsInLoop(L);
   auto IOPL = getNumLoadsInLoop(PL);
 
-  if (IOL < 1024 * 4 && (IOPL / IOL) > 50 && IOPL > 1024 * 32) {
+  if (IOL < 1024 * 4 && IOPL > 1024 * 32) {
     std::string message = "consider tiling a loop that touches " +
                           prettyPrintNumber(IOPL) + " elements";
 
