@@ -227,7 +227,7 @@ void DistributePass::doIt(Program *p) {
   // Distribute all of tthe loops to ensure that all of the non-scope stmts are
   // located in innermost loops. This allows us to interchange loops.
 restart:
-  auto loops = collectLoops(p);
+  auto loops = collectLoops(np.get());
   p->verify();
   for (auto *l : loops) {
     if (splitScopes(l))
