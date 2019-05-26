@@ -64,6 +64,12 @@ public:
   virtual void doIt(Program *p) override;
 };
 
+class DistributePass : public Pass {
+public:
+  DistributePass(Pass *next) : Pass("distribute", next) {}
+  virtual void doIt(Program *p) override;
+};
+
 /// Construct an optimization pipeline and evaluate different configurations for
 /// the program \p. Save intermediate results to \p filename.
 /// \returns the best program.
