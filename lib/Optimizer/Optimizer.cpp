@@ -219,14 +219,34 @@ void PromoterPass::doIt(Program *p) {
   nextPass_->doIt(np.get());
 }
 
+void DistributePass::doIt(Program *p) {
+  p->verify();
+  CloneCtx map;
+  std::unique_ptr<Program> np((Program *)p->clone(map));
+
+  // Distribute all of tthe loops to ensure that all of the non-scope stmts are
+  // located in innermost loops. This allows us to interchange loops.
+restart:
+  auto loops = collectLoops(p);
+  p->verify();
+  for (auto *l : loops) {
+    if (splitScopes(l))
+      goto restart;
+  }
+  ::simplify(np.get());
+  nextPass_->doIt(np.get());
+}
+
 Program *bistra::optimizeEvaluate(Program *p, const std::string &filename) {
   auto *ev = new EvaluatorPass(filename);
   Pass *ps = new FilterPass(ev);
   ps = new PromoterPass(ps);
   ps = new WidnerPass(ps);
   ps = new WidnerPass(ps);
+  ps = new DistributePass(ps);
   ps = new VectorizerPass(ps);
   ps = new TilerPass(ps);
+  ps = new DistributePass(ps);
   ps->doIt(p);
   return ev->getBestProgram();
 }
