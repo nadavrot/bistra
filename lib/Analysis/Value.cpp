@@ -277,7 +277,9 @@ bool bistra::computeKnownIntegerRange(Expr *e, std::pair<int, int> &range,
 
     // Use the upper and lower bounds of the loop.
     range.first = 0;
-    range.second = IE->getLoop()->getEnd() - 1;
+    // The loop jumps in steps (stride). The last value of the loop is the end
+    // range minus the stride value. The stride must evenly divide the loop.
+    range.second = IE->getLoop()->getEnd() - IE->getLoop()->getStride();
     return true;
   }
 
