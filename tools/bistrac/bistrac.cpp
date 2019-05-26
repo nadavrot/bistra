@@ -76,6 +76,69 @@ void warnIfLoopNotProperlyTiled(Loop *L, ParserContext &ctx) {
   }
 }
 
+/// \returns True if this expression or statement are guarded behind a range
+/// check.
+static bool isRangeProtected(ASTNode *n) {
+  ASTNode *p = n;
+  while (p) {
+    p = p->getParent();
+    if (dynamic_cast<IfRange *>(p))
+      return true;
+  }
+  return false;
+}
+
+/// Emit diagnostics for buffer overflow of load/store operations with the
+/// indices \p indices for the buffer of shape \p opType at location \p opLoc.
+void detectOverflow(DebugLoc opLoc, const Type *opType,
+                    const std::vector<ExprHandle> &indices,
+                    ParserContext &ctx) {
+  for (int i = 0; i < indices.size(); i++) {
+    auto &idx = indices[i];
+    std::pair<int, int> range;
+    if (!computeKnownIntegerRange(idx.get(), range))
+      continue;
+
+    auto bufferSize = opType->getDims()[i];
+    if (range.first < 0 || range.second > bufferSize) {
+      std::string message =
+          "buffer overflow detected at index " + std::to_string(i);
+      ctx.diagnose(ParserContext::Warning, opLoc, message);
+      std::string rangeMsg =
+          "the index range is " + std::to_string(range.first) + " .. " +
+          std::to_string(range.second) + ", but the buffer range is 0 .. " +
+          std::to_string(bufferSize);
+      ctx.diagnose(ParserContext::Note, idx->getLoc(), rangeMsg);
+    }
+  }
+}
+
+/// Emit diagnostics for buffer overflow for all load/stores in the program.
+void detectOverflow(Program *p, ParserContext &ctx) {
+  std::vector<LoadExpr *> loads;
+  std::vector<StoreStmt *> stores;
+  collectLoadStores(p, loads, stores);
+
+  // We can't analyze the checks in if-range checks, so don't emit warnings
+  // on guarded statements.
+
+  // Analyze loads:
+  for (auto *ld : loads) {
+    if (isRangeProtected(ld))
+      continue;
+    detectOverflow(ld->getLoc(), ld->getDest()->getType(), ld->getIndices(),
+                   ctx);
+  }
+
+  // Analyze stores:
+  for (auto *st : stores) {
+    if (isRangeProtected(st))
+      continue;
+    detectOverflow(st->getLoc(), st->getDest()->getType(), st->getIndices(),
+                   ctx);
+  }
+}
+
 void analyzeProgram(Program *p, ParserContext &ctx) {
   std::unordered_map<ASTNode *, ComputeCostTy> heatmap;
   estimateCompute(p, heatmap);
@@ -92,7 +155,7 @@ void analyzeProgram(Program *p, ParserContext &ctx) {
   auto EC = getExpensiveOp(p);
   if (EC.first) {
     if (EC.first->getType().getWidth() == 1) {
-      std::string message = "an expensive expression performs " +
+      std::string message = "a hot loop performs " +
                             prettyPrintNumber(EC.second) +
                             " unvectorized operations";
       ctx.diagnose(ParserContext::Warning, EC.first->getLoc(), message);
@@ -103,6 +166,9 @@ void analyzeProgram(Program *p, ParserContext &ctx) {
   for (auto &L : collectLoops(p)) {
     warnIfLoopNotProperlyTiled(L, ctx);
   }
+
+  // Detect and warn on buffer overflows.
+  detectOverflow(p, ctx);
 }
 
 int main(int argc, char *argv[]) {
