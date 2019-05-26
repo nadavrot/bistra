@@ -16,11 +16,19 @@ using namespace bistra;
 
 void EvaluatorPass::doIt(Program *p) {
   p->verify();
+
+  std::unordered_map<ASTNode *, ComputeCostTy> heatmap;
+  estimateCompute(p, heatmap);
+  assert(heatmap.count(p) && "No information for the program");
+  auto info = heatmap[p];
+
   auto CB = getBackend("C");
   auto res = CB->evaluateCode(p, 10);
   if (res < bestTime_) {
     p->dump();
-    std::cout << "New best result: " << res << "\n";
+    std::cout << "New best result: " << res << ", "
+              << prettyPrintNumber(info.second / res) << " flops/sec. \n";
+
     bestTime_ = res;
     bestProgram_.setReference(p->clone());
 
