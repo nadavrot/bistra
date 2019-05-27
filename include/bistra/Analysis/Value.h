@@ -23,6 +23,16 @@ class StoreStmt;
 class LoadExpr;
 struct ExprType;
 
+/// Describes the kind of relationship some expression has when vectorizing it
+/// across some dimension.
+enum IndexAccessKind { Uniform, Consecutive, Other };
+
+/// \returns the access direction and pattern for the array subscript
+/// expression \p E in relation to the loop index \p L.
+/// For example, in the loop (i .. 10): A[i + 3] is 'consecutive', a[j] is
+/// 'uniform' and A[i * 3] is 'other'.
+IndexAccessKind getIndexAccessKind(Expr *E, Loop *L);
+
 /// \returns True if \p s is a scope.
 bool isScope(Stmt *s);
 
@@ -106,7 +116,7 @@ void estimateCompute(Stmt *S,
 /// processed. For example, the loop for (i in 0..100) { B[i,j] = C[i,j]; }
 /// accesses 100 elements, if the loop "i" is alive and the parent loop "j" is
 /// fixed.
-uint64_t getAccessedMemoryForSubscript(std::vector<ExprHandle> &indices,
+uint64_t getAccessedMemoryForSubscript(const std::vector<ExprHandle> &indices,
                                        std::set<Loop *> *live);
 
 } // end namespace bistra

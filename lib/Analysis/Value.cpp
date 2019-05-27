@@ -8,6 +8,48 @@
 
 using namespace bistra;
 
+IndexAccessKind bistra::getIndexAccessKind(Expr *E, Loop *L) {
+  if (IndexExpr *IE = dynamic_cast<IndexExpr *>(E)) {
+    if (IE->getLoop() == L) {
+      return IndexAccessKind::Consecutive;
+    }
+    return IndexAccessKind::Uniform;
+  }
+
+  if (BinaryExpr *BE = dynamic_cast<BinaryExpr *>(E)) {
+    auto LK = getIndexAccessKind(BE->getLHS(), L);
+    auto RK = getIndexAccessKind(BE->getRHS(), L);
+
+    switch (BE->getKind()) {
+      // Mul expressions. Example:  [d * J];
+    case BinaryExpr::BinOpKind::Mul: {
+      if (LK == IndexAccessKind::Uniform && RK == IndexAccessKind::Uniform)
+        return Uniform;
+    }
+
+      // Addition expressions. Example:  [4 + J];
+    case BinaryExpr::BinOpKind::Add: {
+      if (LK == IndexAccessKind::Other || RK == IndexAccessKind::Other)
+        return IndexAccessKind::Other;
+      if (LK == IndexAccessKind::Uniform && RK == IndexAccessKind::Uniform)
+        return Uniform;
+      return Consecutive;
+    }
+
+    default:
+      if (LK == IndexAccessKind::Uniform && RK == IndexAccessKind::Uniform)
+        return Uniform;
+      return Other;
+    }
+  }
+
+  if (dynamic_cast<ConstantExpr *>(E) || dynamic_cast<ConstantFPExpr *>(E)) {
+    return IndexAccessKind::Uniform;
+  }
+
+  return IndexAccessKind::Other;
+}
+
 bool bistra::isScope(Stmt *s) { return dynamic_cast<Scope *>(s); }
 
 bool bistra::isInnermostLoop(Loop *L) {
@@ -477,8 +519,9 @@ void bistra::estimateCompute(
   S->visit(&CE);
 }
 
-uint64_t bistra::getAccessedMemoryForSubscript(std::vector<ExprHandle> &indices,
-                                               std::set<Loop *> *live) {
+uint64_t
+bistra::getAccessedMemoryForSubscript(const std::vector<ExprHandle> &indices,
+                                      std::set<Loop *> *live) {
   int span = 1;
   // Multipliy the accessed range of all indices. The range that the load can
   // access is defined as the multiplication of all of the indices, where
