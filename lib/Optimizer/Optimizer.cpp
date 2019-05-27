@@ -120,8 +120,7 @@ static std::vector<Loop *> collectInnermostLoops(Scope *s) {
   return innermost;
 }
 
-/// \returns upto \p levels loop nest that wrap the loop \p L, where each loop
-/// has exactly one statement, except the innermost loop \p L.
+/// \returns upto \p levels loop nest that wrap the loop \p L.
 static std::vector<Loop *> collectLoopHierarchy(Loop *L, int levels) {
   // Collect the loop nest that contain the current loop.
   std::vector<Loop *> hierarchy;
