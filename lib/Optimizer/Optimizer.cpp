@@ -171,8 +171,7 @@ void TilerPass::doIt(Program *p) {
           continue;
 
         // Hoist the loop twice.
-        changed |= ::hoist(newL, 1);
-        changed |= ::hoist(newL, 1);
+        changed |= ::hoist(newL, hierarchy.size());
       } // Loop hierarchy.
       if (changed) {
         nextPass_->doIt(np.get());
