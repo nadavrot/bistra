@@ -100,6 +100,40 @@ static unsigned roundTileSize(unsigned tileSize, unsigned stride) {
   return tileSize - (tileSize % stride);
 }
 
+/// \returns a ** b;
+static uint64_t ipow(uint64_t a, uint64_t b) {
+  uint64_t res = 1;
+  for (int i = 0; i < b; i++) {
+    res *= a;
+  }
+  return res;
+}
+
+/// \returns a list of innermost loops in \p s.
+static std::vector<Loop *> collectInnermostLoops(Scope *s) {
+  auto loops = collectLoops(s);
+  std::vector<Loop *> innermost;
+  for (auto *l : loops) {
+    if (isInnermostLoop(l))
+      innermost.push_back(l);
+  }
+  return innermost;
+}
+
+/// \returns upto \p levels loop nest that wrap the loop \p L, where each loop
+/// has exactly one statement, except the innermost loop \p L.
+static std::vector<Loop *> collectLoopHierarchy(Loop *L, int levels) {
+  // Collect the loop nest that contain the current loop.
+  std::vector<Loop *> hierarchy;
+  Loop *lptr = L;
+  for (int i = 0; lptr && i < levels; i++) {
+    hierarchy.push_back(lptr);
+    lptr = getContainingLoop(lptr);
+  }
+
+  return hierarchy;
+}
+
 void TilerPass::doIt(Program *p) {
   std::array<int, 6> tileSize = {8, 16, 32, 64, 128, 256};
   unsigned numTiles = tileSize.size();
@@ -107,27 +141,17 @@ void TilerPass::doIt(Program *p) {
   nextPass_->doIt(p);
 
   // Collect the innermost loops.
-  auto loops = collectLoops(p);
-  std::vector<Loop *> innermost;
-  for (auto *l : loops) {
-    if (isInnermostLoop(l))
-      innermost.push_back(l);
-  }
+  std::vector<Loop *> innermost = collectInnermostLoops(p);
 
   for (auto *inner : innermost) {
-    // Collect the loop nestt that contain the current loop.
-    std::vector<Loop *> hierarchy;
-    Loop *lptr = inner;
-    for (int i = 0; lptr && i < 4; i++) {
-      hierarchy.push_back(lptr);
-      lptr = getContainingLoop(lptr);
-    }
+    // Collect the loop nest that contain the current loop.
+    std::vector<Loop *> hierarchy = collectLoopHierarchy(inner, 4);
 
     // Don't tile a single loop.
     if (hierarchy.size() < 2)
       continue;
 
-    Loop *top = hierarchy[hierarchy.size() - 1];
+    Loop *top = hierarchy.back();
 
     // Don't touch loops that have zero compute (just write memory).
     if (getComputeIOInfo(top).second == 0)
@@ -142,11 +166,8 @@ void TilerPass::doIt(Program *p) {
     // encodes all possible combinations. One way to view this is where each
     // tile size is a letter in the alphabet and we iterate over the words and
     // extract one letter at a time.
-    unsigned numTries = 1;
+    unsigned numTries = ipow(numTiles, hierarchy.size());
     bool changed = false;
-    for (int i = 0; i < hierarchy.size(); i++) {
-      numTries *= numTiles;
-    }
     assert(numTries < 1e6 && "Too many combinations!");
 
     // Try all possible block size combinations (see comment above).
