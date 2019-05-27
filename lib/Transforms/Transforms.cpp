@@ -264,68 +264,23 @@ Loop *bistra::peelLoop(Loop *L, int k) {
 
 //--------------------------   Vectorization   -------------------------------//
 
-/// Describes the kind of relationship some expression has when vectorizing it
-/// across some dimension.
-enum IndexKind { Uniform, Consecutive, Other };
-
-static IndexKind getIndexKind(Expr *E, Loop *L) {
-  if (IndexExpr *IE = dynamic_cast<IndexExpr *>(E)) {
-    if (IE->getLoop() == L) {
-      return IndexKind::Consecutive;
-    }
-    return IndexKind::Uniform;
-  }
-
-  if (BinaryExpr *BE = dynamic_cast<BinaryExpr *>(E)) {
-    auto LK = getIndexKind(BE->getLHS(), L);
-    auto RK = getIndexKind(BE->getRHS(), L);
-
-    switch (BE->getKind()) {
-      // Mul expressions. Example:  [d * J];
-    case BinaryExpr::BinOpKind::Mul: {
-      if (LK == IndexKind::Uniform && RK == IndexKind::Uniform)
-        return Uniform;
-    }
-
-      // Addition expressions. Example:  [4 + J];
-    case BinaryExpr::BinOpKind::Add: {
-      if (LK == IndexKind::Other || RK == IndexKind::Other)
-        return IndexKind::Other;
-      if (LK == IndexKind::Uniform && RK == IndexKind::Uniform)
-        return Uniform;
-      return Consecutive;
-    }
-
-    default:
-      if (LK == IndexKind::Uniform && RK == IndexKind::Uniform)
-        return Uniform;
-      return Other;
-    }
-  }
-
-  if (dynamic_cast<ConstantExpr *>(E) || dynamic_cast<ConstantFPExpr *>(E)) {
-    return IndexKind::Uniform;
-  }
-
-  return IndexKind::Other;
-}
-
 /// \returns True if it is legal to vectorize some load/store with the indices
 /// \p indices when vectorizing the loop \p L.
 static bool mayVectorizeLoadStoreAccess(const std::vector<ExprHandle> &indices,
                                         Loop *L) {
   // Iterate over all of the indices and check if they allow vectorization.
   for (int i = 0, e = indices.size(); i < e; i++) {
-    auto kind = getIndexKind(indices[i].get(), L);
+    auto kind = getIndexAccessKind(indices[i].get(), L);
     bool isLastIndex = (i == e - 1);
 
     if (isLastIndex) {
       // The last index must be consecutive.
-      if (kind != IndexKind::Consecutive && kind != IndexKind::Uniform)
+      if (kind != IndexAccessKind::Consecutive &&
+          kind != IndexAccessKind::Uniform)
         return false;
     } else {
       // Tall other indices must be uniform.
-      if (kind != IndexKind::Uniform)
+      if (kind != IndexAccessKind::Uniform)
         return false;
     }
   }
