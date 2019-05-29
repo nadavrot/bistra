@@ -47,8 +47,31 @@ public:
   }
 
   /// Register the expression \p e under the name \p name.
-  void registerValue(const std::string &name, Expr *e) {
+  void registerValue(const std::string &name, ElemTy *e) {
     stack_.push_back(std::make_pair(name, e));
+  }
+};
+
+/// Maps global values to names.
+template <typename ElemTy> class NamedValueMap {
+  /// Indexes values by name.
+  std::unordered_map<std::string, ElemTy *> map_;
+
+public:
+  /// Registers a new value.
+  void registerValue(ElemTy *arg) {
+    assert(getByName(arg->getName()) == nullptr &&
+           "Argument already registered");
+    map_[arg->getName()] = arg;
+  }
+
+  /// \returns the argument with the name \p name or nullptr.
+  ElemTy *getByName(const std::string &name) const {
+    auto ir = map_.find(name);
+    if (ir == map_.end()) {
+      return nullptr;
+    }
+    return ir->second;
   }
 };
 
@@ -73,7 +96,10 @@ class ParserContext {
   std::vector<PragmaCommand> pragmas_;
 
   /// Indexes arguments by name.
-  std::unordered_map<std::string, Argument *> argMap_;
+  NamedValueMap<Argument> argMap_;
+
+  /// Indexes variables by name.
+  NamedValueMap<LocalVar> varMap_;
 
   /// Contains the next of loops while parsing.
   std::vector<Loop *> loopNextStack_;
@@ -105,11 +131,11 @@ public:
   /// \returns the Var stack.
   ScopedNamedValueStack<LocalVar> &getVarStack() { return varStack_; }
 
-  /// Registers a new argument.
-  void registerNewArgument(Argument *arg);
+  /// \returns the Var map.
+  NamedValueMap<LocalVar> &getVarMap() { return varMap_; }
 
-  /// \returns the argument with the name \p name or nullptr.
-  Argument *getArgumentByName(const std::string &name);
+  /// \returns the Var stack.
+  NamedValueMap<Argument> &getArgMap() { return argMap_; }
 
   /// Saves the parsed program when done.
   void registerProgram(Program *p);

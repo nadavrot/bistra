@@ -207,7 +207,7 @@ Expr *Parser::parseExprPrimary() {
     }
 
     // Check if this is a buffer access.
-    Argument *A = ctx_.getArgumentByName(varName);
+    Argument *A = ctx_.getArgMap().getByName(varName);
     if (Tok.is(l_square)) {
       if (!A) {
         ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
@@ -392,6 +392,14 @@ bool Parser::parseScope(Scope *scope) {
     // Parse the let statements at the beginning of the scope.
     while (Tok.is(TokenKind::kw_let)) {
       if (parseLetStmt()) {
+        skipUntil(TokenKind::r_brace);
+        goto end_scope;
+      }
+    }
+
+    // Parse the var declerations at the beginning of the scope.
+    while (Tok.is(TokenKind::kw_var)) {
+      if (parseVarDecl()) {
         skipUntil(TokenKind::r_brace);
         goto end_scope;
       }
@@ -648,7 +656,7 @@ bool Parser::parseLiteralOrDimExpr(int &value) {
       }
     }
 
-    Argument *arg = ctx_.getArgumentByName(varName);
+    Argument *arg = ctx_.getArgMap().getByName(varName);
     if (!arg) {
       ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
                     "unexpected argument name in for loop range: " + varName);
@@ -679,7 +687,7 @@ bool Parser::parseLiteralOrDimExpr(int &value) {
   }
 
   ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
-                "invalid expression in dimension name.");
+                "invalid expression in dimension name");
   return true;
 }
 
@@ -687,15 +695,15 @@ bool Parser::parseLetStmt() {
   consumeToken(TokenKind::kw_let);
 
   std::string varName;
-  // Parse the pragma name.
+  // Parse the variable name.
   if (parseIdentifier(varName)) {
     ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
-                  "expecting a variable name in 'let' expr.");
+                  "expecting a variable name in 'let' expr");
   }
 
   if (!consumeIf(TokenKind::assign)) {
     ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
-                  "expecting assignment in let expression.");
+                  "expecting assignment in let expression");
   }
 
   Expr *storedValue = parseExpr();
@@ -704,6 +712,41 @@ bool Parser::parseLetStmt() {
   }
 
   ctx_.getLetStack().registerValue(varName, storedValue);
+  return false;
+}
+
+bool Parser::parseVarDecl() {
+  consumeToken(TokenKind::kw_var);
+
+  std::string varName;
+  // Parse the variable name.
+  if (parseIdentifier(varName)) {
+    ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
+                  "expecting a variable name in var decleration");
+  }
+
+  if (!consumeIf(TokenKind::colon)) {
+    ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
+                  "expecting colon in var expression");
+  }
+
+  ElemKind scalarsTy;
+  if (parseBuiltinType(scalarsTy)) {
+    return true;
+  }
+
+  if (auto *LV = ctx_.getVarMap().getByName(varName)) {
+    // TODO: add diagnostics for the location of the other var.
+    ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
+                  "variable with this name already exists");
+    return true;
+  }
+
+  auto *var = new LocalVar(varName, ExprType(scalarsTy));
+
+  ctx_.getVarMap().registerValue(var);
+
+  ctx_.getVarStack().registerValue(varName, var);
   return false;
 }
 
@@ -723,7 +766,44 @@ Stmt *Parser::parseOneStmt() {
     std::string varName;
     parseIdentifier(varName);
 
-    Argument *arg = ctx_.getArgumentByName(varName);
+    /// Parse variable assignment.
+    if (auto *var = ctx_.getVarStack().getByName(varName)) {
+      bool accumulate;
+
+      auto asLoc = Tok.getLoc();
+      switch (Tok.getKind()) {
+      case TokenKind::plusEquals:
+        consumeToken();
+        accumulate = true;
+        break;
+
+      case TokenKind::assign:
+        consumeToken();
+        accumulate = false;
+        break;
+
+      default:
+        ctx_.diagnose(
+            DiagnoseKind::Error, Tok.getLoc(),
+            "expecting assignment operator after local variable access.");
+        return nullptr;
+      }
+
+      Expr *storedValue = parseExpr();
+      if (!storedValue) {
+        return nullptr;
+      }
+
+      // Check that the number of subscript arguments is correct.
+      if (!var->getType().isEqual(storedValue->getType())) {
+        ctx_.diagnose(DiagnoseKind::Error, argLoc, "Invalid assignment type");
+        return nullptr;
+      }
+
+      return new StoreLocalStmt(var, storedValue, accumulate, asLoc);
+    }
+
+    Argument *arg = ctx_.getArgMap().getByName(varName);
     if (!arg) {
       ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
                     "accessing unknown variable.");
@@ -828,7 +908,7 @@ Program *Parser::parseFunctionDecl() {
 
   auto *firstArg = new Argument(typeName, T);
   p->addArgument(firstArg);
-  ctx_.registerNewArgument(firstArg);
+  ctx_.getArgMap().registerValue(firstArg);
 
   // Parse the optional argument list.
   while (Tok.is(TokenKind::comma)) {
@@ -837,7 +917,7 @@ Program *Parser::parseFunctionDecl() {
       skipUntil(TokenKind::comma);
     }
 
-    if (ctx_.getArgumentByName(typeName)) {
+    if (ctx_.getArgMap().getByName(typeName)) {
       ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
                     "argument with this name already exists.");
       // Try to recover by ignoring this argument.
@@ -845,7 +925,7 @@ Program *Parser::parseFunctionDecl() {
     }
 
     auto *arg = new Argument(typeName, T);
-    ctx_.registerNewArgument(arg);
+    ctx_.getArgMap().registerValue(arg);
     p->addArgument(arg);
   }
 

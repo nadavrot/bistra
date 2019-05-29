@@ -25,21 +25,6 @@ Loop *ParserContext::popLoop() {
   return L;
 }
 
-void ParserContext::registerNewArgument(Argument *arg) {
-  assert(getArgumentByName(arg->getName()) == nullptr &&
-         "Argument already registered");
-  argMap_[arg->getName()] = arg;
-}
-
-Argument *ParserContext::getArgumentByName(const std::string &name) {
-  auto ir = argMap_.find(name);
-  if (ir == argMap_.end()) {
-    return nullptr;
-  }
-
-  return ir->second;
-}
-
 void ParserContext::addPragma(PragmaCommand &pc) { pragmas_.push_back(pc); }
 
 std::pair<unsigned, unsigned> ParserContext::getLineCol(DebugLoc pos) {
