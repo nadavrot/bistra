@@ -182,6 +182,94 @@ Expr *Parser::parseExpr(unsigned RBP) {
   return LHS;
 }
 
+bool Parser::parseCallArgumentList(std::vector<Expr *> &args, bool sameTy,
+                                   int expectedArgs) {
+  assert(args.size() == 0);
+  // "("
+  if (!consumeIf(TokenKind::l_paren)) {
+    ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
+                  "expecting left paren in argument list.");
+    return true;
+  }
+
+  // Parse the first mandatory argument.
+  if (auto *E = parseExpr()) {
+    args.push_back(E);
+  } else {
+    skipUntilOneOf(r_paren, r_brace);
+    return true;
+  }
+
+  // Parse the remaining optional dimensions.
+  while (Tok.is(TokenKind::comma)) {
+    consumeToken(TokenKind::comma);
+    if (auto *E = parseExpr()) {
+      args.push_back(E);
+      continue;
+    } else {
+      skipUntilOneOf(r_paren, r_brace);
+      return true;
+    }
+  }
+
+  if (!consumeIf(TokenKind::r_paren)) {
+    ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
+                  "expecting right paren in argument list");
+    skipUntil(TokenKind::gt);
+  }
+
+  // Verify that we are passing the correct number of arguments.
+  if (expectedArgs && expectedArgs != args.size()) {
+    ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
+                  "expecting " + std::to_string(expectedArgs) + " arguments");
+    return true;
+  }
+
+  // Verify that all of the arguments are of the same type.
+  if (sameTy) {
+    for (auto *E : args) {
+      if (!E->getType().isEqual(args[0]->getType())) {
+        ctx_.diagnose(DiagnoseKind::Error, E->getLoc(),
+                      "passing arguments of different types");
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+Expr *Parser::parseBuiltinFunction() {
+  std::vector<Expr *> args;
+  auto loc = Tok.getLoc();
+  auto kind = Tok.getKind();
+  consumeToken();
+
+  switch (kind) {
+  case builtin_func_max: {
+    if (parseCallArgumentList(args, true, 2))
+      return nullptr;
+    return new BinaryExpr(args[0], args[1], BinaryExpr::BinOpKind::Max, loc);
+  }
+  case builtin_func_min: {
+    if (parseCallArgumentList(args, true, 2))
+      return nullptr;
+    return new BinaryExpr(args[0], args[1], BinaryExpr::BinOpKind::Min, loc);
+  }
+  case builtin_func_pow: {
+    if (parseCallArgumentList(args, true, 2))
+      return nullptr;
+    return new BinaryExpr(args[0], args[1], BinaryExpr::BinOpKind::Pow, loc);
+  }
+
+  default: {
+    ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
+                  "Unable to parse built-in function");
+    return nullptr;
+  }
+  } // Switch-kind.
+}
+
 Expr *Parser::parseExprPrimary() {
   switch (Tok.getKind()) {
   case integer_literal: {
@@ -255,6 +343,11 @@ Expr *Parser::parseExprPrimary() {
     }
     return nullptr;
   }
+
+  case builtin_func_min:
+  case builtin_func_max:
+  case builtin_func_pow:
+    return parseBuiltinFunction();
 
   default:
     ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(), "unknown expression.");
