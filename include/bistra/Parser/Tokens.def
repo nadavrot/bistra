@@ -20,8 +20,11 @@ BUILTIN_TYPE(index)
 BUILTIN_FUNC(min)
 BUILTIN_FUNC(max)
 BUILTIN_FUNC(pow)
+
 BUILTIN_FUNC(log)
 BUILTIN_FUNC(exp)
+BUILTIN_FUNC(sqrt)
+BUILTIN_FUNC(abs)
 
 PUNCTUATOR(hash,        "#")
 PUNCTUATOR(period,      ".")
