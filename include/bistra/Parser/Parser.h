@@ -3,6 +3,7 @@
 
 #include "bistra/Parser/ParserContext.h"
 #include "bistra/Parser/Token.h"
+#include "bistra/Program/Types.h"
 
 namespace bistra {
 class Lexer;
@@ -77,6 +78,9 @@ private:
   Expr *parseExpr(unsigned RBP = 1);
 
   Program *parseFunctionDecl();
+
+  /// Parse the next token and update \p kind, or return true on error.
+  bool parseBuiltinType(ElemKind &kind);
 
   /// Parse the name:value pair. Example: I:512
   bool parseTypePair(std::string &name, int &val);
