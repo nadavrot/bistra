@@ -55,9 +55,10 @@ TEST(basic, parse_decl) {
   ParserContext ctx("def matmul(C:float<I:512,J:512>) {}");
   Parser P(ctx);
   P.Parse();
-  ctx.getProgram()->dump();
+  auto *pg = ctx.getProgram();
+  pg->verify();
+  pg->dump();
   EXPECT_EQ(ctx.getNumErrors(), 0);
-  Program *pg = ctx.getProgram();
   EXPECT_EQ(pg->getArgs().size(), 1);
   EXPECT_EQ(pg->getArg(0)->getName(), "C");
   EXPECT_EQ(pg->getArg(0)->getType()->getDims().size(), 2);
@@ -69,9 +70,10 @@ TEST(basic, parse_for) {
       "def matmul(C:float<I:512,J:512>) {  for (i in 0 .. 125) {} }");
   Parser P(ctx);
   P.Parse();
-  ctx.getProgram()->dump();
+  auto *pg = ctx.getProgram();
+  pg->verify();
+  pg->dump();
   EXPECT_EQ(ctx.getNumErrors(), 0);
-  Program *pg = ctx.getProgram();
   Loop *forStmt = dynamic_cast<Loop *>(pg->getBody()[0].get());
   EXPECT_EQ(forStmt->getName(), "i");
   EXPECT_EQ(forStmt->getEnd(), 125);
@@ -81,9 +83,10 @@ TEST(basic, parse_whole_file) {
   ParserContext ctx(test_program);
   Parser P(ctx);
   P.Parse();
-  ctx.getProgram()->dump();
+  auto *pg = ctx.getProgram();
+  pg->verify();
+  pg->dump();
   EXPECT_EQ(ctx.getNumErrors(), 0);
-  Program *pg = ctx.getProgram();
   Loop *forStmt = dynamic_cast<Loop *>(pg->getBody()[0].get());
   EXPECT_EQ(forStmt->getName(), "i");
   EXPECT_EQ(forStmt->getEnd(), 512);
@@ -93,7 +96,7 @@ const char *use_buffer_index = R"(
 def use_buffer_index(C:float<I:512,J:512>) {
   for (i in 0 .. C.I) {
     for (j in 0 .. C.J) {
-      C [i, j ] = 0;
+      C [i, j ] = 0.;
     }
   }
 })";
@@ -103,7 +106,8 @@ TEST(basic, use_buffer_index) {
   Parser P(ctx);
   P.Parse();
   EXPECT_EQ(ctx.getNumErrors(), 0);
-  Program *pg = ctx.getProgram();
+  auto *pg = ctx.getProgram();
+  pg->verify();
   pg->dump();
   EXPECT_EQ(::getLoopByName(pg, "i")->getEnd(), 512);
   EXPECT_EQ(::getLoopByName(pg, "i")->getEnd(), 512);
@@ -143,7 +147,9 @@ TEST(basic, if_range_test) {
   Parser P(ctx);
   P.Parse();
   EXPECT_EQ(ctx.getNumErrors(), 0);
-  ctx.getProgram()->dump();
+  auto *p = ctx.getProgram();
+  p->verify();
+  p->dump();
 }
 
 TEST(basic, pragmas) {
@@ -161,7 +167,9 @@ TEST(basic, pragmas) {
   Parser P(ctx);
   P.Parse();
   EXPECT_EQ(ctx.getNumErrors(), 0);
-  ctx.getProgram()->dump();
+  auto *p = ctx.getProgram();
+  p->verify();
+  p->dump();
   auto decls = ctx.getPragmaDecls();
   EXPECT_EQ(decls.size(), 3);
   EXPECT_EQ(decls[2].kind_, PragmaCommand::PragmaKind::vectorize);
@@ -191,8 +199,9 @@ TEST(basic, let_expr) {
   Parser P(ctx);
   P.Parse();
   EXPECT_EQ(ctx.getNumErrors(), 0);
-  ctx.getProgram()->dump();
   auto *p = ctx.getProgram();
+  p->verify();
+  p->dump();
   NodeCounter counter;
   p->visit(&counter);
   EXPECT_EQ(counter.stmt, 4);
@@ -209,6 +218,7 @@ TEST(basic, let_expr_type) {
   Parser P(ctx);
   P.Parse();
   EXPECT_EQ(ctx.getNumErrors(), 0);
+  ctx.getProgram()->verify();
 }
 
 TEST(basic, debug_loc) {
@@ -219,7 +229,7 @@ TEST(basic, debug_loc) {
   P.Parse();
   EXPECT_EQ(ctx.getNumErrors(), 0);
   auto *p = ctx.getProgram();
-
+  p->verify();
   // The loop is at the 34th char.
   EXPECT_EQ(::getLoopByName(p, "i")->getLoc().getStart(), debug_loc + 34);
 }
