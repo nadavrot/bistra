@@ -360,6 +360,21 @@ bool bistra::computeKnownIntegerRange(Expr *e, std::pair<int, int> &range,
       range.second = *std::max_element(perm.begin(), perm.end());
       return true;
     }
+
+    case BinaryExpr::Min: {
+      range.first = std::min(L.first, R.first);
+      range.second = std::min(L.second, R.second);
+      return true;
+    }
+
+    case BinaryExpr::Max: {
+      range.first = std::min(L.first, R.first);
+      range.second = std::min(L.second, R.second);
+      return true;
+    }
+
+    case BinaryExpr::Pow:
+      return false;
     }
   }
 
