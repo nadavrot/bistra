@@ -38,6 +38,12 @@ Expr *bistra::simplifyExpr(Expr *e) {
         return new ConstantExpr(CEL->getValue() / CER->getValue());
       case BinaryExpr::Sub:
         return new ConstantExpr(CEL->getValue() - CER->getValue());
+      case BinaryExpr::Min:
+        return new ConstantExpr(std::min(CEL->getValue(), CER->getValue()));
+      case BinaryExpr::Max:
+        return new ConstantExpr(std::max(CEL->getValue(), CER->getValue()));
+      case BinaryExpr::Pow:
+        return new ConstantExpr(std::pow(CEL->getValue(), CER->getValue()));
       }
     }
 
@@ -52,6 +58,12 @@ Expr *bistra::simplifyExpr(Expr *e) {
         return new ConstantFPExpr(CFL->getValue() / CFR->getValue());
       case BinaryExpr::Sub:
         return new ConstantFPExpr(CFL->getValue() - CFR->getValue());
+      case BinaryExpr::Min:
+        return new ConstantFPExpr(std::min(CEL->getValue(), CER->getValue()));
+      case BinaryExpr::Max:
+        return new ConstantFPExpr(std::max(CEL->getValue(), CER->getValue()));
+      case BinaryExpr::Pow:
+        return new ConstantFPExpr(std::pow(CEL->getValue(), CER->getValue()));
       }
     }
 
@@ -84,6 +96,9 @@ Expr *bistra::simplifyExpr(Expr *e) {
         return SL;
       break;
     case BinaryExpr::Sub:
+    case BinaryExpr::Min:
+    case BinaryExpr::Max:
+    case BinaryExpr::Pow:
       break;
     }
   }

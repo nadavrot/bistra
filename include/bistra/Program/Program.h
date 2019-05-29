@@ -394,7 +394,7 @@ public:
 /// A binary arithmetic expression.
 class BinaryExpr : public Expr {
 public:
-  enum BinOpKind { Mul, Add, Div, Sub };
+  enum BinOpKind { Mul, Add, Div, Sub, Max, Min, Pow };
 
 protected:
   /// Left-hand-side of the expression.

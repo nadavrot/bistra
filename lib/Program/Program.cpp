@@ -129,6 +129,10 @@ const char *BinaryExpr::getOpSymbol(BinOpKind kind_) {
     CASE(Mul, " * ")
     CASE(Sub, " - ")
     CASE(Div, " / ")
+
+    CASE(Max, "max")
+    CASE(Min, "min")
+    CASE(Pow, "pow")
   }
 #undef CASE
 }
@@ -298,9 +302,28 @@ void StoreLocalStmt::dump(unsigned indent) const {
 void IndexExpr::dump() const { std::cout << loop_->getName(); }
 
 void BinaryExpr::dump() const {
-  LHS_->dump();
-  std::cout << " " << getOpSymbol() << " ";
-  RHS_->dump();
+
+  // Mul, Add, Div, Sub, Max, Min, Pow
+  switch (getKind()) {
+  case Mul:
+  case Add:
+  case Div:
+  case Sub: {
+    LHS_->dump();
+    std::cout << " " << getOpSymbol() << " ";
+    RHS_->dump();
+    break;
+  }
+  case Max:
+  case Min:
+  case Pow:
+    std::cout << " " << getOpSymbol() << "(";
+    LHS_->dump();
+    std::cout << ", ";
+    RHS_->dump();
+    std::cout << ")";
+    break;
+  }
 }
 
 Expr *ConstantExpr::clone(CloneCtx &map) {

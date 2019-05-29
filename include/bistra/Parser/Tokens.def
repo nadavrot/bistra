@@ -17,6 +17,12 @@ BUILTIN_TYPE(float)
 BUILTIN_TYPE(int8)
 BUILTIN_TYPE(index)
 
+BUILTIN_FUNC(min)
+BUILTIN_FUNC(max)
+BUILTIN_FUNC(pow)
+BUILTIN_FUNC(log)
+BUILTIN_FUNC(exp)
+
 PUNCTUATOR(hash,        "#")
 PUNCTUATOR(period,      ".")
 PUNCTUATOR(comma,       ",")
