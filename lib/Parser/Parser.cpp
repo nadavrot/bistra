@@ -294,6 +294,11 @@ Expr *Parser::parseExprPrimary() {
       return new IndexExpr(L, argLoc);
     }
 
+    // Check if this is a local variable load.
+    if (LocalVar *LV = ctx_.getVarMap().getByName(varName)) {
+      return new LoadLocalExpr(LV, argLoc);
+    }
+
     // Check if this is a buffer access.
     Argument *A = ctx_.getArgMap().getByName(varName);
     if (Tok.is(l_square)) {

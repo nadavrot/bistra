@@ -250,6 +250,23 @@ TEST(basic, var_decl) {
   EXPECT_EQ(xxx->getType().getTypename(), "float");
 }
 
+TEST(basic, var_load_decl) {
+  const char *var_load_decl = R"(
+  def var_load_decl(C:float<x:100>) {
+    var xxx : float
+    var res : float
+    xxx = 4.3
+    res = xxx + 3.
+    C[0] = res
+  })";
+  ParserContext ctx(var_load_decl);
+  Parser P(ctx);
+  P.Parse();
+  EXPECT_EQ(ctx.getNumErrors(), 0);
+  auto *prog = P.getContext().getProgram();
+  prog->verify();
+}
+
 TEST(basic, parse_binary_builtin_functions) {
   const char *parse_binary_builtin_functions = R"(
   def parse_binary_builtin_functions(C:float<x:100>) {
