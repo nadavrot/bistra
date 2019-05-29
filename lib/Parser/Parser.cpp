@@ -98,7 +98,7 @@ bool Parser::parseIntegerLiteralOrLetConstant(int &val) {
     parseIdentifier(varName);
 
     // Is this a 'let' variable that contains an integer?
-    if (auto *E = ctx_.getLetExprByName(varName)) {
+    if (auto *E = ctx_.getLetStack().getByName(varName)) {
       if (ConstantExpr *C = dynamic_cast<ConstantExpr *>(E)) {
         val = C->getValue();
         return false;
@@ -231,7 +231,7 @@ Expr *Parser::parseExprPrimary() {
     }
 
     // Check if this is a 'let' clause:
-    if (auto *E = ctx_.getLetExprByName(varName)) {
+    if (auto *E = ctx_.getLetStack().getByName(varName)) {
       CloneCtx map;
       return E->clone(map);
     }
@@ -296,6 +296,28 @@ bool Parser::parseSubscriptList(std::vector<Expr *> &exprs) {
   return false;
 }
 
+bool Parser::parseBuiltinType(ElemKind &kind) {
+  switch (Tok.getKind()) {
+  case TokenKind::builtin_type_float:
+    kind = ElemKind::Float32Ty;
+    break;
+
+  case TokenKind::builtin_type_int8:
+    kind = ElemKind::Int8Ty;
+    break;
+
+  case TokenKind::builtin_type_index:
+    kind = ElemKind::IndexTy;
+    break;
+
+  default:
+    ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(), "expecting typename");
+    return true;
+  }
+  consumeToken();
+  return false;
+}
+
 // Example: C:float<I:512,J:512>,
 bool Parser::parseNamedType(Type &T, std::string &name) {
   name = Tok.getText();
@@ -312,27 +334,9 @@ bool Parser::parseNamedType(Type &T, std::string &name) {
   }
 
   ElemKind scalarsTy;
-
-  switch (Tok.getKind()) {
-  case TokenKind::builtin_type_float:
-    scalarsTy = ElemKind::Float32Ty;
-    break;
-
-  case TokenKind::builtin_type_int8:
-    scalarsTy = ElemKind::Int8Ty;
-    break;
-
-  case TokenKind::builtin_type_index:
-    scalarsTy = ElemKind::IndexTy;
-    break;
-
-  default:
-    ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
-                  std::string("expecting colon after typename \"") + name +
-                      "\"");
+  if (parseBuiltinType(scalarsTy)) {
     return true;
   }
-  consumeToken();
 
   if (!consumeIf(TokenKind::lt)) {
     ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
@@ -377,7 +381,7 @@ bool Parser::parseNamedType(Type &T, std::string &name) {
 
 bool Parser::parseScope(Scope *scope) {
   // Remember the state of the let expression stack.
-  unsigned letStackHandle = ctx_.getLetStackLevel();
+  auto letStackHandle = ctx_.getLetStack().getStackLevel();
 
   if (!consumeIf(TokenKind::l_brace)) {
     ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
@@ -407,7 +411,7 @@ end_scope:
                   "expecting closing brace to scope body.");
   }
 
-  ctx_.restoreLetStack(letStackHandle);
+  ctx_.getLetStack().restoreStack(letStackHandle);
   return false;
 }
 
@@ -637,7 +641,7 @@ bool Parser::parseLiteralOrDimExpr(int &value) {
     }
 
     // Is this a 'let' variable that contains an integer?
-    if (auto *E = ctx_.getLetExprByName(varName)) {
+    if (auto *E = ctx_.getLetStack().getByName(varName)) {
       if (ConstantExpr *C = dynamic_cast<ConstantExpr *>(E)) {
         value = C->getValue();
         return false;
@@ -680,7 +684,6 @@ bool Parser::parseLiteralOrDimExpr(int &value) {
 }
 
 bool Parser::parseLetStmt() {
-  assert(Tok.is(TokenKind::kw_let));
   consumeToken(TokenKind::kw_let);
 
   std::string varName;
@@ -699,8 +702,8 @@ bool Parser::parseLetStmt() {
   if (!storedValue) {
     return true;
   }
-  
-  ctx_.registerLetValue(varName, storedValue);
+
+  ctx_.getLetStack().registerValue(varName, storedValue);
   return false;
 }
 

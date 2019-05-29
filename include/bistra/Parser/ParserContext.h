@@ -13,6 +13,44 @@ class Program;
 class Expr;
 class Argument;
 class Loop;
+class LocalVar;
+
+/// A segmented scoped stack that contains groups of named values.
+template <typename ElemTy> class ScopedNamedValueStack {
+  std::vector<std::pair<std::string, ElemTy *>> stack_;
+
+public:
+  /// \returns the size of the stack that keeps the expression. This
+  /// allows us to unwind and get rid of unused lets when the 'var' go out of
+  /// scope.
+  unsigned getStackLevel() const { return stack_.size(); }
+
+  /// Restore the stack to the level of \p handle.
+  void restoreStack(unsigned handle) {
+    assert(stack_.size() >= handle && "Invalid state");
+    while (stack_.size() > handle) {
+      delete stack_.back().second;
+      stack_.pop_back();
+    }
+  }
+
+  /// \returns the stored expression or nullptr if the name was not found.
+  ElemTy *getByName(const std::string &name) const {
+    // Go over the 'let' expression in reverse to find the last decleration of
+    // the variable.
+    for (int i = stack_.size() - 1; i >= 0; i--) {
+      auto let = stack_[i];
+      if (let.first == name)
+        return let.second;
+    }
+    return nullptr;
+  }
+
+  /// Register the expression \p e under the name \p name.
+  void registerValue(const std::string &name, Expr *e) {
+    stack_.push_back(std::make_pair(name, e));
+  }
+};
 
 /// The context that serves the parser while parsing.
 class ParserContext {
@@ -40,8 +78,11 @@ class ParserContext {
   /// Contains the next of loops while parsing.
   std::vector<Loop *> loopNextStack_;
 
-  /// Contains the next of loops while parsing.
-  std::vector<std::pair<std::string, Expr *>> letStack_;
+  /// Contains the stack of 'let' expressions.
+  ScopedNamedValueStack<Expr> letStack_;
+
+  /// Contains the stack of local variables.
+  ScopedNamedValueStack<LocalVar> varStack_;
 
 public:
   ParserContext(const char *buffer, const std::string &filename = "")
@@ -58,19 +99,11 @@ public:
   /// Remove the top loop from the loop stack.
   Loop *popLoop();
 
-  /// \returns the size of the stack that keeps the 'let' expression. This
-  /// allows us to unwind and get rid of unused lets when the 'let' go out of
-  /// scope.
-  unsigned getLetStackLevel() const;
+  /// \returns the Let stack.
+  ScopedNamedValueStack<Expr> &getLetStack() { return letStack_; }
 
-  /// Restore the 'let' stack to the level of \p handle.
-  void restoreLetStack(unsigned handle);
-
-  /// \returns the stored expression or nullptr if the name was not found.
-  Expr *getLetExprByName(const std::string &name) const;
-
-  /// Register the expression \p e under the name \p name.
-  void registerLetValue(const std::string &name, Expr *e);
+  /// \returns the Var stack.
+  ScopedNamedValueStack<LocalVar> &getVarStack() { return varStack_; }
 
   /// Registers a new argument.
   void registerNewArgument(Argument *arg);
