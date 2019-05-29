@@ -11,12 +11,14 @@ static const char *TokenNames[] = {
     "unknown",
 #define KEYWORD(X) "kw_" #X,
 #define BUILTIN_TYPE(X) "builtin_type_" #X,
+#define BUILTIN_FUNC(X) "builtin_func_" #X,
 #define PUNCTUATOR(X, Y) #X,
 #define OTHER(X) #X,
 
 #include "bistra/Parser/Tokens.def"
 
 #undef BUILTIN_TYPE
+#undef BUILTIN_FUNC
 #undef KEYWORD
 #undef PUNCTUATOR
 #undef OTHER
@@ -70,12 +72,17 @@ void Lexer::lexIdentifier(Token &result) {
 #define BUILTIN_TYPE(X)                                                        \
   if (txt == #X)                                                               \
     kind = builtin_type_##X;
+#define BUILTIN_FUNC(X)                                                        \
+  if (txt == #X)                                                               \
+    kind = builtin_func_##X;
+
 #define PUNCTUATOR(X, Y)
 #define OTHER(X)
 
 #include "bistra/Parser/Tokens.def"
 
 #undef BUILTIN_TYPE
+#undef BUILTIN_FUNC
 #undef KEYWORD
 #undef PUNCTUATOR
 #undef OTHER

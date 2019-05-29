@@ -67,6 +67,16 @@ private:
   /// Parse a simple expression.
   Expr *parseExprPrimary();
 
+  /// Parse functions such as 'min' and 'max' and 'log'.
+  Expr *parseBuiltinFunction();
+
+  /// Parse an argument list, such as "(x, y, z)".
+  /// \p expectedArgs specifies the expected number of arguments, or zero if the
+  /// function should not verify the number of arguments. If \p sameTy is set
+  /// then the function will verify that the args are all of the same type.
+  bool parseCallArgumentList(std::vector<Expr *> &args, bool sameTy,
+                             int expectedArgs);
+
   /// Parses expressions.
   /// Parse the right hand side of a binary expression and assemble it according
   /// to precedence rules. \p RBP is the incoming operator precedence.

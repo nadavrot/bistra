@@ -249,3 +249,16 @@ TEST(basic, var_decl) {
   auto *xxx = prog->getVar("xxx");
   EXPECT_EQ(xxx->getType().getTypename(), "float");
 }
+
+TEST(basic, parse_binary_builtin_functions) {
+  const char *parse_binary_builtin_functions = R"(
+  def parse_binary_builtin_functions(C:float<x:100>) {
+    C[0] = max(C[1], C[2]) + min(C[3], C[4]) + pow(C[5], C[6])
+  })";
+  ParserContext ctx(parse_binary_builtin_functions);
+  Parser P(ctx);
+  P.Parse();
+  EXPECT_EQ(ctx.getNumErrors(), 0);
+  auto *prog = P.getContext().getProgram();
+  prog->verify();
+}
