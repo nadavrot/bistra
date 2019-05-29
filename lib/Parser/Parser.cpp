@@ -939,6 +939,10 @@ Program *Parser::parseFunctionDecl() {
     return nullptr;
   }
 
+  // Register all of the variables that were declared.
+  for (auto *v : ctx_.getVarMap()) {
+    p->addVar(v);
+  }
   return p;
 }
 

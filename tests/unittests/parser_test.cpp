@@ -223,3 +223,19 @@ TEST(basic, debug_loc) {
   // The loop is at the 34th char.
   EXPECT_EQ(::getLoopByName(p, "i")->getLoc().getStart(), debug_loc + 34);
 }
+
+TEST(basic, var_decl) {
+  const char *var_decl = R"(
+  def var_decl(C:float<x:100>) {
+    var xxx : float
+    xxx = 4.3
+  })";
+  ParserContext ctx(var_decl);
+  Parser P(ctx);
+  P.Parse();
+  EXPECT_EQ(ctx.getNumErrors(), 0);
+  auto *prog = P.getContext().getProgram();
+  prog->verify();
+  auto *xxx = prog->getVar("xxx");
+  EXPECT_EQ(xxx->getType().getTypename(), "float");
+}
