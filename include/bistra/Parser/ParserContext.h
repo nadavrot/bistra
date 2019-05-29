@@ -55,23 +55,29 @@ public:
 /// Maps global values to names.
 template <typename ElemTy> class NamedValueMap {
   /// Indexes values by name.
-  std::unordered_map<std::string, ElemTy *> map_;
+  using storageTy = std::vector<ElemTy *>;
+  storageTy map_;
 
 public:
+  using iterator = typename storageTy::iterator;
+
+  iterator begin() { return map_.begin(); }
+  iterator end() { return map_.end(); }
+
   /// Registers a new value.
   void registerValue(ElemTy *arg) {
     assert(getByName(arg->getName()) == nullptr &&
            "Argument already registered");
-    map_[arg->getName()] = arg;
+    map_.push_back(arg);
   }
 
   /// \returns the argument with the name \p name or nullptr.
   ElemTy *getByName(const std::string &name) const {
-    auto ir = map_.find(name);
-    if (ir == map_.end()) {
-      return nullptr;
+    for (auto *a : map_) {
+      if (a->getName() == name)
+        return a;
     }
-    return ir->second;
+    return nullptr;
   }
 };
 
