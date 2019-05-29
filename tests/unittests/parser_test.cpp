@@ -279,3 +279,16 @@ TEST(basic, parse_binary_builtin_functions) {
   auto *prog = P.getContext().getProgram();
   prog->verify();
 }
+
+TEST(basic, parse_unary_functions) {
+  const char *parse_unary_functions = R"(
+  def parse_binary_builtin_functions(C:float<x:100>) {
+    C[0] = log(exp(sqrt(1.3))) + sqrt(log(C[0]) + 3.4) + abs(-2.3)
+  })";
+  ParserContext ctx(parse_unary_functions);
+  Parser P(ctx);
+  P.Parse();
+  EXPECT_EQ(ctx.getNumErrors(), 0);
+  auto *prog = P.getContext().getProgram();
+  prog->verify();
+}

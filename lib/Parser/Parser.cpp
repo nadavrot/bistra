@@ -262,6 +262,28 @@ Expr *Parser::parseBuiltinFunction() {
     return new BinaryExpr(args[0], args[1], BinaryExpr::BinOpKind::Pow, loc);
   }
 
+  case builtin_func_log: {
+    if (parseCallArgumentList(args, false, 1))
+      return nullptr;
+    return new UnaryExpr(args[0], UnaryExpr::UnaryOpKind::Log, loc);
+  }
+  case builtin_func_exp: {
+    if (parseCallArgumentList(args, false, 1))
+      return nullptr;
+    return new UnaryExpr(args[0], UnaryExpr::UnaryOpKind::Exp, loc);
+  }
+  case builtin_func_sqrt: {
+    if (parseCallArgumentList(args, false, 1))
+      return nullptr;
+    return new UnaryExpr(args[0], UnaryExpr::UnaryOpKind::Sqrt, loc);
+  }
+
+  case builtin_func_abs: {
+    if (parseCallArgumentList(args, false, 1))
+      return nullptr;
+    return new UnaryExpr(args[0], UnaryExpr::UnaryOpKind::Abs, loc);
+  }
+
   default: {
     ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
                   "Unable to parse built-in function");
@@ -352,6 +374,10 @@ Expr *Parser::parseExprPrimary() {
   case builtin_func_min:
   case builtin_func_max:
   case builtin_func_pow:
+  case builtin_func_log:
+  case builtin_func_exp:
+  case builtin_func_sqrt:
+  case builtin_func_abs:
     return parseBuiltinFunction();
 
   default:
