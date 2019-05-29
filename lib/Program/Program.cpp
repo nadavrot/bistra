@@ -137,7 +137,23 @@ const char *BinaryExpr::getOpSymbol(BinOpKind kind_) {
 #undef CASE
 }
 
+const char *UnaryExpr::getOpSymbol(UnaryOpKind kind_) {
+#define CASE(opname, symbol)                                                   \
+  case UnaryExpr::UnaryOpKind::opname: {                                       \
+    return symbol;                                                             \
+  }
+  switch (kind_) {
+    CASE(Exp, "exp")
+    CASE(Sqrt, "sqrt")
+    CASE(Log, "log")
+    CASE(Abs, "abs")
+  }
+#undef CASE
+}
+
 const char *BinaryExpr::getOpSymbol() const { return getOpSymbol(getKind()); }
+
+const char *UnaryExpr::getOpSymbol() const { return getOpSymbol(getKind()); }
 
 void Scope::dump(unsigned indent) const {
   for (auto &SH : body_) {
@@ -302,8 +318,6 @@ void StoreLocalStmt::dump(unsigned indent) const {
 void IndexExpr::dump() const { std::cout << loop_->getName(); }
 
 void BinaryExpr::dump() const {
-
-  // Mul, Add, Div, Sub, Max, Min, Pow
   switch (getKind()) {
   case Mul:
   case Add:
@@ -326,6 +340,19 @@ void BinaryExpr::dump() const {
   }
 }
 
+void UnaryExpr::dump() const {
+  switch (getKind()) {
+  case Exp:
+  case Sqrt:
+  case Log:
+  case Abs:
+    std::cout << " " << getOpSymbol() << "(";
+    val_->dump();
+    std::cout << ")";
+    break;
+  }
+}
+
 Expr *ConstantExpr::clone(CloneCtx &map) {
   return new ConstantExpr(this->val_);
 }
@@ -337,6 +364,10 @@ Expr *ConstantFPExpr::clone(CloneCtx &map) {
 Expr *BinaryExpr::clone(CloneCtx &map) {
   return new BinaryExpr(LHS_->clone(map), RHS_->clone(map), getKind(),
                         getLoc());
+}
+
+Expr *UnaryExpr::clone(CloneCtx &map) {
+  return new UnaryExpr(val_->clone(map), getKind(), getLoc());
 }
 
 Expr *BroadcastExpr::clone(CloneCtx &map) {
@@ -431,6 +462,12 @@ void BinaryExpr::verify() const {
   assert(RHS_.get() && "Invalid operand");
   LHS_->verify();
   RHS_->verify();
+}
+
+void UnaryExpr::verify() const {
+  assert(val_.getParent() == this && "Invalid handle owner pointer");
+  assert(val_.get() && "Invalid operand");
+  val_->verify();
 }
 
 void ConstantExpr::verify() const {}
@@ -556,6 +593,12 @@ void BinaryExpr::visit(NodeVisitor *visitor) {
   visitor->enter(this);
   LHS_->visit(visitor);
   RHS_->visit(visitor);
+  visitor->leave(this);
+}
+
+void UnaryExpr::visit(NodeVisitor *visitor) {
+  visitor->enter(this);
+  val_->visit(visitor);
   visitor->leave(this);
 }
 

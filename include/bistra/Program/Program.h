@@ -417,11 +417,6 @@ public:
   /// \return the kind of the binary operator.
   BinOpKind getKind() const { return kind_; }
 
-  /// \returns a valid expression type for the binary operator \p kind for
-  /// the operands \p L and \p R. The return type depends if this is an
-  /// arithmetic binary operation of a comparison operation.
-  ExprType getExprType(const ExprType &L, const ExprType &R, BinOpKind kind);
-
   /// \returns the string representation of \p kind_;
   static const char *getOpSymbol(BinOpKind kind_);
 
@@ -433,6 +428,42 @@ public:
 
   void setLHS(Expr *e) { return LHS_.setReference(e); }
   void setRHS(Expr *e) { return RHS_.setReference(e); }
+
+  virtual void dump() const override;
+  virtual Expr *clone(CloneCtx &map) override;
+  virtual void verify() const override;
+  virtual void visit(NodeVisitor *visitor) override;
+};
+
+/// Unary arithmetic expression.
+class UnaryExpr : public Expr {
+public:
+  enum UnaryOpKind { Exp, Log, Sqrt, Abs };
+
+protected:
+  /// The child expression.
+  ExprHandle val_;
+
+  /// The kind of the operator.
+  UnaryOpKind kind_;
+
+public:
+  UnaryExpr(Expr *val, UnaryOpKind kind, DebugLoc loc)
+      : Expr(val->getType(), loc), val_(val, this), kind_(kind) {}
+
+  ~UnaryExpr() = default;
+
+  /// \return the kind of the operator.
+  UnaryOpKind getKind() const { return kind_; }
+
+  /// \returns the string representation of \p kind_;
+  static const char *getOpSymbol(UnaryOpKind kind_);
+
+  /// \returns the string representation of this expression;
+  const char *getOpSymbol() const;
+
+  Expr *getVal() const { return val_.get(); }
+  void setVal(Expr *e) { return val_.setReference(e); }
 
   virtual void dump() const override;
   virtual Expr *clone(CloneCtx &map) override;
