@@ -15,6 +15,7 @@ class LLVMEmitter {
   llvm::IRBuilder<> builder_;
   std::unique_ptr<llvm::Module> M_;
   std::map<std::string, llvm::Value *> namedValues_;
+  std::map<Loop *, llvm::Value *> loopIndices_;
   llvm::Function *func_;
 
   llvm::Type *int64Ty_;
@@ -59,6 +60,58 @@ public:
   }
 
   llvm::Value *generate(Expr *e) {
+    auto *llvmTy = getLLVMTypeForType(e->getType());
+
+    // Handle Index expressions.
+    if (IndexExpr *ii = dynamic_cast<IndexExpr *>(e)) {
+      auto *L = ii->getLoop();
+      return builder_.CreateLoad(int64Ty_, loopIndices_[L], L->getName());
+    }
+
+    // Handle Constant expressions.
+    if (ConstantExpr *cc = dynamic_cast<ConstantExpr *>(e)) {
+      auto val = llvm::APInt(64, cc->getValue());
+      return llvm::Constant::getIntegerValue(llvmTy, val);
+    }
+
+    // Handle float-constant expressions.
+    if (ConstantFPExpr *cc = dynamic_cast<ConstantFPExpr *>(e)) {
+      auto val = llvm::APInt(64, cc->getValue());
+      return llvm::ConstantFP::get(llvmTy, cc->getValue());
+    }
+
+    // Handle binary expressions.
+    if (BinaryExpr *bin = dynamic_cast<BinaryExpr *>(e)) {
+      bool isFP = !bin->getType().isIndexTy();
+      auto *LHS = generate(bin->getLHS());
+      auto *RHS = generate(bin->getLHS());
+
+      // Mul, Add, Div, Sub, Max, Min, Pow.
+      switch (bin->getKind()) {
+      case BinaryExpr::BinOpKind::Add:
+        if (isFP)
+          return builder_.CreateAdd(LHS, RHS);
+        return builder_.CreateFAdd(LHS, RHS);
+
+      case BinaryExpr::BinOpKind::Mul:
+        if (isFP)
+          return builder_.CreateMul(LHS, RHS);
+        return builder_.CreateFMul(LHS, RHS);
+
+      case BinaryExpr::BinOpKind::Sub:
+        if (isFP)
+          return builder_.CreateSub(LHS, RHS);
+        return builder_.CreateFSub(LHS, RHS);
+
+      case BinaryExpr::BinOpKind::Div:
+        if (isFP)
+          return builder_.CreateSDiv(LHS, RHS);
+        return builder_.CreateFDiv(LHS, RHS);
+      default:
+        assert(false && "Invalid operation");
+      }
+    }
+
     auto *ty = getLLVMTypeForType(e->getType());
     return llvm::Constant::getNullValue(ty);
     return nullptr;
@@ -72,6 +125,9 @@ public:
   void emit(Loop *L) {
     auto *index = builder_.CreateAlloca(int64Ty_, 0, L->getName());
     builder_.CreateStore(int64Zero_, index);
+
+    // Record the loop index for expressions that need to reference it.
+    loopIndices_[L] = index;
 
     llvm::BasicBlock *header = llvm::BasicBlock::Create(ctx_, "header", func_);
     llvm::BasicBlock *body = llvm::BasicBlock::Create(ctx_, "body", func_);

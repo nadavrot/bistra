@@ -134,6 +134,9 @@ struct ExprType final {
   /// \returns true if this type is an index/pointer type.
   bool isIndexTy() const { return elementType_ == ElemKind::IndexTy; }
 
+  /// \returns true if this type is an floating point type.
+  bool isFPTy() const { return elementType_ == ElemKind::Float32Ty; }
+
   /// \returns true if \p other is the same type.
   bool isEqual(const ExprType &other) const {
     // Element type must be the same.
