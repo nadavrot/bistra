@@ -8,6 +8,12 @@ set(CMAKE_CXX_STANDARD 14)
 set(CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+
+find_package(LLVM CONFIG)
+if(NOT LLVM_FOUND OR LLVM_VERSION VERSION_LESS 7.0)
+  message("Could not find LLVM. Configure with -DLLVM_DIR=/usr/local/opt/llvm@8/lib/cmake/llvm")
+endif()
+
 # Export a JSON file with the compilation commands that external tools can use
 # to analyze the source code of the project.
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
