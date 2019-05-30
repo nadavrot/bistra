@@ -3,5 +3,6 @@ add_library(LLVMBackend
 
 target_link_libraries(LLVMBackend
                       PUBLIC
+                      ${llvm_libs}
                       )
 
