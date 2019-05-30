@@ -5,5 +5,5 @@
 using namespace bistra;
 
 std::unique_ptr<Backend> bistra::getBackend(const std::string &name) {
-  return std::make_unique<CBackend>();
+  return std::make_unique<LLVMBackend>();
 }

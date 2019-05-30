@@ -57,6 +57,18 @@ public:
 
     return F;
   }
+
+  llvm::Value *generate(Expr *e) {
+    auto *ty = getLLVMTypeForType(e->getType());
+    return llvm::Constant::getNullValue(ty);
+    return nullptr;
+  }
+
+  void emit(StoreLocalStmt *L) {
+    auto *varAlloca = namedValues_[L->getDest()->getName()];
+    builder_.CreateStore(generate(L->getValue()), varAlloca);
+  }
+
   void emit(Loop *L) {
     auto *index = builder_.CreateAlloca(int64Ty_, 0, L->getName());
     builder_.CreateStore(int64Zero_, index);
@@ -95,6 +107,31 @@ public:
     if (Loop *L = dynamic_cast<Loop *>(S)) {
       return emit(L);
     }
+
+    if (StoreLocalStmt *SLS = dynamic_cast<StoreLocalStmt *>(S)) {
+      return emit(SLS);
+    }
+  }
+
+  llvm::Type *getLLVMTypeForType(const ExprType &p) {
+    llvm::Type *res = nullptr;
+    switch (p.getElementType()) {
+    case ElemKind::Float32Ty:
+      res = llvm::Type::getFloatTy(ctx_);
+      break;
+    case ElemKind::IndexTy:
+      res = int64Ty_;
+      break;
+
+    default:
+      assert(false && "Invalid type");
+    }
+
+    if (p.isVector()) {
+      res = llvm::VectorType::get(res, p.getWidth());
+    }
+
+    return res;
   }
 
   llvm::Function *emit(Program *p) {
@@ -111,6 +148,12 @@ public:
     namedValues_.clear();
     for (auto &arg : func_->args())
       namedValues_[arg.getName()] = &arg;
+
+    for (auto *var : p->getVars()) {
+      auto ty = getLLVMTypeForType(var->getType());
+      namedValues_[var->getName()] =
+          builder_.CreateAlloca(ty, 0, var->getName());
+    }
 
     for (auto &stmt : p->getBody()) {
       emit(stmt);
