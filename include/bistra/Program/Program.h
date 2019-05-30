@@ -483,7 +483,7 @@ public:
       : Expr(val->getType().asVector(vf), val->getLoc()), val_(val, this),
         vf_(vf) {}
 
-  Expr *getValue() { return val_; }
+  Expr *getValue() const { return val_.get(); }
 
   virtual void dump() const override;
   virtual Expr *clone(CloneCtx &map) override;
@@ -500,7 +500,7 @@ class LoadExpr final : public Expr {
 
 public:
   /// \returns the buffer destination of the instruction.
-  Argument *getDest() { return arg_; }
+  Argument *getDest() const { return arg_; }
 
   /// \returns the indices indexing into the array.
   const std::vector<ExprHandle> &getIndices() const { return indices_; }
@@ -542,7 +542,7 @@ class LoadLocalExpr final : public Expr {
 
 public:
   /// \returns the accessed variable.
-  LocalVar *getDest() { return var_; }
+  LocalVar *getDest() const { return var_; }
 
   LoadLocalExpr(LocalVar *var, DebugLoc loc)
       : Expr(var->getType(), loc), var_(var) {}
