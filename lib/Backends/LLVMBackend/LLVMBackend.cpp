@@ -132,7 +132,7 @@ public:
       // Generate the expression; (x * dims[1] * dims[2]).
       llvm::Value *dimSizeVal = generate(indices[i].get());
       // For each sizeScale:
-      for (int j = 1; j < indices.size(); j++) {
+      for (int j = i + 1; j < indices.size(); j++) {
         auto dimSize = bufferTy->getDims()[j];
         auto val = llvm::APInt(64, dimSize);
         llvm::Value *dimsI = llvm::Constant::getIntegerValue(int64Ty_, val);
@@ -168,7 +168,7 @@ public:
     if (auto *bin = dynamic_cast<const BinaryExpr *>(e)) {
       bool isFP = !bin->getType().isIndexTy();
       auto *LHS = generate(bin->getLHS());
-      auto *RHS = generate(bin->getLHS());
+      auto *RHS = generate(bin->getRHS());
 
       // Mul, Add, Div, Sub, Max, Min, Pow.
       switch (bin->getKind()) {
@@ -213,18 +213,6 @@ public:
       return builder_.CreateLoad(allocaTy, alloca, r->getDest()->getName());
     }
 
-
-    /*
-    auto *storedValue = generate(SS->getValue());
-    auto *bufferTy = SS->getDest()->getType();
-    llvm::Value *offset = getIndexOffsetForBuffer(SS->getIndices(), bufferTy);
-    auto *arg = namedValues_[SS->getDest()->getName()];
-    func_->print(llvm::outs());
-    auto *ptr = builder_.CreateGEP(arg, offset);
-    builder_.CreateStore(storedValue, ptr);
-*/
-
-
     // Handle Load expressions.
     if (auto *ld = dynamic_cast<const LoadExpr *>(e)) {
 
@@ -258,7 +246,6 @@ public:
     auto *bufferTy = SS->getDest()->getType();
     llvm::Value *offset = getIndexOffsetForBuffer(SS->getIndices(), bufferTy);
     auto *arg = namedValues_[SS->getDest()->getName()];
-    func_->print(llvm::outs());
     auto *ptr = builder_.CreateGEP(arg, offset);
     builder_.CreateStore(storedValue, ptr);
   }
@@ -310,6 +297,7 @@ public:
     if (auto *ST = dynamic_cast<StoreStmt *>(S)) {
       return emit(ST);
     }
+    assert(false);
   }
 
   llvm::Type *getLLVMTypeForType(const ExprType &p) {
@@ -359,6 +347,7 @@ public:
     }
 
     builder_.CreateRetVoid();
+    llvm::verifyFunction(*func_);
     func_->print(llvm::outs());
     return func_;
   }
