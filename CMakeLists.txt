@@ -19,7 +19,7 @@ message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
 include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
-llvm_map_components_to_libnames(llvm_libs support core irreader analysis executionengine instcombine object orcJIT runtimedyld scalaropts transformutils native ipo)
+llvm_map_components_to_libnames(llvm_libs support core irreader analysis executionengine instcombine object orcJIT runtimedyld scalaropts transformutils native ipo orcjit)
 
 # Export a JSON file with the compilation commands that external tools can use
 # to analyze the source code of the project.
