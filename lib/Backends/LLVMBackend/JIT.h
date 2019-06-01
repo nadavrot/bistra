@@ -1,8 +1,6 @@
 #ifndef BISTRA_BACKENDS_LLVMBACKEND_JIT_H
 #define BISTRA_BACKENDS_LLVMBACKEND_JIT_H
 
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/iterator_range.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
 #include "llvm/ExecutionEngine/JITSymbol.h"
 #include "llvm/ExecutionEngine/Orc/CompileUtils.h"
@@ -14,8 +12,8 @@
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Mangler.h"
 #include "llvm/Support/DynamicLibrary.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetMachine.h"
+
 #include <algorithm>
 #include <map>
 #include <memory>

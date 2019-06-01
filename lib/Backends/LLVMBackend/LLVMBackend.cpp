@@ -3,61 +3,16 @@
 #include "bistra/Program/Program.h"
 #include "bistra/Program/Utils.h"
 
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/IR/DerivedTypes.h"
-#include "llvm/IR/IRBuilder.h"
-#include "llvm/IR/Module.h"
-#include "llvm/IR/Verifier.h"
+#include "llvm/Analysis/Passes.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constants.h"
-#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/DataLayout.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/LegacyPassManager.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Verifier.h"
-#include "llvm/Support/TargetSelect.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Transforms/InstCombine/InstCombine.h"
-#include "llvm/Transforms/Scalar.h"
-#include "llvm/Transforms/Scalar/GVN.h"
-#include "llvm/Transforms/IPO/PassManagerBuilder.h"
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/Analysis/BasicAliasAnalysis.h"
-#include "llvm/Analysis/CFLAndersAliasAnalysis.h"
-#include "llvm/Analysis/CFLSteensAliasAnalysis.h"
-#include "llvm/Analysis/GlobalsModRef.h"
-#include "llvm/Analysis/InlineCost.h"
-#include "llvm/Analysis/Passes.h"
-#include "llvm/Analysis/ScopedNoAliasAA.h"
-#include "llvm/Analysis/TargetLibraryInfo.h"
-#include "llvm/Analysis/TargetTransformInfo.h"
-#include "llvm/Analysis/TypeBasedAliasAnalysis.h"
-#include "llvm/IR/Constants.h"
-#include "llvm/IR/DataLayout.h"
-#include "llvm/IR/LegacyPassManager.h"
-#include "llvm/IR/Module.h"
-#include "llvm/IR/Verifier.h"
-#include "llvm/Support/Casting.h"
-#include "llvm/Support/CommandLine.h"
-#include "llvm/Support/ManagedStatic.h"
-#include "llvm/Support/TargetSelect.h"
-#include "llvm/Transforms/IPO.h"
-#include "llvm/Transforms/IPO/ForceFunctionAttrs.h"
-#include "llvm/Transforms/IPO/FunctionAttrs.h"
-#include "llvm/Transforms/IPO/InferFunctionAttrs.h"
-#include "llvm/Transforms/IPO/Internalize.h"
-#include "llvm/Transforms/IPO/PassManagerBuilder.h"
-#include "llvm/Transforms/Instrumentation.h"
-#include "llvm/Transforms/Scalar.h"
-#include "llvm/Transforms/Scalar/GVN.h"
-#include "llvm/Transforms/Scalar/SimpleLoopUnswitch.h"
-#include "llvm/Transforms/Vectorize.h"
-
-
 
 using namespace bistra;
 
@@ -93,11 +48,11 @@ public:
     // Construct the types for the argument list.
     for (auto *arg : p->getArgs()) {
       switch (arg->getType()->getElementType()) {
-        case ElemKind::Float32Ty: {
-          auto *ptrTy = llvm::PointerType::get(llvm::Type::getFloatTy(ctx_), 0);
-          argListType.push_back(ptrTy);
+      case ElemKind::Float32Ty: {
+        auto *ptrTy = llvm::PointerType::get(llvm::Type::getFloatTy(ctx_), 0);
+        argListType.push_back(ptrTy);
         break;
-        }
+      }
       default:
         assert(false && "Invalid parameter");
       }
@@ -199,7 +154,7 @@ public:
     // Handle broadcast expressions.
     if (auto *bb = dynamic_cast<const BroadcastExpr *>(e)) {
       auto *val = generate(bb->getValue());
-      auto scalarTy =val->getType();
+      auto scalarTy = val->getType();
       assert(!scalarTy->isVectorTy() && "must be a scalar");
       int width = bb->getType().getWidth();
       return builder_.CreateVectorSplat(width, val);
@@ -209,7 +164,7 @@ public:
     if (auto *r = dynamic_cast<const LoadLocalExpr *>(e)) {
       auto *alloca = namedValues_[r->getDest()->getName()];
       auto *allocaTy =
-      llvm::cast<llvm::PointerType>(alloca->getType())->getElementType();
+          llvm::cast<llvm::PointerType>(alloca->getType())->getElementType();
       return builder_.CreateLoad(allocaTy, alloca, r->getDest()->getName());
     }
 
@@ -404,11 +359,6 @@ std::string LLVMBackend::emitBenchmarkCode(Program *p, unsigned iter) {
 }
 
 double LLVMBackend::evaluateCode(Program *p, unsigned iter) {
-
-  llvm::InitializeNativeTarget();
-  llvm::InitializeNativeTargetAsmPrinter();
-  llvm::InitializeNativeTargetAsmParser();
-
   LLVMEmitter EE;
   auto *func = EE.emit(p);
   EE.emitBenchmark(p);
