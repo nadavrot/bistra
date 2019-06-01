@@ -129,23 +129,23 @@ public:
       switch (bin->getKind()) {
       case BinaryExpr::BinOpKind::Add:
         if (isFP)
-          return builder_.CreateAdd(LHS, RHS);
-        return builder_.CreateFAdd(LHS, RHS);
+          return builder_.CreateFAdd(LHS, RHS);
+        return builder_.CreateAdd(LHS, RHS);
 
       case BinaryExpr::BinOpKind::Mul:
         if (isFP)
-          return builder_.CreateMul(LHS, RHS);
-        return builder_.CreateFMul(LHS, RHS);
+          return builder_.CreateFMul(LHS, RHS);
+        return builder_.CreateMul(LHS, RHS);
 
       case BinaryExpr::BinOpKind::Sub:
         if (isFP)
-          return builder_.CreateSub(LHS, RHS);
-        return builder_.CreateFSub(LHS, RHS);
+          return builder_.CreateFSub(LHS, RHS);
+        return builder_.CreateSub(LHS, RHS);
 
       case BinaryExpr::BinOpKind::Div:
         if (isFP)
-          return builder_.CreateSDiv(LHS, RHS);
-        return builder_.CreateFDiv(LHS, RHS);
+          return builder_.CreateFDiv(LHS, RHS);
+        return builder_.CreateSDiv(LHS, RHS);
       default:
         assert(false && "Invalid operation");
       }
@@ -177,8 +177,9 @@ public:
 
       if (ld->getType().isVector()) {
         auto width = ld->getType().getWidth();
-        auto *vecTy = llvm::VectorType::get(arg->getType(), width);
-        auto *ptr = builder_.CreateGEP(vecTy, arg, offset);
+        auto *elemTy = llvm::cast<llvm::PointerType>(arg->getType())->getElementType();
+        auto *vecTy = llvm::VectorType::get(elemTy, width);
+        auto *ptr = builder_.CreateGEP(elemTy, arg, offset);
         return builder_.CreateLoad(vecTy, ptr, "ld");
       }
 
@@ -203,6 +204,30 @@ public:
     auto *arg = namedValues_[SS->getDest()->getName()];
     auto *ptr = builder_.CreateGEP(arg, offset);
     builder_.CreateStore(storedValue, ptr);
+  }
+
+  void emit(IfRange *IR) {
+    llvm::Value *indexVal = generate(IR->getIndex());
+    auto range = IR->getRange();
+
+    llvm::BasicBlock *inrng = llvm::BasicBlock::Create(ctx_, "inRange", func_);
+    llvm::BasicBlock *cont = llvm::BasicBlock::Create(ctx_, "continue", func_);
+
+    auto *a = builder_.CreateICmp(llvm::CmpInst::Predicate::ICMP_SGE, indexVal,
+                        llvm::ConstantInt::get(int64Ty_, range.first));
+    auto *b = builder_.CreateICmp(llvm::CmpInst::Predicate::ICMP_SLT, indexVal,
+                                  llvm::ConstantInt::get(int64Ty_, range.second));
+
+    auto *orr = builder_.CreateOr(a, b);
+
+    builder_.CreateCondBr(orr, inrng, cont);
+
+    builder_.SetInsertPoint(inrng);
+    for (auto &s : IR->getBody()) {
+      emit(s);
+    }
+    builder_.CreateBr(cont);
+    builder_.SetInsertPoint(cont);
   }
 
   void emit(Loop *L) {
@@ -245,6 +270,10 @@ public:
   void emit(Stmt *S) {
     if (auto *L = dynamic_cast<Loop *>(S)) {
       return emit(L);
+    }
+
+    if (auto *IR = dynamic_cast<IfRange *>(S)) {
+      return emit(IR);
     }
     if (auto *SLS = dynamic_cast<StoreLocalStmt *>(S)) {
       return emit(SLS);
