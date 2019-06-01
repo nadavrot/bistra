@@ -321,6 +321,50 @@ public:
     return res;
   }
 
+  llvm::Function *emitBenchmark(Program *p) {
+    std::vector<llvm::Type *> argListType;
+    argListType.push_back(llvm::Type::getInt8PtrTy(ctx_));
+
+    // Make the function type:  void benchmark(char *mem).
+    llvm::FunctionType *FT = llvm::FunctionType::get(
+        llvm::Type::getVoidTy(ctx_), argListType, false);
+    llvm::Function *F = llvm::Function::Create(
+        FT, llvm::Function::ExternalLinkage, "benchmark", M_.get());
+
+    // Create a new basic block to start insertion into.
+    llvm::BasicBlock *BB = llvm::BasicBlock::Create(ctx_, "entry", F);
+    builder_.SetInsertPoint(BB);
+
+    // Get the input buffer.
+    auto *memBuffer = F->args().begin();
+    std::vector<llvm::Value *> params;
+
+    // Construct the offsets into the memory buffer.
+    uint64_t offset = 0;
+    for (auto *arg : p->getArgs()) {
+      switch (arg->getType()->getElementType()) {
+      case ElemKind::Float32Ty: {
+        llvm::Value *offsetV = llvm::ConstantInt::get(int64Ty_, offset);
+        auto *gep = builder_.CreateGEP(memBuffer, offsetV);
+        auto *bc =
+            builder_.CreateBitCast(gep, llvm::PointerType::getFloatPtrTy(ctx_));
+        params.push_back(bc);
+        // Adjust the pointer for the next buffer.
+        offset += arg->getType()->size() * 4;
+        break;
+      }
+      default:
+        assert(false && "Invalid parameter");
+      }
+    }
+
+    builder_.CreateCall(func_, params);
+    builder_.CreateRetVoid();
+    llvm::verifyFunction(*F);
+    F->print(llvm::outs());
+    return F;
+  }
+
   llvm::Function *emit(Program *p) {
     func_ = emitPrototype(p);
 
@@ -348,7 +392,7 @@ public:
 
     builder_.CreateRetVoid();
     llvm::verifyFunction(*func_);
-    func_->print(llvm::outs());
+    func_->getParent()->print(llvm::outs(), 0);
     return func_;
   }
 };
@@ -360,10 +404,15 @@ std::string LLVMBackend::emitBenchmarkCode(Program *p, unsigned iter) {
 }
 
 double LLVMBackend::evaluateCode(Program *p, unsigned iter) {
+
+  llvm::InitializeNativeTarget();
+  llvm::InitializeNativeTargetAsmPrinter();
+  llvm::InitializeNativeTargetAsmParser();
+
   LLVMEmitter EE;
   auto *func = EE.emit(p);
+  EE.emitBenchmark(p);
 
-
-
+  run(func->getParent());
   return 0;
 }
