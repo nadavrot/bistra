@@ -40,7 +40,7 @@ public:
     M_ = std::make_unique<llvm::Module>("", ctx_);
   }
 
-  llvm::Module *getModule() const { return M_.get(); }
+  std::unique_ptr<llvm::Module> &getModule() { return M_; }
 
   llvm::Function *emitPrototype(Program *p) {
     std::vector<llvm::Type *> argListType;
@@ -179,8 +179,10 @@ public:
         auto width = ld->getType().getWidth();
         auto *elemTy = llvm::cast<llvm::PointerType>(arg->getType())->getElementType();
         auto *vecTy = llvm::VectorType::get(elemTy, width);
+        auto *vecPTy = llvm::PointerType::get(vecTy, 0);
         auto *ptr = builder_.CreateGEP(elemTy, arg, offset);
-        return builder_.CreateLoad(vecTy, ptr, "ld");
+        auto *vt = builder_.CreateBitCast(ptr, vecPTy);
+        return builder_.CreateLoad(vt, "ld");
       }
 
       auto *ptr = builder_.CreateGEP(arg, offset);
@@ -203,7 +205,9 @@ public:
     llvm::Value *offset = getIndexOffsetForBuffer(SS->getIndices(), bufferTy);
     auto *arg = namedValues_[SS->getDest()->getName()];
     auto *ptr = builder_.CreateGEP(arg, offset);
-    builder_.CreateStore(storedValue, ptr);
+    auto *vecPTy = llvm::PointerType::get(storedValue->getType(), 0);
+    auto *vt = builder_.CreateBitCast(ptr, vecPTy);
+    builder_.CreateStore(storedValue, vt);
   }
 
   void emit(IfRange *IR) {
@@ -389,9 +393,13 @@ std::string LLVMBackend::emitBenchmarkCode(Program *p, unsigned iter) {
 
 double LLVMBackend::evaluateCode(Program *p, unsigned iter) {
   LLVMEmitter EE;
-  auto *func = EE.emit(p);
+  EE.emit(p);
   EE.emitBenchmark(p);
 
-  run(func->getParent());
-  return 0;
+  size_t memSz = 0;
+  for (auto arg : p->getArgs()) {
+    memSz += arg->getType()->getSizeInBytes();
+  }
+
+  return run(std::move(EE.getModule()), memSz, iter);
 }

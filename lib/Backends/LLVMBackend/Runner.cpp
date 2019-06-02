@@ -21,8 +21,6 @@
 
 using namespace bistra;
 
-static std::unique_ptr<llvm::orc::SimpleJIT> TheJIT;
-
 static void optimize(llvm::TargetMachine &TM, llvm::Module *M) {
   M->setDataLayout(TM.createDataLayout());
   M->setTargetTriple(TM.getTargetTriple().normalize());
@@ -53,7 +51,8 @@ static void optimize(llvm::TargetMachine &TM, llvm::Module *M) {
   M->print(llvm::outs(), 0);
 }
 
-void LLVMBackend::run(llvm::Module *M) {
+double LLVMBackend::run(std::unique_ptr<llvm::Module> M, size_t memSize,
+                        unsigned iter) {
   llvm::InitializeNativeTarget();
   llvm::InitializeNativeTargetAsmPrinter();
   llvm::InitializeNativeTargetAsmParser();
@@ -63,13 +62,32 @@ void LLVMBackend::run(llvm::Module *M) {
   llvm::outs() << TM.getTargetCPU() << "\n";
   llvm::outs() << TM.getTargetFeatureString() << "\n";
 
-  optimize(TM, M);
+  optimize(TM, M.get());
 
-  std::unique_ptr<llvm::Module> MU = std::unique_ptr<llvm::Module>(M);
-  auto H = theJIT->addModule(std::move(MU));
+  auto H = theJIT->addModule(std::move(M));
 
-  auto ExprSymbol = TheJIT->findSymbol("program");
+  auto ExprSymbol = theJIT->findSymbol("benchmark");
   assert(ExprSymbol && "Function not found");
 
-  TheJIT->removeModule(H);
+  auto addr = ExprSymbol.getAddress();
+
+  auto scratchPad = malloc(memSize);
+
+  double timeSpent = 0.0;
+
+  if (addr) {
+    clock_t begin = clock();
+
+    void (*call)(void *) = (void (*)(void *))addr.get();
+    for (int i = 0; i < iter; i++) {
+      call(scratchPad);
+    }
+    clock_t end = clock();
+    timeSpent += (double)(end - begin) / CLOCKS_PER_SEC;
+  }
+
+  free(scratchPad);
+  theJIT->removeModule(H);
+
+  return timeSpent / iter;
 }
