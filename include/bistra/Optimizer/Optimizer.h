@@ -8,6 +8,7 @@
 namespace bistra {
 
 class Program;
+class Backend;
 
 class Pass {
   std::string name_;
@@ -23,13 +24,15 @@ public:
 class EvaluatorPass : public Pass {
   double bestTime_{1000};
   StmtHandle bestProgram_;
+  std::unique_ptr<Backend> backend_;
   /// Save the best C program to this optional path, if not empty.
   std::string savePath_;
 
 public:
-  EvaluatorPass(const std::string &savePath = "")
+  EvaluatorPass(std::unique_ptr<Backend> backend,
+                const std::string &savePath = "")
       : Pass("evaluator", nullptr), bestProgram_(nullptr, nullptr),
-        savePath_(savePath) {}
+        backend_(std::move(backend)), savePath_(savePath) {}
   virtual void doIt(Program *p) override;
   Program *getBestProgram() { return (Program *)bestProgram_.get(); }
 };
@@ -73,7 +76,8 @@ public:
 /// Construct an optimization pipeline and evaluate different configurations for
 /// the program \p. Save intermediate results to \p filename.
 /// \returns the best program.
-Program *optimizeEvaluate(Program *p, const std::string &filename);
+Program *optimizeEvaluate(std::unique_ptr<Backend> backend, Program *p,
+                          const std::string &filename);
 
 } // namespace bistra
 
