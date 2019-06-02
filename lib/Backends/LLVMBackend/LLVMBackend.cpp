@@ -13,6 +13,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Verifier.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace bistra;
 
@@ -441,16 +442,26 @@ public:
   }
 };
 
-std::string LLVMBackend::emitProgramCode(Program *p) { return ""; }
+std::string LLVMBackend::emitProgramCode(Program *p) {
+  return emitBenchmarkCode(p, 1);
+}
 
 std::string LLVMBackend::emitBenchmarkCode(Program *p, unsigned iter) {
-  return "";
+  LLVMEmitter EE;
+  EE.emit(p);
+  EE.emitBenchmark(p, iter);
+  optimize(getTargetMachine(), EE.getModule().get());
+  std::string out;
+  llvm::raw_string_ostream rss(out);
+  EE.getModule()->print(rss, nullptr);
+  return rss.str();
 }
 
 double LLVMBackend::evaluateCode(Program *p, unsigned iter) {
   LLVMEmitter EE;
   EE.emit(p);
   EE.emitBenchmark(p, iter);
+  optimize(getTargetMachine(), EE.getModule().get());
 
   // Calculate how much scratch pad memory do we need to evaluate the code.
   size_t memSz = 0;
