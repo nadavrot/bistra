@@ -22,8 +22,7 @@ void EvaluatorPass::doIt(Program *p) {
   assert(heatmap.count(p) && "No information for the program");
   auto info = heatmap[p];
 
-  auto CB = getBackend("C");
-  auto res = CB->evaluateCode(p, 10);
+  auto res = backend_->evaluateCode(p, 10);
   if (res < bestTime_) {
     p->dump();
     std::cout << "New best result: " << res << ", "
@@ -34,7 +33,7 @@ void EvaluatorPass::doIt(Program *p) {
 
     if (savePath_.size()) {
       remove(savePath_.c_str());
-      writeFile(savePath_, CB->emitBenchmarkCode(p, 10));
+      writeFile(savePath_, backend_->emitBenchmarkCode(p, 10));
     }
   } else {
     std::cout << "." << std::flush;
@@ -256,8 +255,9 @@ restart:
   nextPass_->doIt(np.get());
 }
 
-Program *bistra::optimizeEvaluate(Program *p, const std::string &filename) {
-  auto *ev = new EvaluatorPass(filename);
+Program *bistra::optimizeEvaluate(std::unique_ptr<Backend> backend, Program *p,
+                                  const std::string &filename) {
+  auto *ev = new EvaluatorPass(std::move(backend), filename);
   Pass *ps = new FilterPass(ev);
   ps = new PromoterPass(ps);
   ps = new WidnerPass(ps);

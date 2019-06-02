@@ -23,6 +23,7 @@ DEFINE_bool(opt, false, "Optimize the program.");
 DEFINE_bool(tune, false, "Executes and auto-tune the program.");
 DEFINE_bool(time, false, "Executes and times the program.");
 DEFINE_string(out, "", "Output destination file to save the compiled program.");
+DEFINE_string(backend, "llvm", "The backend to use [C/llvm]");
 
 /// \returns the most expensive operation in the program and it's costt.
 std::pair<Expr *, uint64_t> getExpensiveOp(Scope *S) {
@@ -195,6 +196,10 @@ int main(int argc, char *argv[]) {
     return 0;
   }
 
+  // Get the backend.
+  auto backend = getBackend(FLAGS_backend);
+  assert(backend.get() && "Invalid backend");
+
   Program *p = ctx.getProgram();
 
   // Apply the pragma commands.
@@ -215,7 +220,7 @@ int main(int argc, char *argv[]) {
                 << outFile << "\n";
     }
 
-    optimizeEvaluate(p, outFile);
+    optimizeEvaluate(std::move(backend), p, outFile);
   }
 
   if (FLAGS_opt) {
@@ -228,8 +233,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (FLAGS_time) {
-    auto CB = getBackend("C");
-    auto res = CB->evaluateCode(p, 10);
+    auto res = backend->evaluateCode(p, 10);
     std::cout << "The program \"" << p->getName() << "\" completed in " << res
               << " seconds. \n";
   }
