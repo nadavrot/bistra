@@ -33,7 +33,6 @@ public:
   LLVMEmitter() : builder_(ctx_) {
     int64Ty_ = llvm::Type::getInt64Ty(ctx_);
     int64Zero_ = llvm::Constant::getNullValue(int64Ty_);
-
     int32Ty_ = llvm::Type::getInt32Ty(ctx_);
     int32Zero_ = llvm::Constant::getNullValue(int32Ty_);
 
@@ -170,7 +169,6 @@ public:
 
     // Handle Load expressions.
     if (auto *ld = dynamic_cast<const LoadExpr *>(e)) {
-
       auto *bufferTy = ld->getDest()->getType();
       llvm::Value *offset = getIndexOffsetForBuffer(ld->getIndices(), bufferTy);
       auto *arg = namedValues_[ld->getDest()->getName()];
@@ -286,7 +284,6 @@ public:
     if (auto *L = dynamic_cast<Loop *>(S)) {
       return emit(L);
     }
-
     if (auto *IR = dynamic_cast<IfRange *>(S)) {
       return emit(IR);
     }
@@ -299,6 +296,7 @@ public:
     assert(false);
   }
 
+  /// \returns the LLVM type that matches the type \p p.
   llvm::Type *getLLVMTypeForType(const ExprType &p) {
     llvm::Type *res = nullptr;
     switch (p.getElementType()) {
@@ -320,6 +318,9 @@ public:
     return res;
   }
 
+  /// Generate a simple for loop that calls into the tested program.
+  /// Take the one buffer and split it into pointers that reference the one
+  /// chunks.
   llvm::Function *emitBenchmark(Program *p, int iter) {
     std::vector<llvm::Type *> argListType;
     argListType.push_back(llvm::Type::getInt8PtrTy(ctx_));
@@ -358,7 +359,6 @@ public:
     }
 
     // Generate the loop that calls the program \p iter times.
-
     auto *index = builder_.CreateAlloca(int64Ty_, 0, "i");
     builder_.CreateStore(int64Zero_, index);
 
@@ -397,7 +397,7 @@ public:
     FMF.set();
     for (auto &BB : *F) {
       for (auto &II : BB) {
-        if (auto *K = llvm::dyn_cast<llvm::FPMathOperator>(&II)) {
+        if (llvm::isa<llvm::FPMathOperator>(&II)) {
           II.setFast(true);
         }
       }
@@ -425,6 +425,7 @@ public:
           builder_.CreateAlloca(ty, 0, var->getName());
     }
 
+    // Emit the code for the function body.
     for (auto &stmt : p->getBody()) {
       emit(stmt);
     }
@@ -451,6 +452,7 @@ double LLVMBackend::evaluateCode(Program *p, unsigned iter) {
   EE.emit(p);
   EE.emitBenchmark(p, iter);
 
+  // Calculate how much scratch pad memory do we need to evaluate the code.
   size_t memSz = 0;
   for (auto arg : p->getArgs()) {
     memSz += arg->getType()->getSizeInBytes();

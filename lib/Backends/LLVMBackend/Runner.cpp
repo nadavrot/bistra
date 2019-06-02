@@ -47,8 +47,6 @@ static void optimize(llvm::TargetMachine &TM, llvm::Module *M) {
   }
   FPM.doFinalization();
   PM.run(*M);
-
-  M->print(llvm::outs(), 0);
 }
 
 double LLVMBackend::run(std::unique_ptr<llvm::Module> M, size_t memSize,
@@ -70,7 +68,6 @@ double LLVMBackend::run(std::unique_ptr<llvm::Module> M, size_t memSize,
   auto addr = ExprSymbol.getAddress();
 
   auto scratchPad = malloc(memSize);
-
   double timeSpent = 0.0;
 
   if (addr) {
