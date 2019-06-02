@@ -252,7 +252,7 @@ public:
 
     auto upperBoundAP = llvm::APInt(64, L->getEnd());
     auto upperBound = llvm::Constant::getIntegerValue(int64Ty_, upperBoundAP);
-    auto *cmp = builder_.CreateICmpSLE(idxVal, upperBound);
+    auto *cmp = builder_.CreateICmpSLT(idxVal, upperBound);
     builder_.CreateCondBr(cmp, body, exit);
 
     builder_.SetInsertPoint(nextIter);
