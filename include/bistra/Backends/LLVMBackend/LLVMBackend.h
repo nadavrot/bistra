@@ -16,7 +16,7 @@ public:
 
   virtual std::string emitBenchmarkCode(Program *p, unsigned iter) override;
 
-  void run(llvm::Module *M);
+  double run(std::unique_ptr<llvm::Module> M, size_t memSize, unsigned iter);
 
   virtual double evaluateCode(Program *p, unsigned iter) override;
 };
