@@ -72,6 +72,18 @@ struct Type final {
     return size;
   }
 
+  /// \returns the memory size size of this tensor.
+  unsigned getSizeInBytes() const {
+    unsigned size = 1;
+    // Multiply all of the dimensions.
+    for (auto d : sizes_) {
+      size *= d;
+    }
+
+    // Return the number of element times the element size.
+    return size * getElementSizeInBytes(elementType_);
+  }
+
   /// \returns the size of a specific dimension specified by name or zero if the
   /// name is not a valid dimension.
   unsigned getDimSizeByName(const std::string &name) const {
@@ -112,6 +124,16 @@ struct Type final {
         "size_t",
     };
     return names[(int)Ty];
+  }
+
+  /// \return the size of the element kind in bytes
+  static const unsigned getElementSizeInBytes(ElemKind Ty) {
+    static unsigned sizes[] = {
+        4, // float
+        1, // int8_t
+        8, // size_t
+    };
+    return sizes[(int)Ty];
   }
 
   /// Prints the type.
