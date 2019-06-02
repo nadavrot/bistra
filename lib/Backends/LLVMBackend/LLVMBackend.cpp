@@ -195,19 +195,30 @@ public:
   }
 
   void emit(StoreLocalStmt *SL) {
-    auto *varAlloca = namedValues_[SL->getDest()->getName()];
-    builder_.CreateStore(generate(SL->getValue()), varAlloca);
+    llvm::Value *varAlloca = namedValues_[SL->getDest()->getName()];
+    llvm::Value *storedVal = generate(SL->getValue());
+    if (SL->isAccumulate()) {
+      auto *prev = builder_.CreateLoad(varAlloca);
+      storedVal = builder_.CreateFAdd(prev, storedVal);
+    }
+    builder_.CreateStore(storedVal, varAlloca);
   }
 
   void emit(StoreStmt *SS) {
-    auto *storedValue = generate(SS->getValue());
+    auto *storedVal = generate(SS->getValue());
     auto *bufferTy = SS->getDest()->getType();
     llvm::Value *offset = getIndexOffsetForBuffer(SS->getIndices(), bufferTy);
     auto *arg = namedValues_[SS->getDest()->getName()];
     auto *ptr = builder_.CreateGEP(arg, offset);
-    auto *vecPTy = llvm::PointerType::get(storedValue->getType(), 0);
-    auto *vt = builder_.CreateBitCast(ptr, vecPTy);
-    builder_.CreateStore(storedValue, vt);
+    auto *ptelem = llvm::PointerType::get(storedVal->getType(), 0);
+    auto *vt = builder_.CreateBitCast(ptr, ptelem);
+
+    if (SS->isAccumulate()) {
+      auto *prev = builder_.CreateLoad(vt);
+      storedVal = builder_.CreateFAdd(prev, storedVal);
+    }
+
+    builder_.CreateStore(storedVal, vt);
   }
 
   void emit(IfRange *IR) {
