@@ -48,7 +48,7 @@ int main() {
 
   p->dump();
 
-  auto CB = getBackend("C");
+  auto CB = getBackend("llvm");
   writeFile("/tmp/1.cc", CB->emitBenchmarkCode(p, 1));
 
   auto res = CB->evaluateCode(p, 10);

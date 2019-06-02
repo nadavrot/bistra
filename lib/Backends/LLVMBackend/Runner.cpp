@@ -59,8 +59,6 @@ double LLVMBackend::run(std::unique_ptr<llvm::Module> M, size_t memSize,
 
   auto theJIT = llvm::make_unique<llvm::orc::SimpleJIT>();
   auto &TM = theJIT->getTargetMachine();
-  llvm::outs() << TM.getTargetCPU() << "\n";
-  llvm::outs() << TM.getTargetFeatureString() << "\n";
 
   optimize(TM, M.get());
 
@@ -76,12 +74,9 @@ double LLVMBackend::run(std::unique_ptr<llvm::Module> M, size_t memSize,
   double timeSpent = 0.0;
 
   if (addr) {
-    clock_t begin = clock();
-
     void (*call)(void *) = (void (*)(void *))addr.get();
-    for (int i = 0; i < iter; i++) {
-      call(scratchPad);
-    }
+    clock_t begin = clock();
+    call(scratchPad);
     clock_t end = clock();
     timeSpent += (double)(end - begin) / CLOCKS_PER_SEC;
   }

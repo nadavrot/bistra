@@ -320,7 +320,7 @@ public:
     return res;
   }
 
-  llvm::Function *emitBenchmark(Program *p) {
+  llvm::Function *emitBenchmark(Program *p, int iter) {
     std::vector<llvm::Type *> argListType;
     argListType.push_back(llvm::Type::getInt8PtrTy(ctx_));
 
@@ -357,11 +357,51 @@ public:
       }
     }
 
+    // Generate the loop that calls the program \p iter times.
+
+    auto *index = builder_.CreateAlloca(int64Ty_, 0, "i");
+    builder_.CreateStore(int64Zero_, index);
+
+    llvm::BasicBlock *header = llvm::BasicBlock::Create(ctx_, "header", F);
+    llvm::BasicBlock *body = llvm::BasicBlock::Create(ctx_, "body", F);
+    llvm::BasicBlock *exit = llvm::BasicBlock::Create(ctx_, "exit", F);
+
+    builder_.CreateBr(header);
+    builder_.SetInsertPoint(header);
+    auto *idxVal = builder_.CreateLoad(int64Ty_, index);
+
+    auto upperBound = llvm::ConstantInt::get(int64Ty_, iter);
+    auto *cmp = builder_.CreateICmpSLT(idxVal, upperBound);
+    builder_.CreateCondBr(cmp, body, exit);
+
+    builder_.SetInsertPoint(body);
     builder_.CreateCall(func_, params);
+    auto *idxVal2 = builder_.CreateLoad(int64Ty_, index);
+    auto *stride = llvm::ConstantInt::get(int64Ty_, 1);
+    auto *plusStride = builder_.CreateAdd(idxVal2, stride);
+    builder_.CreateStore(plusStride, index);
+    builder_.CreateBr(header);
+
+    builder_.SetInsertPoint(exit);
     builder_.CreateRetVoid();
-    llvm::verifyFunction(*F);
-    F->print(llvm::outs());
+
+    if (llvm::verifyFunction(*F, &llvm::outs()))
+      return nullptr;
+
     return F;
+  }
+
+  // Enable fast-math for all instrtuctions:
+  void enableFastMath(llvm::Function *F) {
+    llvm::FastMathFlags FMF;
+    FMF.set();
+    for (auto &BB : *F) {
+      for (auto &II : BB) {
+        if (auto *K = llvm::dyn_cast<llvm::FPMathOperator>(&II)) {
+          II.setFast(true);
+        }
+      }
+    }
   }
 
   llvm::Function *emit(Program *p) {
@@ -390,8 +430,12 @@ public:
     }
 
     builder_.CreateRetVoid();
-    llvm::verifyFunction(*func_);
-    func_->getParent()->print(llvm::outs(), 0);
+
+    enableFastMath(func_);
+
+    if (llvm::verifyFunction(*func_, &llvm::outs()))
+      return nullptr;
+
     return func_;
   }
 };
@@ -405,7 +449,7 @@ std::string LLVMBackend::emitBenchmarkCode(Program *p, unsigned iter) {
 double LLVMBackend::evaluateCode(Program *p, unsigned iter) {
   LLVMEmitter EE;
   EE.emit(p);
-  EE.emitBenchmark(p);
+  EE.emitBenchmark(p, iter);
 
   size_t memSz = 0;
   for (auto arg : p->getArgs()) {
