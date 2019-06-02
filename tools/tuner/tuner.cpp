@@ -13,7 +13,8 @@
 using namespace bistra;
 
 const char *gemmSource = R"(
-def gemm (C:float<I:1024,J:1024>, A:float<I:1024,K:1024>, B:float<K:1024,J:1024>) {
+let sz = 512;
+def gemm (C:float<I:sz,J:sz>, A:float<I:sz,K:sz>, B:float<K:sz,J:sz>) {
   for (i in 0 .. C.I) {
     for (j in 0 .. C.J) {
       //C[i,j] =  0.000000 ;
