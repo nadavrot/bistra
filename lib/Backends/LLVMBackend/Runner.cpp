@@ -110,3 +110,24 @@ double LLVMBackend::run(std::unique_ptr<llvm::Module> M, size_t memSize,
 
   return timeSpent / iter;
 }
+
+void LLVMBackend::emitObject(llvm::Module *M, const std::string &path) {
+  std::error_code EC;
+  llvm::raw_fd_ostream dest(path, EC, llvm::sys::fs::F_None);
+
+  if (EC) {
+    llvm::errs() << "Could not open file: " << EC.message();
+    return;
+  }
+
+  llvm::legacy::PassManager pass;
+  auto FileType = llvm::TargetMachine::CGFT_ObjectFile;
+
+  if (getTargetMachine().addPassesToEmitFile(pass, dest, nullptr, FileType)) {
+    llvm::errs() << "TargetMachine can't emit a file of this type";
+    return;
+  }
+
+  pass.run(*M);
+  dest.flush();
+}

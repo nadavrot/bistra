@@ -454,6 +454,9 @@ std::string LLVMBackend::emitBenchmarkCode(Program *p, unsigned iter) {
   std::string out;
   llvm::raw_string_ostream rss(out);
   EE.getModule()->print(rss, nullptr);
+
+  emitObject(EE.getModule().get(), "/tmp/file.o");
+
   return rss.str();
 }
 
