@@ -429,6 +429,17 @@ struct ComputeEstimator : public NodeVisitor {
       heatmap_[BE] = {LHS.first + RHS.first, cost + LHS.second + RHS.second};
       return;
     }
+
+    // Unary arithmetic ops add one arithmetic unit.
+    if (auto *UE = dynamic_cast<UnaryExpr *>(E)) {
+      assert(heatmap_.count(UE->getVal()));
+      auto VV = heatmap_[UE->getVal()];
+      int width = UE->getType().getWidth();
+      VV.second += width;
+      heatmap_[UE] = VV;
+      return;
+    }
+
     // Broadcast counts as one arithmetic op.
     if (auto *BE = dynamic_cast<BroadcastExpr *>(E)) {
       assert(heatmap_.count(BE->getValue()));
