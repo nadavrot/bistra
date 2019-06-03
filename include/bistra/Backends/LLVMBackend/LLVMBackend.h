@@ -29,6 +29,8 @@ public:
   LLVMBackend();
   ~LLVMBackend();
 
+  void emitObject(llvm::Module *M, const std::string &path);
+
   virtual std::string emitProgramCode(Program *p) override;
 
   virtual std::string emitBenchmarkCode(Program *p, unsigned iter) override;
