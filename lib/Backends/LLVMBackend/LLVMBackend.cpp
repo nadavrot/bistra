@@ -147,10 +147,14 @@ public:
           return builder_.CreateFDiv(LHS, RHS);
         return builder_.CreateSDiv(LHS, RHS);
 
-      case bistra::BinaryExpr::Max:
-        return builder_.CreateMaximum(LHS, RHS);
-      case bistra::BinaryExpr::Min:
-        return builder_.CreateMinimum(LHS, RHS);
+      case bistra::BinaryExpr::Max: {
+        auto *cond = builder_.CreateFCmp(llvm::CmpInst::FCMP_OGE, LHS, RHS);
+        return builder_.CreateSelect(cond, LHS, RHS);
+      }
+      case bistra::BinaryExpr::Min: {
+        auto *cond = builder_.CreateFCmp(llvm::CmpInst::FCMP_OLT, LHS, RHS);
+        return builder_.CreateSelect(cond, LHS, RHS);
+      }
       case bistra::BinaryExpr::Pow:
         if (isFP)
           return builder_.CreateBinaryIntrinsic(llvm::Intrinsic::pow, LHS, RHS);
