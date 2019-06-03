@@ -146,8 +146,15 @@ public:
         if (isFP)
           return builder_.CreateFDiv(LHS, RHS);
         return builder_.CreateSDiv(LHS, RHS);
-      default:
-        assert(false && "Invalid operation");
+
+      case bistra::BinaryExpr::Max:
+        return builder_.CreateMaximum(LHS, RHS);
+      case bistra::BinaryExpr::Min:
+        return builder_.CreateMinimum(LHS, RHS);
+      case bistra::BinaryExpr::Pow:
+        if (isFP)
+          return builder_.CreateBinaryIntrinsic(llvm::Intrinsic::pow, LHS, RHS);
+        return builder_.CreateBinaryIntrinsic(llvm::Intrinsic::powi, LHS, RHS);
       }
     }
 
