@@ -361,10 +361,13 @@ static Expr *vectorizeExpr(Expr *E, Loop *L, unsigned vf) {
       if (!VR->getType().isVector())
         VR = new BroadcastExpr(VR, vf);
     }
+    return new BinaryExpr(VL, VR, AE->getKind(), AE->getLoc());
+  }
 
-    if (BinaryExpr *BE = dynamic_cast<BinaryExpr *>(E)) {
-      return new BinaryExpr(VL, VR, BE->getKind(), BE->getLoc());
-    }
+  // Vectorize unary expressions.
+  if (UnaryExpr *UE = dynamic_cast<UnaryExpr *>(E)) {
+    auto *VL = vectorizeExpr(UE->getVal(), L, vf);
+    return new UnaryExpr(VL, UE->getKind(), UE->getLoc());
   }
 
   // Check that the load remains consecutive when vectorizing \p L.
