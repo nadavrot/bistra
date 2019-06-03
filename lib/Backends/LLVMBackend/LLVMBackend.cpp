@@ -158,6 +158,21 @@ public:
       }
     }
 
+    // Handle unary expressions.
+    if (auto *U = dynamic_cast<const UnaryExpr *>(e)) {
+      auto *val = generate(U->getVal());
+      switch (U->getKind()) {
+      case bistra::UnaryExpr::Exp:
+        return builder_.CreateUnaryIntrinsic(llvm::Intrinsic::exp, val);
+      case bistra::UnaryExpr::Log:
+        return builder_.CreateUnaryIntrinsic(llvm::Intrinsic::log, val);
+      case bistra::UnaryExpr::Sqrt:
+        return builder_.CreateUnaryIntrinsic(llvm::Intrinsic::sqrt, val);
+      case bistra::UnaryExpr::Abs:
+        return builder_.CreateUnaryIntrinsic(llvm::Intrinsic::fabs, val);
+      }
+    }
+
     // Handle broadcast expressions.
     if (auto *bb = dynamic_cast<const BroadcastExpr *>(e)) {
       auto *val = generate(bb->getValue());
@@ -195,9 +210,7 @@ public:
       return builder_.CreateLoad(ptr, "ld");
     }
 
-    auto *ty = getLLVMTypeForType(e->getType());
-    return llvm::Constant::getNullValue(ty);
-    return nullptr;
+    assert(false && "unhandled expression");
   }
 
   void emit(StoreLocalStmt *SL) {
