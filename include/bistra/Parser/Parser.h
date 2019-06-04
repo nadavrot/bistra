@@ -118,8 +118,8 @@ private:
   /// Parse and store the Let statement.
   bool parseLetStmt();
 
-  /// Parse the var decl.
-  bool parseVarDecl();
+  /// Parse the var decl. Write initialization statements into \p s.
+  bool parseVarDecl(Scope *s);
 
   /// Parse a single unit (stmt).
   Stmt *parseOneStmt();

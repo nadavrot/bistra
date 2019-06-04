@@ -253,8 +253,8 @@ TEST(basic, var_decl) {
 TEST(basic, var_load_decl) {
   const char *var_load_decl = R"(
   def var_load_decl(C:float<x:100>) {
-    var xxx : float
-    var res : float
+    var xxx : float = 2.3
+    var res : float = 24.
     xxx = 4.3
     res = xxx + 3.
     C[0] = res

@@ -47,6 +47,7 @@ void LLVMBackend::optimize(llvm::TargetMachine &TM, llvm::Module *M) {
   }
   FPM.doFinalization();
   PM.run(*M);
+  M->print(llvm::outs(), 0);
 }
 
 LLVMBackend::LLVMBackend() {

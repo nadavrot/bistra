@@ -523,7 +523,7 @@ bool Parser::parseScope(Scope *scope) {
 
     // Parse the var declerations at the beginning of the scope.
     while (Tok.is(TokenKind::kw_var)) {
-      if (parseVarDecl()) {
+      if (parseVarDecl(scope)) {
         skipUntil(TokenKind::r_brace);
         goto end_scope;
       }
@@ -839,7 +839,7 @@ bool Parser::parseLetStmt() {
   return false;
 }
 
-bool Parser::parseVarDecl() {
+bool Parser::parseVarDecl(Scope *s) {
   consumeToken(TokenKind::kw_var);
 
   std::string varName;
@@ -859,6 +859,12 @@ bool Parser::parseVarDecl() {
     return true;
   }
 
+  Expr *storedValue = nullptr;
+  // Parse the assignment to the variable.
+  if (consumeIf(TokenKind::assign)) {
+    storedValue = parseExpr();
+  }
+
   if (auto *LV = ctx_.getVarMap().getByName(varName)) {
     // TODO: add diagnostics for the location of the other var.
     ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
@@ -871,6 +877,15 @@ bool Parser::parseVarDecl() {
   ctx_.getVarMap().registerValue(var);
 
   ctx_.getVarStack().registerValue(varName, var);
+
+  // If the variable was initialized then store the value into a variable at the
+  // right place in the scope.
+  if (storedValue) {
+    auto *init =
+        new StoreLocalStmt(var, storedValue, false, storedValue->getLoc());
+    s->addStmt(init);
+  }
+
   return false;
 }
 
