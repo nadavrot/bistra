@@ -10,6 +10,8 @@
 namespace bistra {
 
 class Program;
+class Stmt;
+class Expr;
 
 /// A class for handling a list of resources that are indexed by ID.
 template <typename ElemTy> class IdTable {
@@ -68,13 +70,13 @@ public:
 /// Wraps an input stream.
 class StreamReader {
   /// The backing stream.
-  std::string &stream_;
+  const std::string &stream_;
   /// The position in the stream.
   size_t pos_;
 
 public:
   /// Read from the backing string \p str.
-  StreamReader(std::string &str);
+  StreamReader(const std::string &str);
 
   /// read a word.
   uint32_t readU32();
@@ -86,7 +88,7 @@ public:
   std::string readStr();
 
   /// \return true if the stream has more data to read.
-  bool hasMore();
+  bool hasMore() const;
 };
 
 /// Sarializes and deserializes bytecode header.
@@ -110,20 +112,24 @@ public:
   void deserialize(StreamReader &SR);
 };
 
+/// Sarialization/Deserialization Context.
+struct BytecodeContext {
+  IdTable<Expr *> exprTable_;
+  IdTable<Stmt *> stmtTable_;
+};
+
 /// Sarializes and deserializes bytecode.
 class Bytecode {
-  BytecodeHeader header;
-
 public:
-  Bytecode() = default;
+  static std::string serialize(Program *p);
 
-  void read(const std::string &path);
+  static std::string serialize(StreamWriter &SW, BytecodeHeader &BH,
+                               BytecodeContext &BC, Expr *E);
 
-  void save(const std::string &path);
+  static std::string serialize(StreamWriter &SW, BytecodeHeader &BH,
+                               BytecodeContext &BC, Stmt *S);
 
-  void serialize(Program *p);
-
-  Program *deserialize();
+  static Program *deserialize(const std::string &media);
 };
 
 } // namespace bistra

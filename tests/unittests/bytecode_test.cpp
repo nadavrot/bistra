@@ -125,3 +125,18 @@ TEST(basic, serialize_header) {
     }
   }
 }
+
+TEST(basic, serialize_program) {
+  auto loc = DebugLoc::npos();
+  Program *p = new Program("memset", loc);
+  p->addArgument("DEST", {125}, {"len"}, ElemKind::Float32Ty);
+  p->addLocalVar("local", ExprType(ElemKind::Float32Ty, 4));
+
+  auto media = Bytecode::serialize(p);
+  Program *dp = Bytecode::deserialize(media);
+
+  dp->dump();
+  EXPECT_EQ(dp->getName(), p->getName());
+  EXPECT_EQ(dp->getVars().size(), p->getVars().size());
+  EXPECT_EQ(dp->getArgs().size(), p->getArgs().size());
+}

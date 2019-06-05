@@ -1,4 +1,5 @@
 #include "bistra/Bytecode/Bytecode.h"
+#include "bistra/Analysis/Visitors.h"
 #include "bistra/Program/Program.h"
 
 using namespace bistra;
@@ -22,7 +23,7 @@ void StreamWriter::write(const std::string &s) {
   }
 }
 
-StreamReader::StreamReader(std::string &str) : stream_(str), pos_(0) {}
+StreamReader::StreamReader(const std::string &str) : stream_(str), pos_(0) {}
 
 uint32_t StreamReader::readU32() {
   uint32_t res = 0;
@@ -48,7 +49,7 @@ std::string StreamReader::readStr() {
   return res;
 }
 
-bool StreamReader::hasMore() { return pos_ != stream_.size(); }
+bool StreamReader::hasMore() const { return pos_ != stream_.size(); }
 
 void BytecodeHeader::serialize(StreamWriter &SW) {
   SW.write((uint32_t)0x03070102);
@@ -145,4 +146,99 @@ void BytecodeHeader::deserialize(StreamReader &SR) {
     Type T((ElemKind)elemTy, sizes, names);
     tensorTypeTable_.getIdFor(T);
   }
+
+  getStringTable().lock();
+  getExprTyTable().lock();
+  getTensorTypeTable().lock();
+}
+
+namespace {
+/// A visitor class that collects all expressions in RPO.
+struct ExprCollector : public NodeVisitor {
+  std::vector<Expr *> &exprs_;
+  ExprCollector(std::vector<Expr *> &exprs) : exprs_(exprs) {}
+  virtual void leave(Expr *E) override {
+    assert(std::find(exprs_.begin(), exprs_.end(), E) == exprs_.end() &&
+           "Don't collect the same expr twice");
+    exprs_.push_back(E);
+  }
+
+  /// Collect all of the expressions in the class.
+  static std::vector<Expr *> getExprs(Stmt *s) {
+    std::vector<Expr *> res;
+    ExprCollector EC(res);
+    s->visit(&EC);
+    return res;
+  }
+};
+} // namespace
+
+enum SerializationTokenKind { ProgramKind };
+
+std::string serialize(StreamWriter &SW, BytecodeHeader &BH, BytecodeContext &BC,
+                      Expr *E) {}
+
+std::string serialize(StreamWriter &SW, BytecodeHeader &BH, BytecodeContext &BC,
+                      Stmt *S) {}
+
+std::string Bytecode::serialize(Program *p) {
+  std::string body;
+  std::string header;
+  BytecodeHeader BH;
+  StreamWriter SR(body);
+
+  auto exprs = ExprCollector::getExprs(p);
+
+  // Function name.
+  SR.write((uint32_t)BH.getStringTable().getIdFor(p->getName()));
+
+  // How many arguments.
+  SR.write((uint32_t)p->getArgs().size());
+  // Each argument is described by name and type.
+  for (auto &arg : p->getArgs()) {
+    SR.write((uint32_t)BH.getStringTable().getIdFor(arg->getName()));
+    SR.write((uint32_t)BH.getTensorTypeTable().getIdFor(*arg->getType()));
+  }
+
+  // How many local variables.
+  SR.write((uint32_t)p->getVars().size());
+  // Each argument is described by name and type.
+  for (auto &var : p->getVars()) {
+    SR.write((uint32_t)BH.getStringTable().getIdFor(var->getName()));
+    SR.write((uint32_t)BH.getExprTyTable().getIdFor(var->getType()));
+  }
+
+  StreamWriter headerSR(header);
+  BH.serialize(headerSR);
+  return header + body;
+}
+
+Program *Bytecode::deserialize(const std::string &media) {
+  BytecodeHeader BH;
+  StreamReader SR(media);
+  BH.deserialize(SR);
+
+  std::string funcName = BH.getStringTable().getById(SR.readU32());
+
+  Program *p = new Program(funcName, DebugLoc::npos());
+
+  // Read the arguments:
+  unsigned numArgs = SR.readU32();
+  for (unsigned i = 0; i < numArgs; i++) {
+    // Name + TensorType.
+    auto name = BH.getStringTable().getById(SR.readU32());
+    auto type = BH.getTensorTypeTable().getById(SR.readU32());
+    p->addArgument(new Argument(name, type));
+  }
+
+  // Read the variables:
+  unsigned numVars = SR.readU32();
+  for (unsigned i = 0; i < numVars; i++) {
+    // Name + TensorType.
+    auto name = BH.getStringTable().getById(SR.readU32());
+    auto type = BH.getExprTyTable().getById(SR.readU32());
+    p->addVar(new LocalVar(name, type));
+  }
+
+  return p;
 }
