@@ -13,7 +13,10 @@ class Program;
 
 /// A class for handling a list of resources that are indexed by ID.
 template <typename ElemTy> class IdTable {
+  /// Stores the elements.
   std::vector<ElemTy> table_;
+  /// If True then the table must not grow.
+  bool locked_{false};
 
 public:
   /// \returns the backing table.
@@ -22,6 +25,9 @@ public:
   /// \returns the size of the table.
   unsigned size() { return table_.size(); }
 
+  /// Lock the table and assert if we try to grow it. This is a debug feature.
+  void lock() { locked_ = true; }
+
   /// \returns the ID that saves \p T.
   /// The table may add a new entry to contain \p T.
   unsigned getIdFor(const ElemTy &T) {
@@ -29,6 +35,7 @@ public:
       if (table_[i] == T)
         return i;
     }
+    assert(!locked_ && "Table must be unlocked");
     table_.push_back(T);
     return table_.size() - 1;
   }

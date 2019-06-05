@@ -60,6 +60,10 @@ void BytecodeHeader::serialize(StreamWriter &SW) {
     }
   }
 
+  // Lock the table to make sure that we are not adding new strings during the
+  /// serialization process. This is a debug feature.
+  stringTable_.lock();
+
   // Write the number of strings:
   SW.write((uint32_t)stringTable_.get().size());
   // And write all of the strings.
