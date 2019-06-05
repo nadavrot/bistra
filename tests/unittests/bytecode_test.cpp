@@ -7,7 +7,7 @@
 using namespace bistra;
 
 TEST(basic, string_tables) {
-  Bytecode BC;
+  BytecodeHeader BC;
   auto &ST = BC.getStringTable();
   auto a1 = ST.getIdFor("hello");
   auto a2 = ST.getIdFor("world");
@@ -35,6 +35,7 @@ TEST(basic, test_streams) {
   SW.write((uint32_t)0x11223344);
   SW.write((std::string) "hello");
   SW.write((uint32_t)54321);
+  SW.write((uint32_t)0);
   SW.write((std::string) "hello");
   SW.write((std::string) "");
   SW.write((uint8_t)17);
@@ -48,6 +49,7 @@ TEST(basic, test_streams) {
   EXPECT_EQ(SR.readU32(), 0x11223344);
   EXPECT_EQ(SR.readStr(), "hello");
   EXPECT_EQ(SR.readU32(), 54321);
+  EXPECT_EQ(SR.readU32(), 0);
   EXPECT_EQ(SR.readStr(), "hello");
   EXPECT_EQ(SR.readStr(), "");
   EXPECT_EQ(SR.hasMore(), true);
@@ -58,4 +60,68 @@ TEST(basic, test_streams) {
   EXPECT_EQ(SR.readU32(), 0x11223344);
   EXPECT_EQ(SR.readStr(), "hello");
   EXPECT_EQ(SR.hasMore(), false);
+}
+
+TEST(basic, serialize_header) {
+  // Searialize oneBC into media and read into twoBC.
+  BytecodeHeader oneBC;
+  BytecodeHeader twoBC;
+  std::string media;
+
+  // Generate data for oneBC.
+  {
+    auto &ST = oneBC.getStringTable();
+    ST.getIdFor("hello");
+    ST.getIdFor("world");
+    ST.getIdFor("");
+    ST.getIdFor("world");
+    ST.getIdFor("types");
+    EXPECT_EQ(ST.size(), 4);
+
+    auto &ET = oneBC.getExprTyTable();
+    ET.getIdFor(ExprType(ElemKind::Float32Ty));
+    ET.getIdFor(ExprType(ElemKind::Int8Ty, 8));
+    ET.getIdFor(ExprType(ElemKind::Float32Ty, 4));
+    EXPECT_EQ(ET.size(), 3);
+
+    Type T1(ElemKind::Float32Ty, {4}, {"I"});
+    Type T2(ElemKind::Float32Ty, {4, 5, 6}, {"A", "B", "C"});
+    Type T3(ElemKind::Float32Ty, {4, 5, 6, 1, 1}, {"A", "B", "C", "", "R"});
+
+    auto &TT = oneBC.getTensorTypeTable();
+    TT.getIdFor(T1);
+    TT.getIdFor(T2);
+    TT.getIdFor(T3);
+    EXPECT_EQ(TT.size(), 3);
+  }
+
+  StreamWriter SW(media);
+  StreamReader SR(media);
+  oneBC.serialize(SW);
+  twoBC.deserialize(SR);
+
+  // Compare oneBC to twoBC.
+  {
+    auto &ST1 = oneBC.getStringTable();
+    auto &ST2 = twoBC.getStringTable();
+    EXPECT_EQ(ST1.size(), ST2.size());
+
+    auto &ET1 = oneBC.getExprTyTable();
+    auto &ET2 = twoBC.getExprTyTable();
+    EXPECT_EQ(ET1.size(), ET2.size());
+
+    auto &TT1 = oneBC.getTensorTypeTable();
+    auto &TT2 = twoBC.getTensorTypeTable();
+    EXPECT_EQ(TT1.size(), TT2.size());
+
+    for (auto &S : ST1.get()) {
+      EXPECT_EQ(ST1.getIdFor(S), ST2.getIdFor(S));
+    }
+    for (auto &E : ET1.get()) {
+      EXPECT_EQ(ET1.getIdFor(E), ET2.getIdFor(E));
+    }
+    for (auto &T : TT1.get()) {
+      EXPECT_EQ(TT1.getIdFor(T), TT2.getIdFor(T));
+    }
+  }
 }

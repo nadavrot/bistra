@@ -19,6 +19,9 @@ public:
   /// \returns the backing table.
   std::vector<ElemTy> &get() { return table_; }
 
+  /// \returns the size of the table.
+  unsigned size() { return table_.size(); }
+
   /// \returns the ID that saves \p T.
   /// The table may add a new entry to contain \p T.
   unsigned getIdFor(const ElemTy &T) {
@@ -79,8 +82,8 @@ public:
   bool hasMore();
 };
 
-/// Sarializes and deserializes bytecode.
-class Bytecode {
+/// Sarializes and deserializes bytecode header.
+class BytecodeHeader {
   /// Maps strings to integers.
   IdTable<std::string> stringTable_;
   /// Maps ExprType to integers.
@@ -93,6 +96,18 @@ public:
   IdTable<ExprType> &getExprTyTable() { return exprTyTable_; }
   IdTable<Type> &getTensorTypeTable() { return tensorTypeTable_; }
 
+  /// Write the header to \p SR.
+  void serialize(StreamWriter &SW);
+
+  /// Read the header from \p SR.
+  void deserialize(StreamReader &SR);
+};
+
+/// Sarializes and deserializes bytecode.
+class Bytecode {
+  BytecodeHeader header;
+
+public:
   Bytecode() = default;
 
   void read(const std::string &path);
