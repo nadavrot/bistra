@@ -63,3 +63,24 @@ add_test(
   COMMAND
     ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}/optimizer_test
   )
+
+
+add_executable(
+    bytecode_test
+    bytecode_test.cpp
+    )
+
+target_link_libraries(
+    bytecode_test
+    gtest_main
+    Program
+    Analysis
+    Bytecode
+    )
+
+add_test(
+  NAME
+    bytecode_test
+  COMMAND
+    ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}/bytecode_test
+  )
