@@ -22,6 +22,7 @@ DEFINE_bool(stats, false, "Dump the roofline model stats for the program.");
 DEFINE_bool(opt, false, "Optimize the program.");
 DEFINE_bool(tune, false, "Executes and auto-tune the program.");
 DEFINE_bool(time, false, "Executes and times the program.");
+DEFINE_bool(src, false, "Emit the source representation of the output.");
 DEFINE_string(out, "", "Output destination file to save the compiled program.");
 DEFINE_string(backend, "llvm", "The backend to use [C/llvm]");
 
@@ -240,6 +241,10 @@ int main(int argc, char *argv[]) {
 
   if (FLAGS_stats) {
     analyzeProgram(p, ctx);
+  }
+
+  if (FLAGS_out.size()) {
+    backend->emitProgramCode(p, FLAGS_out, FLAGS_src, 10);
   }
 
   return 0;

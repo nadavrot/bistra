@@ -49,7 +49,7 @@ int main() {
   p->dump();
 
   auto CB = getBackend("llvm");
-  writeFile("/tmp/1.cc", CB->emitBenchmarkCode(p, 1));
+  CB->emitProgramCode(p, "/tmp/1.cc", true, 10);
 
   auto res = CB->evaluateCode(p, 10);
   std::cout << "result = " << res << "\n";

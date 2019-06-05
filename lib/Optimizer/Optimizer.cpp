@@ -33,7 +33,7 @@ void EvaluatorPass::doIt(Program *p) {
 
     if (savePath_.size()) {
       remove(savePath_.c_str());
-      writeFile(savePath_, backend_->emitBenchmarkCode(p, 10));
+      backend_->emitProgramCode(p, savePath_, true, 10);
     }
   } else {
     std::cout << "." << std::flush;

@@ -8,9 +8,8 @@ namespace bistra {
 
 class CBackend : public Backend {
 public:
-  virtual std::string emitProgramCode(Program *p) override;
-
-  virtual std::string emitBenchmarkCode(Program *p, unsigned iter) override;
+  virtual void emitProgramCode(Program *p, const std::string &path, bool isSrc,
+                               int iter) override;
 
   virtual double evaluateCode(Program *p, unsigned iter) override;
 };

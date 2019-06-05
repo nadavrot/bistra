@@ -321,17 +321,14 @@ public:
   }
 };
 
-std::string CBackend::emitProgramCode(Program *P) {
-  cppEmitter ee;
-  ee.generate(P);
-  return ee.getOutput();
-}
-
-std::string CBackend::emitBenchmarkCode(Program *p, unsigned iter) {
+void CBackend::emitProgramCode(Program *p, const std::string &path, bool isSrc,
+                               int iter) {
   cppEmitter ee;
   ee.generate(p);
-  ee.generateBenchmark(p, iter);
-  return ee.getOutput();
+  if (iter) {
+    ee.generateBenchmark(p, iter);
+  }
+  writeFile(path, ee.getOutput());
 }
 
 static std::string shellExec(const std::string &cmd) {
@@ -353,8 +350,7 @@ double CBackend::evaluateCode(Program *p, unsigned iter) {
   std::string tmpBase = "/tmp/tmpEvalProgram";
   std::string tmpSrcName = tmpBase + ".cpp";
   std::string tmpBinName = tmpBase + ".bin";
-  auto content = emitBenchmarkCode(p, iter);
-  writeFile(tmpSrcName, content);
+  emitProgramCode(p, tmpSrcName, true, iter);
 
   // Compile:
   shellExec(std::string("clang -march=native -Os -ffast-math ") + tmpSrcName +

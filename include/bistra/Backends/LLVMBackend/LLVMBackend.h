@@ -31,9 +31,8 @@ public:
 
   void emitObject(llvm::Module *M, const std::string &path);
 
-  virtual std::string emitProgramCode(Program *p) override;
-
-  virtual std::string emitBenchmarkCode(Program *p, unsigned iter) override;
+  virtual void emitProgramCode(Program *p, const std::string &path, bool isSrc,
+                               int iter) override;
 
   double run(std::unique_ptr<llvm::Module> M, size_t memSize, unsigned iter);
 

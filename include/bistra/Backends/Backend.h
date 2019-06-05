@@ -9,12 +9,12 @@ class Backend {
 public:
   virtual ~Backend() = default;
 
-  /// Generate code for the program \p P and return its string representation.
-  virtual std::string emitProgramCode(Program *p) = 0;
-
-  /// Generate a program that executes the program \p p \p iter times and
-  /// reports the runtime.
-  virtual std::string emitBenchmarkCode(Program *p, unsigned iter) = 0;
+  /// Generate code for the program \p P and save it at path \p path.
+  /// Emit an object file, or source if \p isSrc is set.
+  /// If \p iter is non-zero then emit a benchmark procedure that runs \p iter
+  /// iterations.
+  virtual void emitProgramCode(Program *p, const std::string &path, bool isSrc,
+                               int iter) = 0;
 
   /// Compile and evaluate the performance of the program \p p.
   /// Execute \p iter number of iterations.

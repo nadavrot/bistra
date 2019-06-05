@@ -466,22 +466,23 @@ public:
   }
 };
 
-std::string LLVMBackend::emitProgramCode(Program *p) {
-  return emitBenchmarkCode(p, 1);
-}
-
-std::string LLVMBackend::emitBenchmarkCode(Program *p, unsigned iter) {
+void LLVMBackend::emitProgramCode(Program *p, const std::string &path,
+                                  bool isSrc, int iter) {
   LLVMEmitter EE;
   EE.emit(p);
-  EE.emitBenchmark(p, iter);
+  if (iter) {
+    EE.emitBenchmark(p, iter);
+  }
   optimize(getTargetMachine(), EE.getModule().get());
-  std::string out;
-  llvm::raw_string_ostream rss(out);
-  EE.getModule()->print(rss, nullptr);
 
-  emitObject(EE.getModule().get(), "/tmp/file.o");
-
-  return rss.str();
+  if (isSrc) {
+    std::string out;
+    llvm::raw_string_ostream rss(out);
+    EE.getModule()->print(rss, nullptr);
+    writeFile(path, rss.str());
+  } else {
+    emitObject(EE.getModule().get(), path);
+  }
 }
 
 double LLVMBackend::evaluateCode(Program *p, unsigned iter) {
