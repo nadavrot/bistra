@@ -222,6 +222,7 @@ enum ExprTokenKind {
 
 enum StmtTokenKind {
   LoopKind,
+  CallStmtKind,
   StoreStmtKind,
   StoreLocalStmtKind,
   IfRangeKind,
@@ -396,6 +397,23 @@ void Bytecode::serialize(StreamWriter &SW, BytecodeHeader &BH,
     SW.write((uint32_t)IR->getRange().first);
     return;
   }
+  if (auto *CS = dynamic_cast<CallStmt *>(S)) {
+    // Kind:
+    SW.write((uint32_t)StmtTokenKind::CallStmtKind);
+    // My ID:
+    SW.write((uint32_t)BC.stmtTable_.getIdFor(CS));
+    // Parent ID:
+    SW.write((uint32_t)BC.stmtTable_.getIdFor((Stmt *)CS->getParent()));
+    // Save the index of the name of the callee.
+    SW.write((uint32_t)BH.getStringTable().getIdFor(CS->getName()));
+    // Write the number of parameters.
+    SW.write((uint8_t)CS->getParams().size());
+    // Save the indices ids:
+    for (auto &E : CS->getParams()) {
+      SW.write((uint32_t)BC.exprTable_.getIdFor(E.get()));
+    }
+    return;
+  }
   if (auto *ST = dynamic_cast<StoreStmt *>(S)) {
     // Kind:
     SW.write((uint32_t)StmtTokenKind::StoreStmtKind);
@@ -550,6 +568,21 @@ void Bytecode::deserializeStmt(StreamReader &SR, BytecodeHeader &BH,
     auto *IR = new IfRange(idxVal, start, end, loc);
     parent->addStmt(IR);
     BC.registerStmt(stmtId, IR);
+    return;
+  }
+  case CallStmtKind: {
+    // Read the callee name.
+    std::string name = BH.getStringTable().getById(SR.readU32());
+    // Read the parameters, as a list of expression references.
+    auto numParams = SR.readU8();
+    std::vector<Expr *> params;
+    for (int i = 0; i < numParams; i++) {
+      params.push_back(BC.getExpr(SR.readU32()));
+    }
+    // Register the store.
+    auto *cs = new CallStmt(name, params, loc);
+    parent->addStmt(cs);
+    BC.registerStmt(stmtId, cs);
     return;
   }
   case StoreStmtKind: {
