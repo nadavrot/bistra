@@ -298,10 +298,35 @@ public:
     assert(idx < args_.size() && "Invalid arg index");
     return args_[idx];
   }
+
+  /// \returns the argument index number for \p arg.
+  unsigned getArgIndex(Argument *arg) {
+    unsigned idx = 0;
+    for (auto *a : args_) {
+      if (a == arg)
+        return idx;
+      idx++;
+    }
+    assert(false && "invalid argument");
+    return 0;
+  }
+
   /// \returns the n'th argument.
   LocalVar *getVar(unsigned idx) {
     assert(idx < vars_.size() && "Invalid var index");
     return vars_[idx];
+  }
+
+  /// \returns the var index number for \p var.
+  unsigned getVarIndex(LocalVar *var) {
+    unsigned idx = 0;
+    for (auto *a : vars_) {
+      if (a == var)
+        return idx;
+      idx++;
+    }
+    assert(false && "invalid variable");
+    return 0;
   }
 
   /// Adds a new argument. \returns the newly created argument.
@@ -483,7 +508,11 @@ public:
       : Expr(val->getType().asVector(vf), val->getLoc()), val_(val, this),
         vf_(vf) {}
 
+  /// \returns the broadcasted value.
   Expr *getValue() const { return val_.get(); }
+
+  /// \returns the vectorization factor.
+  unsigned getVF() const { return vf_; }
 
   virtual void dump() const override;
   virtual Expr *clone(CloneCtx &map) override;

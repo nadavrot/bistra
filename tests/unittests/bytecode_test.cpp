@@ -129,12 +129,19 @@ TEST(basic, serialize_header) {
 TEST(basic, serialize_program) {
   auto loc = DebugLoc::npos();
   Program *p = new Program("memset", loc);
-  p->addArgument("DEST", {125}, {"len"}, ElemKind::Float32Ty);
+  auto *dest = p->addArgument("DEST", {125}, {"len"}, ElemKind::Float32Ty);
   p->addLocalVar("local", ExprType(ElemKind::Float32Ty, 4));
+  auto *I = new Loop("i", loc, 125, 1);
+  p->addStmt(I);
+
+  auto *st = new StoreStmt(dest, {new IndexExpr(I)}, new ConstantFPExpr(0.1),
+                           false, loc);
+  I->addStmt(st);
 
   auto media = Bytecode::serialize(p);
   Program *dp = Bytecode::deserialize(media);
 
+  p->dump();
   dp->dump();
   EXPECT_EQ(dp->getName(), p->getName());
   EXPECT_EQ(dp->getVars().size(), p->getVars().size());

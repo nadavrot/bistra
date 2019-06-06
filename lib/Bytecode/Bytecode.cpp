@@ -2,6 +2,8 @@
 #include "bistra/Analysis/Visitors.h"
 #include "bistra/Program/Program.h"
 
+#include <unordered_map>
+
 using namespace bistra;
 
 StreamWriter::StreamWriter(std::string &str) : stream_(str) {}
@@ -11,6 +13,13 @@ void StreamWriter::write(uint32_t num) {
   write((uint8_t)(num >> 16));
   write((uint8_t)(num >> 8));
   write((uint8_t)(num >> 0));
+}
+
+void StreamWriter::write(float num) {
+  float f = num;
+  uint32_t val;
+  memcpy(&val, &f, sizeof(float));
+  write((uint32_t)val);
 }
 
 void StreamWriter::write(uint8_t num) { stream_.push_back(num); }
@@ -32,6 +41,13 @@ uint32_t StreamReader::readU32() {
   res = (res << 8) + readU8();
   res = (res << 8) + readU8();
   return res;
+}
+
+float StreamReader::readF32() {
+  uint32_t val = readU32();
+  float f;
+  memcpy(&f, &val, sizeof(float));
+  return f;
 }
 
 uint8_t StreamReader::readU8() {
@@ -154,9 +170,9 @@ void BytecodeHeader::deserialize(StreamReader &SR) {
 
 namespace {
 /// A visitor class that collects all expressions in RPO.
-struct ExprCollector : public NodeVisitor {
+struct ExprCollectorRPO : public NodeVisitor {
   std::vector<Expr *> &exprs_;
-  ExprCollector(std::vector<Expr *> &exprs) : exprs_(exprs) {}
+  ExprCollectorRPO(std::vector<Expr *> &exprs) : exprs_(exprs) {}
   virtual void leave(Expr *E) override {
     assert(std::find(exprs_.begin(), exprs_.end(), E) == exprs_.end() &&
            "Don't collect the same expr twice");
@@ -166,20 +182,242 @@ struct ExprCollector : public NodeVisitor {
   /// Collect all of the expressions in the class.
   static std::vector<Expr *> getExprs(Stmt *s) {
     std::vector<Expr *> res;
-    ExprCollector EC(res);
+    ExprCollectorRPO EC(res);
     s->visit(&EC);
     return res;
   }
 };
 } // namespace
 
-enum SerializationTokenKind { ProgramKind };
+enum SerializationTokenKind {
+  ConstantExprKind,
+  ConstantFPExprKind,
+  BinaryExprKind,
+  UnaryExprKind,
+  LoadExprKind,
+  LoadLocalExprKind,
+  BroadcastExprKind,
+  IndexExprKind,
+  LastKind
+};
 
-std::string serialize(StreamWriter &SW, BytecodeHeader &BH, BytecodeContext &BC,
-                      Expr *E) {}
+/// Sarialization Context.
+struct bistra::SerializeContext {
+  IdTable<Expr *> exprTable_;
+  IdTable<Stmt *> stmtTable_;
+};
 
-std::string serialize(StreamWriter &SW, BytecodeHeader &BH, BytecodeContext &BC,
-                      Stmt *S) {}
+/// Deserialization Context.
+struct bistra::DeserializeContext {
+  std::unordered_map<unsigned, Stmt *> stmtMap_;
+  std::unordered_map<unsigned, Expr *> exprMap_;
+  /// A list of indices to resolve after parsing is complete.
+  std::unordered_map<IndexExpr *, unsigned> resolveLater_;
+
+  void registerExpr(unsigned id, Expr *e) {
+    assert(!exprMap_.count(id) && "id already in map");
+    exprMap_[id] = e;
+  }
+  void registerResolveLater(IndexExpr *LI, unsigned stmtId) {
+    assert(!resolveLater_.count(LI) && "LI already in map");
+    resolveLater_[LI] = stmtId;
+  }
+
+  void registerStmt(unsigned id, Stmt *s) {
+    assert(!stmtMap_.count(id) && "id already in map");
+    stmtMap_[id] = s;
+  }
+  Expr *getExpr(unsigned id) {
+    assert(exprMap_.count(id) && "id not in map");
+    return exprMap_[id];
+  }
+  Stmt *getStmt(unsigned id) {
+    assert(stmtMap_.count(id) && "id not in map");
+    return stmtMap_[id];
+  }
+};
+
+void Bytecode::serialize(StreamWriter &SW, BytecodeHeader &BH,
+                         SerializeContext &BC, Program *p, Expr *E) {
+
+  if (auto *CE = dynamic_cast<ConstantExpr *>(E)) {
+    // Kind:
+    SW.write((uint32_t)SerializationTokenKind::ConstantExprKind);
+    // My ID:
+    SW.write((uint32_t)BC.exprTable_.getIdFor(CE));
+    // Value:
+    SW.write((uint32_t)CE->getValue());
+    return;
+  }
+
+  if (auto *CE = dynamic_cast<ConstantFPExpr *>(E)) {
+    // Kind:
+    SW.write((uint32_t)SerializationTokenKind::ConstantFPExprKind);
+    // My ID:
+    SW.write((uint32_t)BC.exprTable_.getIdFor(CE));
+    // Value:
+    SW.write((float)CE->getValue());
+    return;
+  }
+
+  if (auto *BE = dynamic_cast<BinaryExpr *>(E)) {
+    // Kind:
+    SW.write((uint32_t)SerializationTokenKind::BinaryExprKind);
+    // My ID:
+    SW.write((uint32_t)BC.exprTable_.getIdFor(BE));
+    // OpKind:
+    SW.write((uint8_t)BE->getKind());
+    // LHS, RHS references:
+    SW.write((uint32_t)BC.exprTable_.getIdFor(BE->getLHS()));
+    SW.write((uint32_t)BC.exprTable_.getIdFor(BE->getRHS()));
+    return;
+  }
+
+  if (auto *UE = dynamic_cast<UnaryExpr *>(E)) {
+    // Kind:
+    SW.write((uint32_t)SerializationTokenKind::UnaryExprKind);
+    // My ID:
+    SW.write((uint32_t)BC.exprTable_.getIdFor(UE));
+    // OpKind:
+    SW.write((uint8_t)UE->getKind());
+    // Param reference references:
+    SW.write((uint32_t)BC.exprTable_.getIdFor(UE->getVal()));
+    return;
+  }
+
+  if (auto *LE = dynamic_cast<LoadExpr *>(E)) {
+    // Kind:
+    SW.write((uint32_t)SerializationTokenKind::LoadExprKind);
+    // My ID:
+    SW.write((uint32_t)BC.exprTable_.getIdFor(LE));
+    // Save the index of the argument that we are indexing.
+    SW.write((uint32_t)p->getArgIndex(LE->getDest()));
+    // Write the index to the expr load type.
+    SW.write((uint32_t)BH.getExprTyTable().getIdFor(LE->getType()));
+    // Write the number of subscript indices.
+    SW.write((uint32_t)LE->getIndices().size());
+    // Save the indices ids:
+    for (auto &E : LE->getIndices()) {
+      SW.write((uint32_t)BC.exprTable_.getIdFor(E.get()));
+    }
+    return;
+  }
+
+  if (auto *LL = dynamic_cast<LoadLocalExpr *>(E)) {
+    // Kind:
+    SW.write((uint32_t)SerializationTokenKind::LoadLocalExprKind);
+    // My ID:
+    SW.write((uint32_t)BC.exprTable_.getIdFor(LL));
+    // Save the index of the variable that we are indexing.
+    SW.write((uint32_t)p->getVarIndex(LL->getDest()));
+    return;
+  }
+
+  if (auto *BE = dynamic_cast<BroadcastExpr *>(E)) {
+    // Kind:
+    SW.write((uint32_t)SerializationTokenKind::BroadcastExprKind);
+    // My ID:
+    SW.write((uint32_t)BC.exprTable_.getIdFor(BE));
+    // Save the broadcasted value.
+    SW.write((uint32_t)BC.exprTable_.getIdFor(BE->getValue()));
+    // Save the vectorization factor.
+    SW.write((uint8_t)BE->getVF());
+    return;
+  }
+  if (auto *IE = dynamic_cast<IndexExpr *>(E)) {
+    // Kind:
+    SW.write((uint32_t)SerializationTokenKind::IndexExprKind);
+    // My ID:
+    SW.write((uint32_t)BC.exprTable_.getIdFor(IE));
+    // Save the broadcasted value.
+    SW.write((uint32_t)BC.stmtTable_.getIdFor(IE->getLoop()));
+    return;
+  }
+
+  assert(false);
+}
+
+void Bytecode::serialize(StreamWriter &SW, BytecodeHeader &BH,
+                         SerializeContext &BC, Program *p, Stmt *S) {}
+
+void Bytecode::deserializeExpr(StreamReader &SR, BytecodeHeader &BH,
+                               DeserializeContext &BC, Program *p) {
+  auto loc = DebugLoc::npos();
+  // Read the expr opcode.
+  SerializationTokenKind opcode = (SerializationTokenKind)SR.readU32();
+  assert(opcode < SerializationTokenKind::LastKind && "Invalid token");
+
+  // The expr ID (index into the expr table).
+  auto exprId = SR.readU32();
+
+  switch (opcode) {
+  case ConstantExprKind:
+    BC.registerExpr(exprId, new ConstantExpr(SR.readU32()));
+    return;
+  case ConstantFPExprKind:
+    BC.registerExpr(exprId, new ConstantFPExpr(SR.readF32()));
+    return;
+  case BinaryExprKind: {
+    auto kind = SR.readU8();
+    auto *L = BC.getExpr(SR.readU32());
+    auto *R = BC.getExpr(SR.readU32());
+    BC.registerExpr(exprId,
+                    new BinaryExpr(L, R, (BinaryExpr::BinOpKind)kind, loc));
+    return;
+  }
+  case UnaryExprKind: {
+    auto kind = SR.readU8();
+    auto *V = BC.getExpr(SR.readU32());
+    BC.registerExpr(exprId,
+                    new UnaryExpr(V, (UnaryExpr::UnaryOpKind)kind, loc));
+    return;
+  }
+  case LoadExprKind: {
+    // Read the argument that we index.
+    auto arg = p->getArg(SR.readU32());
+    // Read the type that we load.
+    auto exprTy = BH.getExprTyTable().getById(SR.readU32());
+    // Read the indices, as a list of expression references.
+    auto numIndices = SR.readU32();
+    std::vector<Expr *> indices;
+    for (int i = 0; i < numIndices; i++) {
+      indices.push_back(BC.getExpr(SR.readU32()));
+    }
+    BC.registerExpr(exprId, new LoadExpr(arg, indices, exprTy, loc));
+    return;
+  }
+  case LoadLocalExprKind: {
+    // Read the var that we index.
+    auto var = p->getVar(SR.readU32());
+    BC.registerExpr(exprId, new LoadLocalExpr(var, loc));
+    return;
+  }
+  case BroadcastExprKind: {
+    // Read the variable to broadcast.
+    auto *V = BC.getExpr(SR.readU32());
+    // Read the vectorization factor.
+    auto vf = SR.readU8();
+    BC.registerExpr(exprId, new BroadcastExpr(V, vf));
+    return;
+  }
+  case IndexExprKind: {
+    auto loopId = SR.readU32();
+    auto *LI = new IndexExpr(nullptr, loc);
+    BC.registerExpr(exprId, LI);
+    BC.registerResolveLater(LI, loopId);
+    return;
+  }
+  case LastKind:
+    assert(false && "Invalid opcode");
+    return;
+  }
+  assert(false);
+}
+
+void Bytecode::deserializeStmt(StreamReader &SR, BytecodeHeader &BH,
+                               DeserializeContext &BC, Program *p) {
+  assert(false);
+}
 
 std::string Bytecode::serialize(Program *p) {
   std::string body;
@@ -187,7 +425,7 @@ std::string Bytecode::serialize(Program *p) {
   BytecodeHeader BH;
   StreamWriter SR(body);
 
-  auto exprs = ExprCollector::getExprs(p);
+  //----------- Serialize the program decl ----------------//
 
   // Function name.
   SR.write((uint32_t)BH.getStringTable().getIdFor(p->getName()));
@@ -208,6 +446,18 @@ std::string Bytecode::serialize(Program *p) {
     SR.write((uint32_t)BH.getExprTyTable().getIdFor(var->getType()));
   }
 
+  //----------- Serialize the program body ----------------//
+  SerializeContext BC;
+  auto exprs = ExprCollectorRPO::getExprs(p);
+
+  // Write the number of expressions:
+  SR.write((uint32_t)exprs.size());
+  // And the expressions:
+  for (auto &e : exprs) {
+    serialize(SR, BH, BC, p, e);
+  }
+
+  // Return the complete serialized program.
   StreamWriter headerSR(header);
   BH.serialize(headerSR);
   return header + body;
@@ -218,6 +468,9 @@ Program *Bytecode::deserialize(const std::string &media) {
   StreamReader SR(media);
   BH.deserialize(SR);
 
+  //----------- Deserialize the program decl ----------------//
+
+  // Read the function name.
   std::string funcName = BH.getStringTable().getById(SR.readU32());
 
   Program *p = new Program(funcName, DebugLoc::npos());
@@ -238,6 +491,16 @@ Program *Bytecode::deserialize(const std::string &media) {
     auto name = BH.getStringTable().getById(SR.readU32());
     auto type = BH.getExprTyTable().getById(SR.readU32());
     p->addVar(new LocalVar(name, type));
+  }
+
+  //----------- Deserialize the program body ----------------//
+  DeserializeContext BC;
+
+  // Read the number of expressions.
+  auto numExprs = SR.readU32();
+
+  for (int i = 0; i < numExprs; i++) {
+    deserializeExpr(SR, BH, BC, p);
   }
 
   return p;

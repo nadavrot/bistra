@@ -60,6 +60,9 @@ public:
   /// Write a word.
   void write(uint32_t num);
 
+  /// Write a float.
+  void write(float num);
+
   /// Write byte.
   void write(uint8_t num);
 
@@ -80,6 +83,9 @@ public:
 
   /// read a word.
   uint32_t readU32();
+
+  /// read a float.
+  float readF32();
 
   /// read a byte.
   uint8_t readU8();
@@ -112,22 +118,25 @@ public:
   void deserialize(StreamReader &SR);
 };
 
-/// Sarialization/Deserialization Context.
-struct BytecodeContext {
-  IdTable<Expr *> exprTable_;
-  IdTable<Stmt *> stmtTable_;
-};
+struct DeserializeContext;
+struct SerializeContext;
 
 /// Sarializes and deserializes bytecode.
 class Bytecode {
 public:
   static std::string serialize(Program *p);
 
-  static std::string serialize(StreamWriter &SW, BytecodeHeader &BH,
-                               BytecodeContext &BC, Expr *E);
+  static void serialize(StreamWriter &SW, BytecodeHeader &BH,
+                        SerializeContext &BC, Program *p, Expr *E);
 
-  static std::string serialize(StreamWriter &SW, BytecodeHeader &BH,
-                               BytecodeContext &BC, Stmt *S);
+  static void serialize(StreamWriter &SW, BytecodeHeader &BH,
+                        SerializeContext &BC, Program *p, Stmt *S);
+
+  static void deserializeExpr(StreamReader &SR, BytecodeHeader &BH,
+                              DeserializeContext &BC, Program *p);
+
+  static void deserializeStmt(StreamReader &SR, BytecodeHeader &BH,
+                              DeserializeContext &BC, Program *p);
 
   static Program *deserialize(const std::string &media);
 };
