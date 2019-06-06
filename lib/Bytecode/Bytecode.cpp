@@ -187,9 +187,28 @@ struct ExprCollectorRPO : public NodeVisitor {
     return res;
   }
 };
+
+/// A visitor class that collects all statements in top-down order.
+struct StmtCollector : public NodeVisitor {
+  std::vector<Stmt *> &stmts_;
+  StmtCollector(std::vector<Stmt *> &stmts) : stmts_(stmts) {}
+  virtual void enter(Stmt *S) override {
+    assert(std::find(stmts_.begin(), stmts_.end(), S) == stmts_.end() &&
+           "Don't collect the same stmt twice");
+    stmts_.push_back(S);
+  }
+
+  /// Collect all of the stmts in the class.
+  static std::vector<Stmt *> getStmts(Stmt *s) {
+    std::vector<Stmt *> res;
+    StmtCollector SC(res);
+    s->visit(&SC);
+    return res;
+  }
+};
 } // namespace
 
-enum SerializationTokenKind {
+enum ExprTokenKind {
   ConstantExprKind,
   ConstantFPExprKind,
   BinaryExprKind,
@@ -198,7 +217,14 @@ enum SerializationTokenKind {
   LoadLocalExprKind,
   BroadcastExprKind,
   IndexExprKind,
-  LastKind
+  LastExprKind
+};
+
+enum StmtTokenKind {
+  LoopKind,
+  StoreStmtKind,
+  StoreLocalStmtKind,
+  LastStmtKind
 };
 
 /// Sarialization Context.
@@ -242,7 +268,7 @@ void Bytecode::serialize(StreamWriter &SW, BytecodeHeader &BH,
 
   if (auto *CE = dynamic_cast<ConstantExpr *>(E)) {
     // Kind:
-    SW.write((uint32_t)SerializationTokenKind::ConstantExprKind);
+    SW.write((uint32_t)ExprTokenKind::ConstantExprKind);
     // My ID:
     SW.write((uint32_t)BC.exprTable_.getIdFor(CE));
     // Value:
@@ -252,7 +278,7 @@ void Bytecode::serialize(StreamWriter &SW, BytecodeHeader &BH,
 
   if (auto *CE = dynamic_cast<ConstantFPExpr *>(E)) {
     // Kind:
-    SW.write((uint32_t)SerializationTokenKind::ConstantFPExprKind);
+    SW.write((uint32_t)ExprTokenKind::ConstantFPExprKind);
     // My ID:
     SW.write((uint32_t)BC.exprTable_.getIdFor(CE));
     // Value:
@@ -262,7 +288,7 @@ void Bytecode::serialize(StreamWriter &SW, BytecodeHeader &BH,
 
   if (auto *BE = dynamic_cast<BinaryExpr *>(E)) {
     // Kind:
-    SW.write((uint32_t)SerializationTokenKind::BinaryExprKind);
+    SW.write((uint32_t)ExprTokenKind::BinaryExprKind);
     // My ID:
     SW.write((uint32_t)BC.exprTable_.getIdFor(BE));
     // OpKind:
@@ -275,7 +301,7 @@ void Bytecode::serialize(StreamWriter &SW, BytecodeHeader &BH,
 
   if (auto *UE = dynamic_cast<UnaryExpr *>(E)) {
     // Kind:
-    SW.write((uint32_t)SerializationTokenKind::UnaryExprKind);
+    SW.write((uint32_t)ExprTokenKind::UnaryExprKind);
     // My ID:
     SW.write((uint32_t)BC.exprTable_.getIdFor(UE));
     // OpKind:
@@ -287,7 +313,7 @@ void Bytecode::serialize(StreamWriter &SW, BytecodeHeader &BH,
 
   if (auto *LE = dynamic_cast<LoadExpr *>(E)) {
     // Kind:
-    SW.write((uint32_t)SerializationTokenKind::LoadExprKind);
+    SW.write((uint32_t)ExprTokenKind::LoadExprKind);
     // My ID:
     SW.write((uint32_t)BC.exprTable_.getIdFor(LE));
     // Save the index of the argument that we are indexing.
@@ -305,7 +331,7 @@ void Bytecode::serialize(StreamWriter &SW, BytecodeHeader &BH,
 
   if (auto *LL = dynamic_cast<LoadLocalExpr *>(E)) {
     // Kind:
-    SW.write((uint32_t)SerializationTokenKind::LoadLocalExprKind);
+    SW.write((uint32_t)ExprTokenKind::LoadLocalExprKind);
     // My ID:
     SW.write((uint32_t)BC.exprTable_.getIdFor(LL));
     // Save the index of the variable that we are indexing.
@@ -315,7 +341,7 @@ void Bytecode::serialize(StreamWriter &SW, BytecodeHeader &BH,
 
   if (auto *BE = dynamic_cast<BroadcastExpr *>(E)) {
     // Kind:
-    SW.write((uint32_t)SerializationTokenKind::BroadcastExprKind);
+    SW.write((uint32_t)ExprTokenKind::BroadcastExprKind);
     // My ID:
     SW.write((uint32_t)BC.exprTable_.getIdFor(BE));
     // Save the broadcasted value.
@@ -326,7 +352,7 @@ void Bytecode::serialize(StreamWriter &SW, BytecodeHeader &BH,
   }
   if (auto *IE = dynamic_cast<IndexExpr *>(E)) {
     // Kind:
-    SW.write((uint32_t)SerializationTokenKind::IndexExprKind);
+    SW.write((uint32_t)ExprTokenKind::IndexExprKind);
     // My ID:
     SW.write((uint32_t)BC.exprTable_.getIdFor(IE));
     // Save the broadcasted value.
@@ -338,14 +364,68 @@ void Bytecode::serialize(StreamWriter &SW, BytecodeHeader &BH,
 }
 
 void Bytecode::serialize(StreamWriter &SW, BytecodeHeader &BH,
-                         SerializeContext &BC, Program *p, Stmt *S) {}
+                         SerializeContext &BC, Program *p, Stmt *S) {
+  if (auto *L = dynamic_cast<Loop *>(S)) {
+    // Kind:
+    SW.write((uint32_t)StmtTokenKind::LoopKind);
+    // My ID:
+    SW.write((uint32_t)BC.stmtTable_.getIdFor(L));
+    // Parent ID:
+    SW.write((uint32_t)BC.stmtTable_.getIdFor((Stmt *)L->getParent()));
+    // Write loop name string id.
+    SW.write((uint32_t)BH.getStringTable().getIdFor(L->getName()));
+    // Write loop end.
+    SW.write((uint32_t)L->getEnd());
+    // Write loop stride.
+    SW.write((uint32_t)L->getStride());
+    return;
+  }
+
+  if (auto *ST = dynamic_cast<StoreStmt *>(S)) {
+    // Kind:
+    SW.write((uint32_t)StmtTokenKind::StoreStmtKind);
+    // My ID:
+    SW.write((uint32_t)BC.stmtTable_.getIdFor(ST));
+    // Parent ID:
+    SW.write((uint32_t)BC.stmtTable_.getIdFor((Stmt *)ST->getParent()));
+    // Save the index of the argument that we are indexing.
+    SW.write((uint32_t)p->getArgIndex(ST->getDest()));
+    // Write if this is a write-only or accumulator store.
+    SW.write((uint8_t)ST->isAccumulate());
+    // Write the index to the saved expression.
+    SW.write((uint32_t)BC.exprTable_.getIdFor(ST->getValue().get()));
+    // Write the number of subscript indices.
+    SW.write((uint32_t)ST->getIndices().size());
+    // Save the indices ids:
+    for (auto &E : ST->getIndices()) {
+      SW.write((uint32_t)BC.exprTable_.getIdFor(E.get()));
+    }
+    return;
+  }
+  if (auto *STL = dynamic_cast<StoreLocalStmt *>(S)) {
+    // Kind:
+    SW.write((uint32_t)StmtTokenKind::StoreStmtKind);
+    // My ID:
+    SW.write((uint32_t)BC.stmtTable_.getIdFor(STL));
+    // Parent ID:
+    SW.write((uint32_t)BC.stmtTable_.getIdFor((Stmt *)STL->getParent()));
+    // Save the index of the variable that we are indexing.
+    SW.write((uint32_t)p->getVarIndex(STL->getDest()));
+    // Write if this is a write-only or accumulator store.
+    SW.write((uint8_t)STL->isAccumulate());
+    // Write the index to the saved expression.
+    SW.write((uint32_t)BC.exprTable_.getIdFor(STL->getValue().get()));
+    return;
+  }
+  assert(false);
+}
 
 void Bytecode::deserializeExpr(StreamReader &SR, BytecodeHeader &BH,
                                DeserializeContext &BC, Program *p) {
   auto loc = DebugLoc::npos();
   // Read the expr opcode.
-  SerializationTokenKind opcode = (SerializationTokenKind)SR.readU32();
-  assert(opcode < SerializationTokenKind::LastKind && "Invalid token");
+  ExprTokenKind opcode = (ExprTokenKind)SR.readU32();
+  assert(opcode < ExprTokenKind::LastExprKind && "Invalid token");
 
   // The expr ID (index into the expr table).
   auto exprId = SR.readU32();
@@ -358,7 +438,9 @@ void Bytecode::deserializeExpr(StreamReader &SR, BytecodeHeader &BH,
     BC.registerExpr(exprId, new ConstantFPExpr(SR.readF32()));
     return;
   case BinaryExprKind: {
+    // Read the operation kind.
     auto kind = SR.readU8();
+    // Read the LHS, RHS.
     auto *L = BC.getExpr(SR.readU32());
     auto *R = BC.getExpr(SR.readU32());
     BC.registerExpr(exprId,
@@ -366,7 +448,9 @@ void Bytecode::deserializeExpr(StreamReader &SR, BytecodeHeader &BH,
     return;
   }
   case UnaryExprKind: {
+    // Read the operation kind.
     auto kind = SR.readU8();
+    // Read the value operand:
     auto *V = BC.getExpr(SR.readU32());
     BC.registerExpr(exprId,
                     new UnaryExpr(V, (UnaryExpr::UnaryOpKind)kind, loc));
@@ -401,13 +485,16 @@ void Bytecode::deserializeExpr(StreamReader &SR, BytecodeHeader &BH,
     return;
   }
   case IndexExprKind: {
+    // Load the IndexExpr. It has a loop and references the unserialized
+    // statements, so register this node for resolving later once everything
+    // is deserialized.
     auto loopId = SR.readU32();
     auto *LI = new IndexExpr(nullptr, loc);
     BC.registerExpr(exprId, LI);
     BC.registerResolveLater(LI, loopId);
     return;
   }
-  case LastKind:
+  case LastExprKind:
     assert(false && "Invalid opcode");
     return;
   }
@@ -416,6 +503,66 @@ void Bytecode::deserializeExpr(StreamReader &SR, BytecodeHeader &BH,
 
 void Bytecode::deserializeStmt(StreamReader &SR, BytecodeHeader &BH,
                                DeserializeContext &BC, Program *p) {
+  auto loc = DebugLoc::npos();
+  // Read the Stmt opcode.
+  StmtTokenKind opcode = (StmtTokenKind)SR.readU32();
+  assert(opcode < StmtTokenKind::LastStmtKind && "Invalid token");
+
+  // The stmt ID (index into the stmt table).
+  auto stmtId = SR.readU32();
+
+  // The parent ID (index into the stmt table).
+  auto parentId = SR.readU32();
+  // Find the parent that holds this stmt.
+  Scope *parent = (Scope *)BC.getStmt(parentId);
+
+  switch (opcode) {
+  case LoopKind: {
+    std::string name = BH.getStringTable().getById(SR.readU32());
+    auto end = SR.readU32();
+    auto stride = SR.readU32();
+    auto *L = new Loop(name, loc, end, stride);
+    parent->addStmt(L);
+    BC.registerStmt(stmtId, L);
+    return;
+  }
+  case StoreStmtKind: {
+    // Read the argument that we index.
+    auto arg = p->getArg(SR.readU32());
+    // Is this an accumulate store or write-only.
+    bool accumulate = SR.readU8();
+    // Read the index of the stored expr.
+    auto storedVal = BC.getExpr(SR.readU32());
+    // Read the indices, as a list of expression references.
+    auto numIndices = SR.readU32();
+    std::vector<Expr *> indices;
+    for (int i = 0; i < numIndices; i++) {
+      indices.push_back(BC.getExpr(SR.readU32()));
+    }
+    // Register the store.
+    auto *st = new StoreStmt(arg, indices, storedVal, accumulate, loc);
+    parent->addStmt(st);
+    BC.registerStmt(stmtId, st);
+    return;
+  }
+  case StoreLocalStmtKind: {
+    // Read the argument that we index.
+    auto var = p->getVar(SR.readU32());
+    // Is this an accumulate store or write-only.
+    bool accumulate = SR.readU8();
+    // Read the index of the stored expr.
+    auto storedVal = BC.getExpr(SR.readU32());
+    // Register the store.
+    auto *stl = new StoreLocalStmt(var, storedVal, accumulate, loc);
+    parent->addStmt(stl);
+    BC.registerStmt(stmtId, stl);
+    return;
+  }
+  case LastStmtKind:
+    assert(false);
+    return;
+  }
+
   assert(false);
 }
 
@@ -448,6 +595,9 @@ std::string Bytecode::serialize(Program *p) {
 
   //----------- Serialize the program body ----------------//
   SerializeContext BC;
+  // The program is serialized as index zero (see deserializer).
+  BC.stmtTable_.getIdFor(p);
+
   auto exprs = ExprCollectorRPO::getExprs(p);
 
   // Write the number of expressions:
@@ -455,6 +605,18 @@ std::string Bytecode::serialize(Program *p) {
   // And the expressions:
   for (auto &e : exprs) {
     serialize(SR, BH, BC, p, e);
+  }
+
+  // Collect and serialize the stmts in the program.
+  auto stmts = StmtCollector::getStmts(p);
+
+  // Write the number of stmts (minus the program stmt):
+  SR.write((uint32_t)stmts.size() - 1);
+  // And the stmts:
+  for (auto &s : stmts) {
+    if (s == p)
+      continue;
+    serialize(SR, BH, BC, p, s);
   }
 
   // Return the complete serialized program.
@@ -495,12 +657,28 @@ Program *Bytecode::deserialize(const std::string &media) {
 
   //----------- Deserialize the program body ----------------//
   DeserializeContext BC;
+  // The program is serialized as index zero (see serializer).
+  BC.registerStmt(0, p);
 
   // Read the number of expressions.
   auto numExprs = SR.readU32();
-
+  // Read the expressions:
   for (int i = 0; i < numExprs; i++) {
     deserializeExpr(SR, BH, BC, p);
+  }
+
+  // Read the number of statements.
+  auto numStmts = SR.readU32();
+  // Read the statements:
+  for (int i = 0; i < numStmts; i++) {
+    deserializeStmt(SR, BH, BC, p);
+  }
+
+  // Resolve the loop indices.
+  for (auto entry : BC.resolveLater_) {
+    IndexExpr *IE = entry.first;
+    Loop *L = dynamic_cast<Loop *>(BC.getStmt(entry.second));
+    IE->setLoop(L);
   }
 
   return p;

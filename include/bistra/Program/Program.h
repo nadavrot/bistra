@@ -374,6 +374,9 @@ public:
   /// \returns the loop that this expression indexes.
   Loop *getLoop() const { return loop_; }
 
+  /// Update the loop index. We use this API during model serialization.
+  void setLoop(Loop *L) { loop_ = L; }
+
   virtual void dump() const override;
   virtual Expr *clone(CloneCtx &map) override;
   virtual void verify() const override;
