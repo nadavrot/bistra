@@ -213,7 +213,7 @@ void bistra::collectLoops(Stmt *S, std::vector<Loop *> &loops) {
 }
 
 std::vector<Loop *> bistra::collectLoops(Stmt *S) {
-  std::vector<Loop *>loops;
+  std::vector<Loop *> loops;
   collectLoops(S, loops);
   return loops;
 }

@@ -10,7 +10,7 @@ class SimpleJIT;
 }
 class Module;
 class TargetMachine;
-}
+} // namespace llvm
 
 namespace bistra {
 

@@ -3,9 +3,9 @@
 
 #include "bistra/Program/UseDef.h"
 
+#include <set>
 #include <unordered_map>
 #include <utility>
-#include <set>
 
 namespace bistra {
 

@@ -202,7 +202,8 @@ public:
 
       if (ld->getType().isVector()) {
         auto width = ld->getType().getWidth();
-        auto *elemTy = llvm::cast<llvm::PointerType>(arg->getType())->getElementType();
+        auto *elemTy =
+            llvm::cast<llvm::PointerType>(arg->getType())->getElementType();
         auto *vecTy = llvm::VectorType::get(elemTy, width);
         auto *vecPTy = llvm::PointerType::get(vecTy, 0);
         auto *ptr = builder_.CreateGEP(elemTy, arg, offset);
@@ -251,10 +252,12 @@ public:
     llvm::BasicBlock *inrng = llvm::BasicBlock::Create(ctx_, "inRange", func_);
     llvm::BasicBlock *cont = llvm::BasicBlock::Create(ctx_, "continue", func_);
 
-    auto *a = builder_.CreateICmp(llvm::CmpInst::Predicate::ICMP_SGE, indexVal,
-                        llvm::ConstantInt::get(int64Ty_, range.first));
-    auto *b = builder_.CreateICmp(llvm::CmpInst::Predicate::ICMP_SLT, indexVal,
-                                  llvm::ConstantInt::get(int64Ty_, range.second));
+    auto *a =
+        builder_.CreateICmp(llvm::CmpInst::Predicate::ICMP_SGE, indexVal,
+                            llvm::ConstantInt::get(int64Ty_, range.first));
+    auto *b =
+        builder_.CreateICmp(llvm::CmpInst::Predicate::ICMP_SLT, indexVal,
+                            llvm::ConstantInt::get(int64Ty_, range.second));
 
     auto *orr = builder_.CreateOr(a, b);
 

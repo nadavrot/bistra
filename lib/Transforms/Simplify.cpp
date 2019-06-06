@@ -149,7 +149,6 @@ struct ExprSimplify : public NodeVisitor {
 };
 } // namespace
 
-
 /// Removes empty loops.
 /// \returns True if some code was modified.
 static bool removeEmptyLoops(Stmt *s) {
