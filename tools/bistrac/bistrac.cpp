@@ -2,6 +2,7 @@
 #include "bistra/Analysis/Value.h"
 #include "bistra/Backends/Backend.h"
 #include "bistra/Backends/Backends.h"
+#include "bistra/Bytecode/Bytecode.h"
 #include "bistra/Optimizer/Optimizer.h"
 #include "bistra/Parser/Parser.h"
 #include "bistra/Program/Program.h"
@@ -18,11 +19,12 @@
 using namespace bistra;
 
 DEFINE_bool(dump, false, "Dump the texttual representation of the program.");
-DEFINE_bool(stats, false, "Dump the roofline model stats for the program.");
+DEFINE_bool(warn, false, "Print warnings based on program analysis.");
 DEFINE_bool(opt, false, "Optimize the program.");
 DEFINE_bool(tune, false, "Executes and auto-tune the program.");
 DEFINE_bool(time, false, "Executes and times the program.");
-DEFINE_bool(src, false, "Emit the source representation of the output.");
+DEFINE_bool(textual, false, "Emit the textual representation of the output.");
+DEFINE_bool(bytecode, false, "Emit the bytecode representation.");
 DEFINE_string(out, "", "Output destination file to save the compiled program.");
 DEFINE_string(backend, "llvm", "The backend to use [C/llvm]");
 
@@ -173,35 +175,23 @@ void analyzeProgram(Program *p, ParserContext &ctx) {
   detectOverflow(p, ctx);
 }
 
-int main(int argc, char *argv[]) {
-  gflags::SetUsageMessage("Bistra compiler driver.");
-  gflags::SetVersionString("0.0.1");
-  gflags::ParseCommandLineFlags(&argc, &argv, true);
+/// Checks if \p str ends with \p suffix.
+static bool endsWith(const std::string &str, const std::string &suffix) {
+  if (str.size() < suffix.size())
+    return false;
+  return 0 == str.compare(str.size() - suffix.size(), suffix.size(), suffix);
+}
 
-  if (argc != 2) {
-    std::cout << "Usage: bistrac [...] program.txt\n";
-    std::cout << "See --help for more details.\n";
-    return 0;
-  }
-  std::string inFile = argv[1];
-
-  gflags::ShutDownCommandLineFlags();
-
-  auto content = readFile(inFile);
-  ParserContext ctx(content.c_str(), inFile);
+Program *parseProgram(ParserContext &ctx) {
   Parser P(ctx);
   P.Parse();
 
   // Abort the program if there were any errors.
   if (ctx.getNumErrors() > 0) {
-    return 0;
+    return nullptr;
   }
 
-  // Get the backend.
-  auto backend = getBackend(FLAGS_backend);
-  assert(backend.get() && "Invalid backend");
-
-  Program *p = ctx.getProgram();
+  Program *program = ctx.getProgram();
 
   // Apply the pragma commands.
   for (auto &pc : ctx.getPragmaDecls()) {
@@ -212,6 +202,41 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  return program;
+}
+
+int main(int argc, char *argv[]) {
+  gflags::SetUsageMessage("Bistra compiler driver.");
+  gflags::SetVersionString("0.0.1");
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
+
+  if (argc != 2) {
+    std::cout << "Usage: bistrac [...] program.m\n";
+    std::cout << "See --help for more details.\n";
+    return 0;
+  }
+  std::string inFile = argv[1];
+
+  gflags::ShutDownCommandLineFlags();
+
+  // Get the backend.
+  auto backend = getBackend(FLAGS_backend);
+  assert(backend.get() && "Invalid backend");
+
+  Program *program;
+  auto content = readFile(inFile);
+  ParserContext ctx(content.c_str(), inFile);
+
+  if (endsWith(inFile, ".bc")) {
+    program = Bytecode::deserialize(content);
+  } else {
+    program = parseProgram(ctx);
+  }
+
+  // Unable to parse or load bytecode.
+  if (!program)
+    return 1;
+
   if (FLAGS_tune) {
     std::string outFile = "/tmp/file.cc";
     if (FLAGS_out.size()) {
@@ -221,30 +246,36 @@ int main(int argc, char *argv[]) {
                 << outFile << "\n";
     }
 
-    optimizeEvaluate(std::move(backend), p, outFile);
+    optimizeEvaluate(std::move(backend), program, outFile);
   }
 
   if (FLAGS_opt) {
-    ::simplify(p);
-    ::promoteLICM(p);
+    ::simplify(program);
+    ::promoteLICM(program);
   }
 
   if (FLAGS_dump) {
-    p->dump();
+    program->dump();
   }
 
   if (FLAGS_time) {
-    auto res = backend->evaluateCode(p, 10);
-    std::cout << "The program \"" << p->getName() << "\" completed in " << res
-              << " seconds. \n";
+    auto res = backend->evaluateCode(program, 10);
+    std::cout << "The program \"" << program->getName() << "\" completed in "
+              << res << " seconds. \n";
   }
 
-  if (FLAGS_stats) {
-    analyzeProgram(p, ctx);
+  if (FLAGS_warn) {
+    analyzeProgram(program, ctx);
   }
 
   if (FLAGS_out.size()) {
-    backend->emitProgramCode(p, FLAGS_out, FLAGS_src, 10);
+    // Emit bytecode.
+    if (FLAGS_bytecode) {
+      writeFile(FLAGS_out, Bytecode::serialize(program));
+    } else {
+      // Emit target-specific object file, or a textual representation
+      backend->emitProgramCode(program, FLAGS_out, FLAGS_textual, 10);
+    }
   }
 
   return 0;

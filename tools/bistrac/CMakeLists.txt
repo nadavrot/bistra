@@ -10,6 +10,7 @@ target_link_libraries(bistrac
                         Parser
                         Program
                         Transforms
+                        Bytecode
                         gflags::gflags
                      )
 
