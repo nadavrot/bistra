@@ -18,7 +18,7 @@ TEST(opt, tiler) {
 
   ParserContext ctx(tiler);
   Parser P(ctx);
-  P.Parse();
+  P.parse();
   EXPECT_EQ(ctx.getNumErrors(), 0);
   Program *p = ctx.getProgram();
   Loop *I = ::getLoopByName(p, "i");
@@ -37,7 +37,7 @@ TEST(opt, split_loop) {
 
   ParserContext ctx(code);
   Parser P(ctx);
-  P.Parse();
+  P.parse();
   EXPECT_EQ(ctx.getNumErrors(), 0);
   Program *p = ctx.getProgram();
   p->dump();
@@ -57,7 +57,7 @@ TEST(opt, simplifyExpr) {
 
   ParserContext ctx(code);
   Parser P(ctx);
-  P.Parse();
+  P.parse();
   EXPECT_EQ(ctx.getNumErrors(), 0);
   Program *p = ctx.getProgram();
   ::simplify(p);
@@ -83,7 +83,7 @@ TEST(opt, range_check_loops) {
 
   ParserContext ctx(code);
   Parser P(ctx);
-  P.Parse();
+  P.parse();
   EXPECT_EQ(ctx.getNumErrors(), 0);
   Program *p = ctx.getProgram();
   ::simplify(p);

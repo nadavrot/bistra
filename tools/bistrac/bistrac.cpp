@@ -184,7 +184,7 @@ static bool endsWith(const std::string &str, const std::string &suffix) {
 
 Program *parseProgram(ParserContext &ctx) {
   Parser P(ctx);
-  P.Parse();
+  P.parse();
 
   // Abort the program if there were any errors.
   if (ctx.getNumErrors() > 0) {

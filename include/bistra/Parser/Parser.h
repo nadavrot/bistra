@@ -29,7 +29,7 @@ public:
   ~Parser();
 
   /// The entry point for starting the parsing phase.
-  void Parse();
+  void parse();
 
   /// Expose the ASTContext for crash log utils.
   ParserContext &getContext() { return ctx_; }

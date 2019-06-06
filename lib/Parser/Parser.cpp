@@ -1085,7 +1085,7 @@ Program *Parser::parseFunctionDecl() {
   return p;
 }
 
-void Parser::Parse() {
+void Parser::parse() {
   // Prime the Lexer!
   consumeToken();
 
@@ -1116,6 +1116,6 @@ void Parser::Parse() {
 Program *bistra::parseProgram(const char *src) {
   ParserContext ctx(src);
   Parser P(ctx);
-  P.Parse();
+  P.parse();
   return ctx.getProgram();
 }

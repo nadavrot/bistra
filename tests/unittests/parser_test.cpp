@@ -54,7 +54,7 @@ TEST(basic, lexer1) {
 TEST(basic, parse_decl) {
   ParserContext ctx("func matmul(C:float<I:512,J:512>) {}");
   Parser P(ctx);
-  P.Parse();
+  P.parse();
   auto *pg = ctx.getProgram();
   pg->verify();
   pg->dump();
@@ -69,7 +69,7 @@ TEST(basic, parse_for) {
   ParserContext ctx(
       "func matmul(C:float<I:512,J:512>) {  for (i in 0 .. 125) {} }");
   Parser P(ctx);
-  P.Parse();
+  P.parse();
   auto *pg = ctx.getProgram();
   pg->verify();
   pg->dump();
@@ -82,7 +82,7 @@ TEST(basic, parse_for) {
 TEST(basic, parse_whole_file) {
   ParserContext ctx(test_program);
   Parser P(ctx);
-  P.Parse();
+  P.parse();
   auto *pg = ctx.getProgram();
   pg->verify();
   pg->dump();
@@ -104,7 +104,7 @@ func use_buffer_index(C:float<I:512,J:512>) {
 TEST(basic, use_buffer_index) {
   ParserContext ctx(use_buffer_index);
   Parser P(ctx);
-  P.Parse();
+  P.parse();
   EXPECT_EQ(ctx.getNumErrors(), 0);
   auto *pg = ctx.getProgram();
   pg->verify();
@@ -127,7 +127,7 @@ TEST(basic, comperators) {
 
   ParserContext ctx(comperators);
   Parser P(ctx);
-  P.Parse();
+  P.parse();
   EXPECT_EQ(ctx.getNumErrors(), 0);
   ctx.getProgram()->dump();
 }
@@ -145,7 +145,7 @@ TEST(basic, if_range_test) {
 
   ParserContext ctx(if_range_test);
   Parser P(ctx);
-  P.Parse();
+  P.parse();
   EXPECT_EQ(ctx.getNumErrors(), 0);
   auto *p = ctx.getProgram();
   p->verify();
@@ -165,7 +165,7 @@ TEST(basic, pragmas) {
 
   ParserContext ctx(pragmas_test);
   Parser P(ctx);
-  P.Parse();
+  P.parse();
   EXPECT_EQ(ctx.getNumErrors(), 0);
   auto *p = ctx.getProgram();
   p->verify();
@@ -197,7 +197,7 @@ TEST(basic, let_expr) {
 
   ParserContext ctx(let_expr);
   Parser P(ctx);
-  P.Parse();
+  P.parse();
   EXPECT_EQ(ctx.getNumErrors(), 0);
   auto *p = ctx.getProgram();
   p->verify();
@@ -216,7 +216,7 @@ TEST(basic, let_expr_type) {
   func let_exprs(C:float<x:val>) { })";
   ParserContext ctx(let_expr_type);
   Parser P(ctx);
-  P.Parse();
+  P.parse();
   EXPECT_EQ(ctx.getNumErrors(), 0);
   ctx.getProgram()->verify();
 }
@@ -226,7 +226,7 @@ TEST(basic, debug_loc) {
   func debug_loc(C:float<x:10>) { for (i in 0 .. 10) {} })";
   ParserContext ctx(debug_loc);
   Parser P(ctx);
-  P.Parse();
+  P.parse();
   EXPECT_EQ(ctx.getNumErrors(), 0);
   auto *p = ctx.getProgram();
   p->verify();
@@ -242,7 +242,7 @@ TEST(basic, var_decl) {
   })";
   ParserContext ctx(var_decl);
   Parser P(ctx);
-  P.Parse();
+  P.parse();
   EXPECT_EQ(ctx.getNumErrors(), 0);
   auto *prog = P.getContext().getProgram();
   prog->verify();
@@ -261,7 +261,7 @@ TEST(basic, var_load_decl) {
   })";
   ParserContext ctx(var_load_decl);
   Parser P(ctx);
-  P.Parse();
+  P.parse();
   EXPECT_EQ(ctx.getNumErrors(), 0);
   auto *prog = P.getContext().getProgram();
   prog->verify();
@@ -274,7 +274,7 @@ TEST(basic, parse_binary_builtin_functions) {
   })";
   ParserContext ctx(parse_binary_builtin_functions);
   Parser P(ctx);
-  P.Parse();
+  P.parse();
   EXPECT_EQ(ctx.getNumErrors(), 0);
   auto *prog = P.getContext().getProgram();
   prog->verify();
@@ -287,7 +287,7 @@ TEST(basic, parse_unary_functions) {
   })";
   ParserContext ctx(parse_unary_functions);
   Parser P(ctx);
-  P.Parse();
+  P.parse();
   EXPECT_EQ(ctx.getNumErrors(), 0);
   auto *prog = P.getContext().getProgram();
   prog->verify();
