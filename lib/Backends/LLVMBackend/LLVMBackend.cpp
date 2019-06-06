@@ -245,6 +245,22 @@ public:
     builder_.CreateStore(storedVal, vt);
   }
 
+  void emit(CallStmt *SS) {
+    std::vector<llvm::Value *> params;
+    std::vector<llvm::Type *> argListType;
+
+    for (auto &pp : SS->getParams()) {
+      params.push_back(generate(pp.get()));
+      argListType.push_back(params.back()->getType());
+    }
+
+    auto *proto = llvm::FunctionType::get(llvm::Type::getVoidTy(ctx_),
+                                          argListType, false);
+    auto *callee = M_->getOrInsertFunction(SS->getName(), proto);
+    builder_.CreateCall(callee, params);
+    return;
+  }
+
   void emit(IfRange *IR) {
     llvm::Value *indexVal = generate(IR->getIndex());
     auto range = IR->getRange();
@@ -319,6 +335,9 @@ public:
       return emit(SLS);
     }
     if (auto *ST = dynamic_cast<StoreStmt *>(S)) {
+      return emit(ST);
+    }
+    if (auto *ST = dynamic_cast<CallStmt *>(S)) {
       return emit(ST);
     }
     assert(false);

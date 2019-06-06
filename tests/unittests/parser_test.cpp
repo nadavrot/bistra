@@ -292,3 +292,22 @@ TEST(basic, parse_unary_functions) {
   auto *prog = P.getContext().getProgram();
   prog->verify();
 }
+
+TEST(basic, calls) {
+  const char *pragmas_test = R"(
+  func pragmas_test(C:float<x:10>) {
+    for (i in 0 .. 34) {
+      for (r in 0 .. C.x) {
+        putchar(i);
+      }
+    }
+  })";
+
+  ParserContext ctx(pragmas_test);
+  Parser P(ctx);
+  P.parse();
+  EXPECT_EQ(ctx.getNumErrors(), 0);
+  auto *p = ctx.getProgram();
+  p->verify();
+  p->dump();
+}

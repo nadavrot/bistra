@@ -113,7 +113,9 @@ private:
 
   /// Parse a list of indices acessing arrays.
   /// Example (the subscript part):  A[1, 2, j*2, i + 3 ]
-  bool parseSubscriptList(std::vector<Expr *> &exprs);
+  /// The token kind \p L and \p R represent the chars for open and closing the
+  /// sequence. Example parameters: TokenKind::l_square, TokenKind::l_paren.
+  bool parseSubscriptList(std::vector<Expr *> &exprs, TokenKind L, TokenKind R);
 
   /// Parse and store the Let statement.
   bool parseLetStmt();

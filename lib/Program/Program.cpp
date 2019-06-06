@@ -287,6 +287,30 @@ std::vector<Expr *> StoreStmt::cloneIndicesPtr(CloneCtx &map) {
   return ret;
 }
 
+std::vector<Expr *> CallStmt::cloneIndicesPtr(CloneCtx &map) {
+  std::vector<Expr *> ret;
+  // Clone and save the raw unowned pointers.
+  for (auto &h : getParams()) {
+    ret.push_back(h.get()->clone(map));
+  }
+  return ret;
+}
+
+void CallStmt::dump(unsigned indent) const {
+  spaces(indent);
+  std::cout << getName() << "(";
+  bool first = true;
+  for (auto &I : params_) {
+    if (!first) {
+      std::cout << ",";
+    }
+    first = false;
+    I->dump();
+  }
+  std::cout << ")";
+  std::cout << ";\n";
+}
+
 void StoreStmt::dump(unsigned indent) const {
   spaces(indent);
   std::cout << arg_->getName() << "[";
@@ -388,6 +412,12 @@ Expr *LoadLocalExpr::clone(CloneCtx &map) {
   LocalVar *var = map.get(var_);
   verify();
   return new LoadLocalExpr(var, getLoc());
+}
+
+Stmt *CallStmt::clone(CloneCtx &map) {
+  verify();
+  std::vector<Expr *> indices = cloneIndicesPtr(map);
+  return new CallStmt(getName(), indices, getLoc());
 }
 
 Stmt *StoreStmt::clone(CloneCtx &map) {
@@ -557,6 +587,15 @@ void StoreStmt::verify() const {
   assert(storedType.getElementType() == EK && "Stored element type mismatch");
 }
 
+void CallStmt::verify() const {
+  for (auto &E : params_) {
+    E.verify();
+    E->verify();
+    assert(E.getParent() == this && "Invalid handle owner pointer");
+    assert(E->getType().isIndexTy() && "Argument must be of index kind");
+  }
+}
+
 void StoreLocalStmt::verify() const {
   Program *prog = getProgram();
   assert(prog->getVars().size() && "Program has no locals!");
@@ -638,6 +677,14 @@ void StoreStmt::visit(NodeVisitor *visitor) {
     ii.get()->visit(visitor);
   }
   value_->visit(visitor);
+  visitor->leave(this);
+}
+
+void CallStmt::visit(NodeVisitor *visitor) {
+  visitor->enter(this);
+  for (auto &ii : this->getParams()) {
+    ii.get()->visit(visitor);
+  }
   visitor->leave(this);
 }
 

@@ -331,7 +331,7 @@ Expr *Parser::parseExprPrimary() {
       }
 
       std::vector<Expr *> exprs;
-      if (parseSubscriptList(exprs)) {
+      if (parseSubscriptList(exprs, TokenKind::l_square, TokenKind::r_square)) {
         return nullptr;
       }
 
@@ -386,11 +386,12 @@ Expr *Parser::parseExprPrimary() {
   }
 }
 
-bool Parser::parseSubscriptList(std::vector<Expr *> &exprs) {
+bool Parser::parseSubscriptList(std::vector<Expr *> &exprs, TokenKind L,
+                                TokenKind R) {
   assert(exprs.empty() && "exprs list not empty");
-  if (!consumeIf(TokenKind::l_square)) {
+  if (!consumeIf(L)) {
     ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
-                  "expecting left square brace for subscript.");
+                  "expecting open brace for parameter list.");
     return true;
   }
 
@@ -403,7 +404,7 @@ bool Parser::parseSubscriptList(std::vector<Expr *> &exprs) {
     }
 
     // Hit the closing subscript. Bail.
-    if (Tok.is(TokenKind::r_square))
+    if (Tok.is(R))
       break;
 
     if (Tok.is(TokenKind::comma)) {
@@ -412,11 +413,11 @@ bool Parser::parseSubscriptList(std::vector<Expr *> &exprs) {
     }
 
     ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
-                  "expecting comma or end of subscript.");
+                  "expecting comma or end of parameter list.");
     return true;
   }
 
-  consumeToken(TokenKind::r_square);
+  consumeToken(R);
   return false;
 }
 
@@ -942,6 +943,15 @@ Stmt *Parser::parseOneStmt() {
       return new StoreLocalStmt(var, storedValue, accumulate, asLoc);
     }
 
+    // Parse function calls.
+    if (Tok.is(l_paren)) {
+      std::vector<Expr *> params;
+      if (parseSubscriptList(params, TokenKind::l_paren, TokenKind::r_paren))
+        return nullptr;
+
+      return new CallStmt(varName, params, argLoc);
+    }
+
     Argument *arg = ctx_.getArgMap().getByName(varName);
     if (!arg) {
       ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
@@ -956,7 +966,8 @@ Stmt *Parser::parseOneStmt() {
         return nullptr;
       }
       std::vector<Expr *> indices;
-      if (parseSubscriptList(indices)) {
+      if (parseSubscriptList(indices, TokenKind::l_square,
+                             TokenKind::r_square)) {
         return nullptr;
       }
 

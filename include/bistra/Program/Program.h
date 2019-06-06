@@ -585,6 +585,40 @@ public:
   virtual void visit(NodeVisitor *visitor) override;
 };
 
+/// Calls some external function with parameters.
+class CallStmt final : public Stmt {
+  /// The function name to call.
+  std::string name_;
+  /// The parameters to pass.
+  std::vector<ExprHandle> params_;
+
+public:
+  /// \returns the name of the callee.
+  std::string getName() const { return name_; }
+
+  /// \returns the call parameters.
+  const std::vector<ExprHandle> &getParams() const { return params_; }
+
+  /// \returns the call parameters.
+  std::vector<ExprHandle> &getParams() { return params_; }
+
+  CallStmt(const std::string &name, const std::vector<Expr *> &params,
+           DebugLoc loc)
+      : Stmt(loc), name_(name), params_() {
+    for (auto *E : params) {
+      params_.emplace_back(E, this);
+    }
+  }
+
+  /// Clone indices and return the list of unowned expr indices.
+  std::vector<Expr *> cloneIndicesPtr(CloneCtx &map);
+
+  virtual void dump(unsigned indent) const override;
+  virtual Stmt *clone(CloneCtx &map) override;
+  virtual void verify() const override;
+  virtual void visit(NodeVisitor *visitor) override;
+};
+
 /// Stores some value to a buffer.
 class StoreStmt final : public Stmt {
   /// The buffer to access.
