@@ -224,6 +224,7 @@ enum StmtTokenKind {
   LoopKind,
   StoreStmtKind,
   StoreLocalStmtKind,
+  IfRangeKind,
   LastStmtKind
 };
 
@@ -380,7 +381,21 @@ void Bytecode::serialize(StreamWriter &SW, BytecodeHeader &BH,
     SW.write((uint32_t)L->getStride());
     return;
   }
-
+  if (auto *IR = dynamic_cast<IfRange *>(S)) {
+    // Kind:
+    SW.write((uint32_t)StmtTokenKind::IfRangeKind);
+    // My ID:
+    SW.write((uint32_t)BC.stmtTable_.getIdFor(IR));
+    // Parent ID:
+    SW.write((uint32_t)BC.stmtTable_.getIdFor((Stmt *)IR->getParent()));
+    // Write the index to the if expression.
+    SW.write((uint32_t)BC.exprTable_.getIdFor(IR->getIndex().get()));
+    // Write range start.
+    SW.write((uint32_t)IR->getRange().first);
+    // Write range end.
+    SW.write((uint32_t)IR->getRange().first);
+    return;
+  }
   if (auto *ST = dynamic_cast<StoreStmt *>(S)) {
     // Kind:
     SW.write((uint32_t)StmtTokenKind::StoreStmtKind);
@@ -510,7 +525,6 @@ void Bytecode::deserializeStmt(StreamReader &SR, BytecodeHeader &BH,
 
   // The stmt ID (index into the stmt table).
   auto stmtId = SR.readU32();
-
   // The parent ID (index into the stmt table).
   auto parentId = SR.readU32();
   // Find the parent that holds this stmt.
@@ -524,6 +538,18 @@ void Bytecode::deserializeStmt(StreamReader &SR, BytecodeHeader &BH,
     auto *L = new Loop(name, loc, end, stride);
     parent->addStmt(L);
     BC.registerStmt(stmtId, L);
+    return;
+  }
+  case IfRangeKind: {
+    // Read the index of the index expr.
+    auto idxVal = BC.getExpr(SR.readU32());
+    // Load the start..end range.
+    auto start = SR.readU32();
+    auto end = SR.readU32();
+    // Register the new If.
+    auto *IR = new IfRange(idxVal, start, end, loc);
+    parent->addStmt(IR);
+    BC.registerStmt(stmtId, IR);
     return;
   }
   case StoreStmtKind: {
