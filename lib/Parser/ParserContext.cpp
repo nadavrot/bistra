@@ -28,6 +28,10 @@ Loop *ParserContext::popLoop() {
 void ParserContext::addPragma(PragmaCommand &pc) { pragmas_.push_back(pc); }
 
 std::pair<unsigned, unsigned> ParserContext::getLineCol(DebugLoc pos) {
+  // Don't try to analyze the buffer if debug-loc is unavailable.
+  if (!pos.isValid())
+    return {0, 0};
+
   const char *p = buffer_;
   const char *end = pos.getStart();
   const char *bufferEnd = buffer_ + strlen(buffer_);
@@ -64,6 +68,12 @@ void ParserContext::diagnose(DiagnoseKind kind, DebugLoc loc,
     std::cout << " note: " << message << "\n";
     numNotes_++;
     break;
+  }
+
+  // Don't print the message location if the debug location is unavailable.
+  if (!loc.isValid()) {
+    std::cout << "\n";
+    return;
   }
 
   const char *start = loc.getStart();
