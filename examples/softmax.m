@@ -1,5 +1,5 @@
 
-def softmax(Out:float<x:100>,
+func softmax(Out:float<x:100>,
             In:float<x:100>) {
     var mx : float
     mx = In[0]

@@ -12,7 +12,7 @@ using namespace bistra;
 
 TEST(opt, tiler) {
   const char *tiler = R"(
-  def tiler(C:float<x:510>) {
+  func tiler(C:float<x:510>) {
     for (i in 0 .. C.x) { C[i] = 19.0 }
   })";
 
@@ -31,7 +31,7 @@ TEST(opt, tiler) {
 
 TEST(opt, split_loop) {
   const char *code = R"(
-  def split_me(A:float<x:100>, B:float<x:100>) {
+  func split_me(A:float<x:100>, B:float<x:100>) {
     for (i in 0 .. A.x) { A[i] = 0.0; B[i] = 1.0 }
   })";
 
@@ -46,7 +46,7 @@ TEST(opt, split_loop) {
 
 TEST(opt, simplifyExpr) {
   const char *code = R"(
-  def simplifyExpr(A:float<x:100>, B:float<x:100>) {
+  func simplifyExpr(A:float<x:100>, B:float<x:100>) {
     A[0] = 4.0 + 5.0
     A[1] = B[0] * 0.0 + B[1 * 3] + 0.0 + B[0 + 2] * 1.0
     for (i in 0 .. 24) {
@@ -71,7 +71,7 @@ TEST(opt, simplifyExpr) {
 
 TEST(opt, range_check_loops) {
   const char *code = R"(
-  def range_check_loops(A:float<x:100>, B:float<x:100>) {
+  func range_check_loops(A:float<x:100>, B:float<x:100>) {
     for (i in 0 .. 100) {
       if ((i * 2 )     in 0 .. 300) { A[1] = 0.0 } // keep
       if ((i * 2 + 50) in 0 .. 40 ) { A[2] = 1.0 } // kill

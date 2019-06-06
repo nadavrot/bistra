@@ -100,7 +100,7 @@ void Program::addArgument(Argument *arg) { args_.push_back(arg); }
 void Program::addVar(LocalVar *var) { vars_.push_back(var); }
 
 void Program::dump(unsigned indent) const {
-  std::cout << "def " << getName() << "(";
+  std::cout << "func " << getName() << "(";
   for (int i = 0, e = args_.size(); i < e; i++) {
     if (i != 0) {
       std::cout << ", ";

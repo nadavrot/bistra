@@ -10,7 +10,7 @@
 using namespace bistra;
 
 const char *test_program = R"(
-def matmul(C:float<I:512,J:512>, A:float<I:512,K:512>, B:float<K:512,J:512>) {
+func matmul(C:float<I:512,J:512>, A:float<I:512,K:512>, B:float<K:512,J:512>) {
   for (i in 0 .. 512) {
     for (j in 0 .. 512) {
       C[i,j] = 0.0;
@@ -22,19 +22,19 @@ def matmul(C:float<I:512,J:512>, A:float<I:512,K:512>, B:float<K:512,J:512>) {
 })";
 
 const char *test_program2 = R"(
-def matmul(C:float<I:512,J:512>, A:float<I:512,K:512>, B:float<K:512,J:512>) {
+func matmul(C:float<I:512,J:512>, A:float<I:512,K:512>, B:float<K:512,J:512>) {
   for (i in 0 .. 512) {
         C[i + 3, i * 2 ] += (A[i, (4 + 2) * i]) * B[4 + 4, 8 + (8 * i)] + 0.34;
   }
 })";
 
 TEST(basic, lexer1) {
-  ParserContext ctx("def test (1,-2) // comment. ");
+  ParserContext ctx("func test (1,-2) // comment. ");
   Lexer L(ctx);
   Token result;
 
   L.Lex(result);
-  EXPECT_EQ(result.getKind(), TokenKind::kw_def);
+  EXPECT_EQ(result.getKind(), TokenKind::kw_func);
   L.Lex(result);
   EXPECT_EQ(result.getKind(), TokenKind::identifier);
   L.Lex(result);
@@ -52,7 +52,7 @@ TEST(basic, lexer1) {
 }
 
 TEST(basic, parse_decl) {
-  ParserContext ctx("def matmul(C:float<I:512,J:512>) {}");
+  ParserContext ctx("func matmul(C:float<I:512,J:512>) {}");
   Parser P(ctx);
   P.Parse();
   auto *pg = ctx.getProgram();
@@ -67,7 +67,7 @@ TEST(basic, parse_decl) {
 
 TEST(basic, parse_for) {
   ParserContext ctx(
-      "def matmul(C:float<I:512,J:512>) {  for (i in 0 .. 125) {} }");
+      "func matmul(C:float<I:512,J:512>) {  for (i in 0 .. 125) {} }");
   Parser P(ctx);
   P.Parse();
   auto *pg = ctx.getProgram();
@@ -93,7 +93,7 @@ TEST(basic, parse_whole_file) {
 }
 
 const char *use_buffer_index = R"(
-def use_buffer_index(C:float<I:512,J:512>) {
+func use_buffer_index(C:float<I:512,J:512>) {
   for (i in 0 .. C.I) {
     for (j in 0 .. C.J) {
       C [i, j ] = 0.;
@@ -115,7 +115,7 @@ TEST(basic, use_buffer_index) {
 
 TEST(basic, comperators) {
   const char *comperators = R"(
-  def simple_comperator(C:float<I:10>) {
+  func simple_comperator(C:float<I:10>) {
     C [0] = C[0] + C[1];
     for (i in 0 .. 10) {
       for (j in 0 .. 10) {
@@ -134,7 +134,7 @@ TEST(basic, comperators) {
 
 TEST(basic, if_range_test) {
   const char *if_range_test = R"(
-  def if_range_test(C:float<x:10>) {
+  func if_range_test(C:float<x:10>) {
 
     for (i in 0 .. 34) {
       if (i in 0 .. C.x) {  }
@@ -154,7 +154,7 @@ TEST(basic, if_range_test) {
 
 TEST(basic, pragmas) {
   const char *pragmas_test = R"(
-  def pragmas_test(C:float<x:10>) {
+  func pragmas_test(C:float<x:10>) {
     #vectorize 8
     #widen 3
     for (i in 0 .. 34) {
@@ -185,7 +185,7 @@ TEST(basic, let_expr) {
   let width = 3.0;
   let offset = 2;
 
-  def let_exprs(C:float<x:10>) {
+  func let_exprs(C:float<x:10>) {
     let foo = 1.0;
     let offset2 = 2;
     C[offset + offset2] = width + foo;
@@ -213,7 +213,7 @@ TEST(basic, let_expr) {
 TEST(basic, let_expr_type) {
   const char *let_expr_type = R"(
   let val = 2;
-  def let_exprs(C:float<x:val>) { })";
+  func let_exprs(C:float<x:val>) { })";
   ParserContext ctx(let_expr_type);
   Parser P(ctx);
   P.Parse();
@@ -223,7 +223,7 @@ TEST(basic, let_expr_type) {
 
 TEST(basic, debug_loc) {
   const char *debug_loc = R"(
-  def debug_loc(C:float<x:10>) { for (i in 0 .. 10) {} })";
+  func debug_loc(C:float<x:10>) { for (i in 0 .. 10) {} })";
   ParserContext ctx(debug_loc);
   Parser P(ctx);
   P.Parse();
@@ -231,12 +231,12 @@ TEST(basic, debug_loc) {
   auto *p = ctx.getProgram();
   p->verify();
   // The loop is at the 34th char.
-  EXPECT_EQ(::getLoopByName(p, "i")->getLoc().getStart(), debug_loc + 34);
+  EXPECT_EQ(::getLoopByName(p, "i")->getLoc().getStart(), debug_loc + 35);
 }
 
 TEST(basic, var_decl) {
   const char *var_decl = R"(
-  def var_decl(C:float<x:100>) {
+  func var_decl(C:float<x:100>) {
     var xxx : float
     xxx = 4.3
   })";
@@ -252,7 +252,7 @@ TEST(basic, var_decl) {
 
 TEST(basic, var_load_decl) {
   const char *var_load_decl = R"(
-  def var_load_decl(C:float<x:100>) {
+  func var_load_decl(C:float<x:100>) {
     var xxx : float = 2.3
     var res : float = 24.
     xxx = 4.3
@@ -269,7 +269,7 @@ TEST(basic, var_load_decl) {
 
 TEST(basic, parse_binary_builtin_functions) {
   const char *parse_binary_builtin_functions = R"(
-  def parse_binary_builtin_functions(C:float<x:100>) {
+  func parse_binary_builtin_functions(C:float<x:100>) {
     C[0] = max(C[1], C[2]) + min(C[3], C[4]) + pow(C[5], C[6])
   })";
   ParserContext ctx(parse_binary_builtin_functions);
@@ -282,7 +282,7 @@ TEST(basic, parse_binary_builtin_functions) {
 
 TEST(basic, parse_unary_functions) {
   const char *parse_unary_functions = R"(
-  def parse_binary_builtin_functions(C:float<x:100>) {
+  func parse_binary_builtin_functions(C:float<x:100>) {
     C[0] = log(exp(sqrt(1.3))) + sqrt(log(C[0]) + 3.4) + abs(-2.3)
   })";
   ParserContext ctx(parse_unary_functions);

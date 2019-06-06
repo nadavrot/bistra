@@ -1018,7 +1018,7 @@ Stmt *Parser::parseOneStmt() {
 }
 
 Program *Parser::parseFunctionDecl() {
-  if (!consumeIf(kw_def)) {
+  if (!consumeIf(kw_func)) {
     skipUntil(TokenKind::eof);
     return nullptr;
   }
@@ -1096,7 +1096,7 @@ void Parser::Parse() {
   }
 
   // Only allow function declerations in the top-level scope.
-  if (Tok.is(kw_def)) {
+  if (Tok.is(kw_func)) {
     if (Program *func = parseFunctionDecl()) {
       ctx_.registerProgram(func);
     }

@@ -8,7 +8,7 @@ let channel_out = 128
 let size_in = 28
 let size_out = 28
 
-def conv(
+func conv(
   Out: float<N:batch, H:size_out, W:size_out, C:channel_out>,
   In: float<N:batch, H:size_in, W:size_in, C:channel_in>,
   Filter: float<CI:channel_in, K0:kernel, K1:kernel, CO:channel_out>,
