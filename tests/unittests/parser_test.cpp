@@ -136,7 +136,7 @@ TEST(basic, if_range_test) {
   const char *if_range_test = R"(
   func if_range_test(C:float<x:10>) {
 
-    for (i in 0 .. 34) {
+    for (i in 0 .. 64, 8) {
       if (i in 0 .. C.x) {  }
     }
 
@@ -296,7 +296,7 @@ TEST(basic, parse_unary_functions) {
 TEST(basic, calls) {
   const char *pragmas_test = R"(
   func pragmas_test(C:float<x:10>) {
-    for (i in 0 .. 34) {
+    for (i in 0 .. 34, 1) {
       for (r in 0 .. C.x) {
         putchar(i);
       }

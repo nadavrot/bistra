@@ -576,6 +576,7 @@ Stmt *Parser::parseForStmt() {
     return nullptr;
   }
 
+  int stride = 1;
   int zero = 0;
   int endRange = 0;
   if (parseIntegerLiteral(zero) || zero != 0) {
@@ -601,6 +602,16 @@ Stmt *Parser::parseForStmt() {
     skipUntil(TokenKind::r_paren);
     goto end_loop_decl;
   }
+
+  // Parse the stride argument.
+  if (consumeIf(TokenKind::comma)) {
+    auto strideLoc = Tok.getLoc();
+    if (parseIntegerLiteralOrLetConstant(stride)) {
+      ctx_.diagnose(DiagnoseKind::Error, strideLoc,
+                    "expecting stride parameter.");
+    }
+  }
+
 end_loop_decl:
   // ")"
   if (!consumeIf(TokenKind::r_paren)) {
@@ -608,8 +619,14 @@ end_loop_decl:
                   "expecting right brace in for loop.");
   }
 
+  if (endRange % stride) {
+    ctx_.diagnose(DiagnoseKind::Error, forLoc,
+                  "loop stride must divide the loop range");
+    return nullptr;
+  }
+
   // Create the loop.
-  Loop *L = new Loop(indexName, forLoc, endRange);
+  Loop *L = new Loop(indexName, forLoc, endRange, stride);
 
   ctx_.pushLoop(L);
   // Parse the body of the loop.
@@ -739,7 +756,7 @@ end_loop_decl:
   // ")"
   if (!consumeIf(TokenKind::r_paren)) {
     ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
-                  "expecting right brace in for loop.");
+                  "expecting right brace in if-range.");
   }
 
   // Create the if-range.

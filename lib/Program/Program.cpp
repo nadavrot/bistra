@@ -223,13 +223,13 @@ void Scope::insertAfterStmt(Stmt *s, Stmt *where) {
 
 void Loop::dump(unsigned indent) const {
   spaces(indent);
-  std::string vf;
+  std::string stride;
   if (stride_ != 1) {
-    vf = std::string(".") + std::to_string(stride_);
+    stride = std::string(", ") + std::to_string(stride_);
   }
 
-  std::cout << "for" << vf << " (" << indexName_ << " in 0.." << end_
-            << ") {\n";
+  std::cout << "for"
+            << " (" << indexName_ << " in 0.." << end_ << stride << ") {\n";
   Scope::dump(indent + 1);
   spaces(indent);
   std::cout << "}\n";
