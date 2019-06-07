@@ -423,12 +423,18 @@ bool bistra::vectorize(Loop *L, unsigned vf) {
     return false;
   }
 
-  std::vector<LoadLocalExpr *> lloads;
-  std::vector<StoreLocalStmt *> lstores;
-  collectLocals(L, lloads, lstores, nullptr);
-  // We can't handle local loads/stores in this optimization.
-  if (lloads.size() || lstores.size())
+  auto stmts = collectStmts(L);
+  for (auto *s : stmts) {
+    if (dynamic_cast<StoreStmt *>(s))
+      continue;
+    if (dynamic_cast<IfRange *>(s))
+      continue;
+    if (dynamic_cast<Loop *>(s))
+      continue;
+
+    // We can't handle this kind of statement.
     return false;
+  }
 
   // Collect the indices in the loop L that access the index of L.
   std::vector<IndexExpr *> indices;
