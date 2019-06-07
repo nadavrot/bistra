@@ -3,6 +3,7 @@
 #include "bistra/Parser/ParserContext.h"
 #include "bistra/Program/Pragma.h"
 #include "bistra/Program/Program.h"
+#include "bistra/Transforms/Simplify.h"
 
 using namespace bistra;
 
@@ -835,6 +836,9 @@ bool Parser::parseLetStmt() {
   if (!storedValue) {
     return true;
   }
+
+  // Simplify the expression before saving it.
+  storedValue = simplifyExpr(storedValue);
 
   ctx_.getLetStack().registerValue(varName, storedValue);
   return false;

@@ -9,6 +9,7 @@ target_link_libraries(
     Program
     Parser
     Analysis
+    Transforms
     )
 
 add_test(
