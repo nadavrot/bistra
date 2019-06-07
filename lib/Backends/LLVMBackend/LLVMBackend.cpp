@@ -124,6 +124,11 @@ public:
       return llvm::ConstantFP::get(llvmTy, cc->getValue());
     }
 
+    // Handle float-constant expressions.
+    if (auto *cc = dynamic_cast<const ConstantStringExpr *>(e)) {
+      return builder_.CreateGlobalStringPtr(cc->getValue());
+    }
+
     // Handle binary expressions.
     if (auto *bin = dynamic_cast<const BinaryExpr *>(e)) {
       bool isFP = !bin->getType().isIndexTy();

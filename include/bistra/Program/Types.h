@@ -19,6 +19,7 @@ enum class ElemKind : unsigned char {
   Float32Ty, // 32-bit float type (float)
   Int8Ty,    // 8-bit type (int8_t)
   IndexTy,   // The type of an index.
+  StringTy,  // A pointer to some string.
 };
 
 /// A class that represents a type of a tensor.

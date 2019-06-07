@@ -403,7 +403,7 @@ public:
 
 /// A constant float expression.
 class ConstantFPExpr final : public Expr {
-  /// The value that this constant integer represents.
+  /// The value that this constant float represents.
   float val_;
 
 public:
@@ -412,6 +412,24 @@ public:
 
   /// \returns the value stored by this constant.
   float getValue() const { return val_; }
+
+  virtual void dump() const override;
+  virtual Expr *clone(CloneCtx &map) override;
+  virtual void verify() const override;
+  virtual void visit(NodeVisitor *visitor) override;
+};
+
+/// A constant string expression.
+class ConstantStringExpr final : public Expr {
+  /// The value that this constant string represents.
+  std::string val_;
+
+public:
+  ConstantStringExpr(const std::string &val)
+      : Expr(ElemKind::IndexTy, DebugLoc::npos()), val_(val) {}
+
+  /// \returns the value stored by this constant.
+  const std::string &getValue() const { return val_; }
 
   virtual void dump() const override;
   virtual Expr *clone(CloneCtx &map) override;

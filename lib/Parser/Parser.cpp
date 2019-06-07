@@ -87,6 +87,15 @@ bool Parser::parseIntegerLiteral(int &val) {
   return true;
 }
 
+bool Parser::parseStringLiteral(std::string &val) {
+  if (Tok.is(TokenKind::string_literal)) {
+    val = Tok.getText().c_str();
+    consumeToken(TokenKind::string_literal);
+    return false;
+  }
+  return true;
+}
+
 bool Parser::parseIntegerLiteralOrLetConstant(int &val) {
   // Parse integers.
   if (!parseIntegerLiteral(val))
@@ -324,6 +333,13 @@ Expr *Parser::parseExprPrimary() {
     double num;
     parseFloatLiteral(num);
     return new ConstantFPExpr(num);
+  }
+
+  case string_literal: {
+    std::string str;
+    parseStringLiteral(str);
+
+    return new ConstantStringExpr(str);
   }
 
   case identifier: {

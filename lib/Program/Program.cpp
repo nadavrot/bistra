@@ -254,6 +254,8 @@ void ConstantFPExpr::dump() const {
   std::cout << " " + std::to_string(val_) + " ";
 }
 
+void ConstantStringExpr::dump() const { std::cout << " \"" + val_ + "\" "; }
+
 void BroadcastExpr::dump() const {
   std::cout << "(";
   val_->dump();
@@ -377,12 +379,12 @@ void UnaryExpr::dump() const {
   }
 }
 
-Expr *ConstantExpr::clone(CloneCtx &map) {
-  return new ConstantExpr(this->val_);
-}
+Expr *ConstantExpr::clone(CloneCtx &map) { return new ConstantExpr(val_); }
 
-Expr *ConstantFPExpr::clone(CloneCtx &map) {
-  return new ConstantFPExpr(this->val_);
+Expr *ConstantFPExpr::clone(CloneCtx &map) { return new ConstantFPExpr(val_); }
+
+Expr *ConstantStringExpr::clone(CloneCtx &map) {
+  return new ConstantStringExpr(val_);
 }
 
 Expr *BinaryExpr::clone(CloneCtx &map) {
@@ -503,6 +505,8 @@ void UnaryExpr::verify() const {
 void ConstantExpr::verify() const {}
 
 void ConstantFPExpr::verify() const {}
+
+void ConstantStringExpr::verify() const {}
 
 void Loop::verify() const {
   assert(end_ > 0 && "Loops must not be empty");
@@ -647,6 +651,11 @@ void ConstantExpr::visit(NodeVisitor *visitor) {
 }
 
 void ConstantFPExpr::visit(NodeVisitor *visitor) {
+  visitor->enter(this);
+  visitor->leave(this);
+}
+
+void ConstantStringExpr::visit(NodeVisitor *visitor) {
   visitor->enter(this);
   visitor->leave(this);
 }

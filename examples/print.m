@@ -1,8 +1,6 @@
 
 func hello(Dest:float<len:1024>) {
   for (i in 0 .. 10) {
-    putchar(i + 65)
+    printf(" %d \n", 1)
   }
-  putchar(10)
-  putchar(13)
 }

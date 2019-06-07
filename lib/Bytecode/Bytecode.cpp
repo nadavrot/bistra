@@ -211,6 +211,7 @@ struct StmtCollector : public NodeVisitor {
 enum ExprTokenKind {
   ConstantExprKind,
   ConstantFPExprKind,
+  ConstantStringExprKind,
   BinaryExprKind,
   UnaryExprKind,
   LoadExprKind,
@@ -285,6 +286,16 @@ void Bytecode::serialize(StreamWriter &SW, BytecodeHeader &BH,
     SW.write((uint32_t)BC.exprTable_.getIdFor(CE));
     // Value:
     SW.write((float)CE->getValue());
+    return;
+  }
+
+  if (auto *CSE = dynamic_cast<ConstantStringExpr *>(E)) {
+    // Kind:
+    SW.write((uint32_t)ExprTokenKind::ConstantStringExprKind);
+    // My ID:
+    SW.write((uint32_t)BC.exprTable_.getIdFor(CSE));
+    // Value:
+    SW.write((uint32_t)BH.getStringTable().getIdFor(CSE->getValue()));
     return;
   }
 
@@ -470,6 +481,11 @@ void Bytecode::deserializeExpr(StreamReader &SR, BytecodeHeader &BH,
   case ConstantFPExprKind:
     BC.registerExpr(exprId, new ConstantFPExpr(SR.readF32()));
     return;
+  case ConstantStringExprKind: {
+    // Read the string value.
+    auto val = BH.getStringTable().getById(SR.readU32());
+    BC.registerExpr(exprId, new ConstantStringExpr(val));
+  }
   case BinaryExprKind: {
     // Read the operation kind.
     auto kind = SR.readU8();

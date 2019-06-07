@@ -4,6 +4,7 @@ OTHER(identifier)
 OTHER(binary_operator)
 OTHER(integer_literal)
 OTHER(float_literal)
+OTHER(string_literal)
 OTHER(comment)
 
 KEYWORD(func)

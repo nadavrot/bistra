@@ -38,6 +38,8 @@ private:
   void lexIdentifier(Token &result);
   // Lex a number.
   void lexNumber(Token &result);
+  // Lex a string.
+  void lexString(Token &result);
 };
 
 } // end namespace bistra

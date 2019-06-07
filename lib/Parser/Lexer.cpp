@@ -117,6 +117,21 @@ void Lexer::lexNumber(Token &result) {
   return formToken(integer_literal, tokStart, result);
 }
 
+void Lexer::lexString(Token &result) {
+  const char *TokStart = curPtr_ - 1;
+  assert(*TokStart == '"' && "Unexpected start");
+
+  // Lex [a-zA-Z_0-9]*
+  while (*curPtr_ && *curPtr_ != '"')
+    ++curPtr_;
+
+  formToken(string_literal, TokStart + 1, result);
+
+  // Skip the ending quote.
+  if (*curPtr_)
+    ++curPtr_;
+}
+
 //===----------------------------------------------------------------------===//
 // Lexer Loop
 //===----------------------------------------------------------------------===//
@@ -279,5 +294,7 @@ Restart:
   case '8':
   case '9':
     return lexNumber(result);
+  case '"':
+    return lexString(result);
   }
 }

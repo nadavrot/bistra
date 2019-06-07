@@ -102,6 +102,9 @@ private:
   /// Parse a single integer literal.
   bool parseIntegerLiteral(int &val);
 
+  /// Parse a single string literal.
+  bool parseStringLiteral(std::string &val);
+
   /// Parse a single integer literal or integer in a let constant.
   bool parseIntegerLiteralOrLetConstant(int &val);
 
