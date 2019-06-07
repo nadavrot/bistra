@@ -423,6 +423,7 @@ bool bistra::vectorize(Loop *L, unsigned vf) {
     return false;
   }
 
+  // Check if we can handle all of the statements contained in the loop.
   auto stmts = collectStmts(L);
   for (auto *s : stmts) {
     if (dynamic_cast<StoreStmt *>(s))
