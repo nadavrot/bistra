@@ -65,6 +65,11 @@ public:
     llvm::Function *F = llvm::Function::Create(
         FT, llvm::Function::ExternalLinkage, p->getName(), M_.get());
 
+    // Mark the arguments to the function as no-alias.
+    for (auto &arg : F->args()) {
+      arg.addAttr(llvm::Attribute::AttrKind::NoAlias);
+    }
+
     // Set names for all arguments.
     unsigned idx = 0;
     for (auto &arg : F->args())
