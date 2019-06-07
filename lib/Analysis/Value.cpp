@@ -8,6 +8,54 @@
 
 using namespace bistra;
 
+namespace {
+/// A visitor class that collects all expressions in RPO.
+struct ExprCollectorRPO : public NodeVisitor {
+  std::vector<Expr *> &exprs_;
+  ExprCollectorRPO(std::vector<Expr *> &exprs) : exprs_(exprs) {}
+  virtual void leave(Expr *E) override {
+    assert(std::find(exprs_.begin(), exprs_.end(), E) == exprs_.end() &&
+           "Don't collect the same expr twice");
+    exprs_.push_back(E);
+  }
+
+  /// Collect all of the expressions in the class.
+  static std::vector<Expr *> getExprs(Stmt *s) {
+    std::vector<Expr *> res;
+    ExprCollectorRPO EC(res);
+    s->visit(&EC);
+    return res;
+  }
+};
+
+/// A visitor class that collects all statements in top-down order.
+struct StmtCollector : public NodeVisitor {
+  std::vector<Stmt *> &stmts_;
+  StmtCollector(std::vector<Stmt *> &stmts) : stmts_(stmts) {}
+  virtual void enter(Stmt *S) override {
+    assert(std::find(stmts_.begin(), stmts_.end(), S) == stmts_.end() &&
+           "Don't collect the same stmt twice");
+    stmts_.push_back(S);
+  }
+
+  /// Collect all of the stmts in the class.
+  static std::vector<Stmt *> getStmts(Stmt *s) {
+    std::vector<Stmt *> res;
+    StmtCollector SC(res);
+    s->visit(&SC);
+    return res;
+  }
+};
+} // namespace
+
+std::vector<Stmt *> bistra::collectStmts(Stmt *s) {
+  return StmtCollector::getStmts(s);
+}
+
+std::vector<Expr *> bistra::collectExprs(Stmt *s) {
+  return ExprCollectorRPO::getExprs(s);
+}
+
 IndexAccessKind bistra::getIndexAccessKind(Expr *E, Loop *L) {
   if (IndexExpr *IE = dynamic_cast<IndexExpr *>(E)) {
     if (IE->getLoop() == L) {

@@ -23,6 +23,12 @@ class StoreStmt;
 class LoadExpr;
 struct ExprType;
 
+/// Collect and return the list of statements in \p s.
+std::vector<Stmt *> collectStmts(Stmt *s);
+
+/// Collect and return the list of expressions in \p s.
+std::vector<Expr *> collectExprs(Stmt *s);
+
 /// Describes the kind of relationship some expression has when vectorizing it
 /// across some dimension.
 enum IndexAccessKind { Uniform, Consecutive, Other };
