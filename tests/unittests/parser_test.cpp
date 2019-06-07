@@ -311,3 +311,20 @@ TEST(basic, calls) {
   p->verify();
   p->dump();
 }
+
+TEST(basic, vectorized_loads) {
+  const char *vectorized_loads = R"(
+  func vectorized_loads(A:float<x:800>, B:float<x:800>, C:float<x:800>) {
+    for (i in 0 .. A.x, 8) {
+      for (j in 0 .. B.x) {
+        A[i] = B[i].8 + C[i]
+      }
+    }
+  })";
+
+  ParserContext ctx(vectorized_loads);
+  Parser P(ctx);
+  P.parse();
+  EXPECT_EQ(ctx.getNumErrors(), 0);
+  ctx.getProgram()->dump();
+}

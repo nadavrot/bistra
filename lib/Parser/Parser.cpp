@@ -133,6 +133,24 @@ bool Parser::parseIdentifier(std::string &text) {
   }
   return true;
 }
+using ExprPtr = Expr *;
+static void tryToAdjustTypes(ExprPtr &LHS, ExprPtr &RHS) {
+  auto LT = LHS->getType();
+  auto RT = RHS->getType();
+  if (LT == RT)
+    return;
+
+  // Try to broadcast RHS.
+  if (LT.getWidth() > 0 && RT.getWidth() == 1) {
+    RHS = new BroadcastExpr(RHS, LT.getWidth());
+    return;
+  }
+  // Try to broadcast LHS.
+  if (RT.getWidth() > 0 && LT.getWidth() == 1) {
+    LHS = new BroadcastExpr(LHS, RT.getWidth());
+    return;
+  }
+}
 
 Expr *Parser::parseExpr(unsigned RBP) {
   // Parse a single expression.
@@ -160,6 +178,7 @@ Expr *Parser::parseExpr(unsigned RBP) {
 
 #define GEN(str, sym, kind)                                                    \
   if (str == sym) {                                                            \
+    tryToAdjustTypes(LHS, RHS);                                                \
     if (!LHS->getType().isEqual(RHS->getType())) {                             \
       ctx_.diagnose(DiagnoseKind::Error, loc, "operator types mismatch");      \
       return nullptr;                                                          \
@@ -343,7 +362,20 @@ Expr *Parser::parseExprPrimary() {
         return nullptr;
       }
 
-      return new LoadExpr(A, exprs, argLoc);
+      // Load one element.
+      int loadWidth = 1;
+
+      // Parse the vector extension. For example: " = A[i].8"
+      if (consumeIf(TokenKind::period)) {
+        auto periodLoc = Tok.getLoc();
+        if (parseIntegerLiteralOrLetConstant(loadWidth)) {
+          ctx_.diagnose(DiagnoseKind::Error, periodLoc,
+                        "expecting vector width.");
+        }
+      }
+
+      ExprType ty(A->getType()->getElementType(), loadWidth);
+      return new LoadExpr(A, exprs, ty, argLoc);
     }
 
     // Check if this is a 'let' clause:
