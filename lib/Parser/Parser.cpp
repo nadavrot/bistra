@@ -268,6 +268,34 @@ bool Parser::parseCallArgumentList(std::vector<Expr *> &args, bool sameTy,
   return false;
 }
 
+/// Unescape a c string. Translate '\\n' to '\n', etc.
+static std::string unescapeCString(const std::string &s) {
+  std::string res;
+  std::string::const_iterator it = s.begin();
+  while (it != s.end()) {
+    char c = *it++;
+    if (c == '\\' && it != s.end()) {
+      switch (*it++) {
+      case '\\':
+        c = '\\';
+        break;
+      case 'n':
+        c = '\n';
+        break;
+      case 't':
+        c = '\t';
+        break;
+      default:
+        // Unhandled escape sequence.
+        continue;
+      }
+    }
+    res += c;
+  }
+
+  return res;
+}
+
 Expr *Parser::parseBuiltinFunction() {
   std::vector<Expr *> args;
   auto loc = Tok.getLoc();
@@ -338,8 +366,7 @@ Expr *Parser::parseExprPrimary() {
   case string_literal: {
     std::string str;
     parseStringLiteral(str);
-
-    return new ConstantStringExpr(str);
+    return new ConstantStringExpr(unescapeCString(str));
   }
 
   case identifier: {
