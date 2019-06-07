@@ -238,7 +238,7 @@ int main(int argc, char *argv[]) {
     return 1;
 
   if (FLAGS_tune) {
-    std::string outFile = "/tmp/file.cc";
+    std::string outFile = "/tmp/file.s";
     if (FLAGS_out.size()) {
       outFile = FLAGS_out;
     } else {
