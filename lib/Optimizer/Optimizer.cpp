@@ -40,6 +40,30 @@ void EvaluatorPass::doIt(Program *p) {
   }
 }
 
+/// \returns a list of innermost loops in \p s.
+static std::vector<Loop *> collectInnermostLoops(Scope *s) {
+  auto loops = collectLoops(s);
+  std::vector<Loop *> innermost;
+  for (auto *l : loops) {
+    if (isInnermostLoop(l))
+      innermost.push_back(l);
+  }
+  return innermost;
+}
+
+/// \returns upto \p levels loop nest that wrap the loop \p L.
+static std::vector<Loop *> collectLoopHierarchy(Loop *L, int levels) {
+  // Collect the loop nest that contain the current loop.
+  std::vector<Loop *> hierarchy;
+  Loop *lptr = L;
+  for (int i = 0; lptr && i < levels; i++) {
+    hierarchy.push_back(lptr);
+    lptr = getContainingLoop(lptr);
+  }
+
+  return hierarchy;
+}
+
 void FilterPass::doIt(Program *p) {
   std::vector<Loop *> loops;
   collectLoops(p, loops);
@@ -86,6 +110,53 @@ void VectorizerPass::doIt(Program *p) {
   }
 }
 
+/// Add element \p elem into the ordered set vector \p set.
+template <class T> void addOnce(std::vector<T *> &set, T *elem) {
+  if (std::find(set.begin(), set.end(), elem) == set.end()) {
+    set.push_back(elem);
+  }
+}
+
+void InterchangerPass::doIt(Program *p) {
+  p->verify();
+  nextPass_->doIt(p);
+
+  for (auto *l : collectInnermostLoops(p)) {
+    std::vector<Loop *> lastSubscriptIndex;
+
+    std::vector<LoadExpr *> loads;
+    std::vector<StoreStmt *> stores;
+    collectLoadStores(l, loads, stores);
+
+    // Collect loops that are used as the last index for some load.
+    for (auto *st : stores) {
+      if (auto *idx = dynamic_cast<IndexExpr *>(st->getIndices().back().get()))
+        addOnce(lastSubscriptIndex, idx->getLoop());
+    }
+    for (auto *ld : loads) {
+      if (auto *idx = dynamic_cast<IndexExpr *>(ld->getIndices().back().get()))
+        addOnce(lastSubscriptIndex, idx->getLoop());
+    }
+
+    // If there is only one dominent dimension then try to sink it down.
+    if (lastSubscriptIndex.size() != 1)
+      continue;
+
+    auto loopToSink = lastSubscriptIndex.back();
+
+    CloneCtx map;
+    std::unique_ptr<Program> np((Program *)p->clone(map));
+    auto *newL = map.get(loopToSink);
+    if (::sink(newL, 8)) {
+      // If we were not able to sink the loop all the way then quit.
+      if (!isInnermostLoop(newL))
+        continue;
+      np->verify();
+      nextPass_->doIt(np.get());
+    }
+  }
+}
+
 /// Compute the arithmetic and IO properties for the loop \p L.
 static ComputeCostTy getComputeIOInfo(Loop *L) {
   std::unordered_map<ASTNode *, ComputeCostTy> heatmap;
@@ -106,30 +177,6 @@ static uint64_t ipow(uint64_t a, uint64_t b) {
     res *= a;
   }
   return res;
-}
-
-/// \returns a list of innermost loops in \p s.
-static std::vector<Loop *> collectInnermostLoops(Scope *s) {
-  auto loops = collectLoops(s);
-  std::vector<Loop *> innermost;
-  for (auto *l : loops) {
-    if (isInnermostLoop(l))
-      innermost.push_back(l);
-  }
-  return innermost;
-}
-
-/// \returns upto \p levels loop nest that wrap the loop \p L.
-static std::vector<Loop *> collectLoopHierarchy(Loop *L, int levels) {
-  // Collect the loop nest that contain the current loop.
-  std::vector<Loop *> hierarchy;
-  Loop *lptr = L;
-  for (int i = 0; lptr && i < levels; i++) {
-    hierarchy.push_back(lptr);
-    lptr = getContainingLoop(lptr);
-  }
-
-  return hierarchy;
 }
 
 void TilerPass::doIt(Program *p) {
@@ -262,6 +309,7 @@ Program *bistra::optimizeEvaluate(std::unique_ptr<Backend> backend, Program *p,
   ps = new PromoterPass(ps);
   ps = new WidnerPass(ps);
   ps = new WidnerPass(ps);
+  ps = new InterchangerPass(ps);
   ps = new DistributePass(ps);
   ps = new VectorizerPass(ps);
   ps = new TilerPass(ps);

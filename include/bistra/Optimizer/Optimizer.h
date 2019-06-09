@@ -49,6 +49,12 @@ public:
   virtual void doIt(Program *p) override;
 };
 
+class InterchangerPass : public Pass {
+public:
+  InterchangerPass(Pass *next) : Pass("interchange", next) {}
+  virtual void doIt(Program *p) override;
+};
+
 class TilerPass : public Pass {
 public:
   TilerPass(Pass *next) : Pass("tiler", next) {}
