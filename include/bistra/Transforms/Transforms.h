@@ -26,6 +26,10 @@ bool splitScopes(Loop *L);
 /// Try to hoist the loop \p level levels up.
 bool hoist(Loop *L, unsigned levels);
 
+/// Try to sink the loop \p level levels up.
+/// \returns True if the loop was sunk at least one level.
+bool sink(Loop *L, unsigned levels);
+
 /// Unroll the loop \p L by copying its body up to \p maxTripCount times.
 /// \returns True if the transform worked.
 bool unrollLoop(Loop *L, unsigned maxTripCount);

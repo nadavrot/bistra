@@ -94,3 +94,28 @@ TEST(opt, range_check_loops) {
   EXPECT_EQ(counter.stmt, 8);
   EXPECT_EQ(counter.expr, 14);
 }
+
+TEST(opt, sink_loop) {
+  const char *code = R"(
+  func sink_loop(A:float<x:100, y:100, z:100>, B:float<x:100, y:100, z:100>) {
+    for (i in 0 .. 100) {
+      for (j in 0 .. 100) {
+        for (k in 0 .. 100) {
+        A[i,j, k] = A[i,j,k]
+        }
+      }
+    }
+  })";
+
+  ParserContext ctx(code);
+  Parser P(ctx);
+  P.parse();
+  EXPECT_EQ(ctx.getNumErrors(), 0);
+  Program *p = ctx.getProgram();
+  Loop *I = ::getLoopByName(p, "i");
+
+  bool res = ::sink(I, 2);
+  p->dump();
+
+  EXPECT_EQ(res, true);
+}

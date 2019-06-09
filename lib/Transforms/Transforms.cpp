@@ -156,6 +156,29 @@ bool bistra::splitScopes(Loop *L) {
   return true;
 }
 
+bool bistra::sink(Loop *L, unsigned levels) {
+  if (levels < 1)
+    return false;
+
+  auto &body = L->getBody();
+  // Can't sink into a body with multiple statements.
+  if (body.size() != 1)
+    return false;
+
+  // Can only sink loops into other inner loops.
+  Loop *inner = dynamic_cast<Loop *>(body.back().get());
+  if (!inner)
+    return false;
+
+  // Hoist the inner loop above the current loop.
+  if (!hoist(inner, 1))
+    return false;
+
+  // Continue to sink the current loop.
+  sink(L, levels - 1);
+  return true;
+}
+
 bool bistra::hoist(Loop *L, unsigned levels) {
   if (levels == 0)
     return false;
