@@ -119,7 +119,6 @@ template <class T> void addOnce(std::vector<T *> &set, T *elem) {
 
 void InterchangerPass::doIt(Program *p) {
   p->verify();
-  nextPass_->doIt(p);
 
   for (auto *l : collectInnermostLoops(p)) {
     std::vector<Loop *> lastSubscriptIndex;
@@ -155,6 +154,9 @@ void InterchangerPass::doIt(Program *p) {
       nextPass_->doIt(np.get());
     }
   }
+
+  // Evaluate the original version.
+  nextPass_->doIt(p);
 }
 
 /// Compute the arithmetic and IO properties for the loop \p L.
@@ -309,10 +311,10 @@ Program *bistra::optimizeEvaluate(std::unique_ptr<Backend> backend, Program *p,
   ps = new PromoterPass(ps);
   ps = new WidnerPass(ps);
   ps = new WidnerPass(ps);
-  ps = new InterchangerPass(ps);
   ps = new DistributePass(ps);
   ps = new VectorizerPass(ps);
   ps = new TilerPass(ps);
+  ps = new InterchangerPass(ps);
   ps = new DistributePass(ps);
   ps->doIt(p);
   return ev->getBestProgram();
