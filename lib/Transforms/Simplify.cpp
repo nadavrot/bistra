@@ -15,7 +15,7 @@ Expr *bistra::simplifyExpr(Expr *e) {
     // Simplify operands and move constants to the RHS.
     auto *SL = simplifyExpr(BE->getLHS());
     auto *SR = simplifyExpr(BE->getRHS());
-    if (!isConst(SR) && isConst(SL)) {
+    if (!isConst(SR) && isConst(SL) && BE->isCommutative()) {
       std::swap(SL, SR);
     }
     BE->setLHS(SL);
