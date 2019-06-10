@@ -267,5 +267,8 @@ bool bistra::simplify(Stmt *s) {
 
   changed |= removeTrip1Loops(s);
 
+  if (changed)
+    simplify(s);
+
   return changed;
 }
