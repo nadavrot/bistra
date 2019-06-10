@@ -261,13 +261,9 @@ void IfRange::dump(unsigned indent) const {
   std::cout << "}\n";
 }
 
-void ConstantExpr::dump() const {
-  std::cout << " " + std::to_string(val_) + " ";
-}
+void ConstantExpr::dump() const { std::cout << std::to_string(val_); }
 
-void ConstantFPExpr::dump() const {
-  std::cout << " " + std::to_string(val_) + " ";
-}
+void ConstantFPExpr::dump() const { std::cout << std::to_string(val_); }
 
 void ConstantStringExpr::dump() const { std::cout << " \"" + val_ + "\" "; }
 
