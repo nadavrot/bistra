@@ -359,6 +359,7 @@ void StoreLocalStmt::dump(unsigned indent) const {
 void IndexExpr::dump() const { std::cout << loop_->getName(); }
 
 void BinaryExpr::dump() const {
+  std::cout << "(";
   switch (getKind()) {
   case Mul:
   case Add:
@@ -379,6 +380,7 @@ void BinaryExpr::dump() const {
     std::cout << ")";
     break;
   }
+  std::cout << ")";
 }
 
 void UnaryExpr::dump() const {
