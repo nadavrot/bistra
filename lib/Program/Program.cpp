@@ -119,6 +119,21 @@ void Program::dump(unsigned indent) const {
   std::cout << "}\n";
 }
 
+bool BinaryExpr::isCommutative() const {
+  switch (kind_) {
+  case bistra::BinaryExpr::Mul:
+  case bistra::BinaryExpr::Add:
+  case bistra::BinaryExpr::Max:
+  case bistra::BinaryExpr::Min:
+    return true;
+
+  case bistra::BinaryExpr::Div:
+  case bistra::BinaryExpr::Sub:
+  case bistra::BinaryExpr::Pow:
+    return false;
+  }
+}
+
 const char *BinaryExpr::getOpSymbol(BinOpKind kind_) {
 #define CASE(opname, symbol)                                                   \
   case BinaryExpr::BinOpKind::opname: {                                        \

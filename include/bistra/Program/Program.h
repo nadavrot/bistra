@@ -253,6 +253,9 @@ public:
   /// \returns the index expr.
   ExprHandle &getIndex() { return val_; }
 
+  /// \returns the index expr.
+  const ExprHandle &getIndex() const { return val_; }
+
   /// \returns the if-range range.
   std::pair<int, int> getRange() const { return {start_, end_}; }
 
@@ -462,6 +465,9 @@ public:
 
   /// \return the kind of the binary operator.
   BinOpKind getKind() const { return kind_; }
+
+  /// \returns True if the operation is commutative.
+  bool isCommutative() const;
 
   /// \returns the string representation of \p kind_;
   static const char *getOpSymbol(BinOpKind kind_);
