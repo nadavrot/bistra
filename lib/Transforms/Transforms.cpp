@@ -1,5 +1,6 @@
 #include "bistra/Transforms/Transforms.h"
 #include "bistra/Analysis/Value.h"
+#include "bistra/Analysis/Visitors.h"
 #include "bistra/Program/Pragma.h"
 #include "bistra/Program/Program.h"
 #include "bistra/Program/Utils.h"
@@ -564,6 +565,110 @@ bool bistra::widen(Loop *L, unsigned wf) {
   return true;
 }
 
+namespace {
+/// A visitor class that collects all uses of variables and arguments.
+struct StorageUsageCollector : public NodeVisitor {
+  std::set<Argument *> argsRead_;
+  std::set<LocalVar *> varsRead_;
+  std::set<Argument *> argsWrite_;
+  std::set<LocalVar *> varsWrite_;
+  StorageUsageCollector() = default;
+  virtual void enter(Expr *E) override {
+    if (auto *II = dynamic_cast<LoadExpr *>(E)) {
+      argsRead_.insert(II->getDest());
+    }
+    if (auto *II = dynamic_cast<LoadLocalExpr *>(E)) {
+      varsRead_.insert(II->getDest());
+    }
+  }
+  virtual void enter(Stmt *S) override {
+    if (auto *II = dynamic_cast<StoreStmt *>(S)) {
+      argsWrite_.insert(II->getDest());
+    }
+    if (auto *II = dynamic_cast<StoreLocalStmt *>(S)) {
+      varsWrite_.insert(II->getDest());
+    }
+  }
+};
+} // namespace
+
+/// \returns True if any of the elements of \p first are in \p second.
+template <typename T>
+static bool doSetsIntersect(const std::set<T> &first,
+                            const std::set<T> &second) {
+  for (auto &e : first) {
+    if (second.count(e))
+      return true;
+  }
+  return false;
+}
+
+bool bistra::fuse(Loop *L, unsigned levels) {
+  // Find the parent scope.
+  Scope *parent = dynamic_cast<Scope *>(L->getParent());
+  if (!parent)
+    return false;
+
+  // Find the following consecutive loop.
+  Loop *L2 = nullptr;
+  auto &body = parent->getBody();
+  // For each stmt except for the last one.
+  for (int i = 0, e = body.size() - 1; i < e; i++) {
+    if (body[i].get() == L) {
+      L2 = dynamic_cast<Loop *>(body[i + 1].get());
+      break;
+    }
+  }
+
+  // We were not able to find a consecutive loop.
+  if (!L2)
+    return false;
+
+  // Loop range and stride must be identical.
+  if (L->getEnd() != L2->getEnd() || L->getStride() != L2->getStride())
+    return false;
+
+  // Collect the variable and argument usage.
+  StorageUsageCollector SUC1;
+  StorageUsageCollector SUC2;
+  L->visit(&SUC1);
+  L2->visit(&SUC2);
+
+  /// Check if the argument reads/writes intersect.
+  if (doSetsIntersect(SUC1.argsWrite_, SUC2.argsWrite_) ||
+      doSetsIntersect(SUC1.argsWrite_, SUC2.argsRead_) ||
+      doSetsIntersect(SUC1.argsRead_, SUC2.argsWrite_))
+    return false;
+
+  /// Check if the variable reads/writes intersect.
+  if (doSetsIntersect(SUC1.varsWrite_, SUC2.varsWrite_) ||
+      doSetsIntersect(SUC1.varsWrite_, SUC2.varsRead_) ||
+      doSetsIntersect(SUC1.varsRead_, SUC2.varsWrite_))
+    return false;
+
+  // We are good to go. Let's perform the transformation.
+
+  // Update all of the indices of the second loop to use the first loop.
+  std::vector<IndexExpr *> indices;
+  collectIndices(L2, indices, L);
+  for (auto *IE : indices) {
+    IE->replaceUseWith(new IndexExpr(L));
+  }
+
+  // Move the content of the second loop to the first loop.
+  L->takeContent(L2);
+  parent->removeStmt(L2);
+
+  // Fuse child loops.
+  for (auto &S : L->getBody()) {
+    auto *LL = dynamic_cast<Loop *>(S.get());
+    if (LL && ::fuse(LL, levels - 1))
+      break;
+  }
+
+  return true;
+}
+
 static bool hoistLoads(Program *p, Loop *L) {
   std::vector<LoadExpr *> loads;
   std::vector<StoreStmt *> stores;
@@ -689,6 +794,8 @@ bool bistra::applyPragmaCommand(const PragmaCommand &pc) {
     break;
   case PragmaCommand::PragmaKind::hoist:
     return ::hoist(pc.L_, pc.param_);
+  case PragmaCommand::PragmaKind::fuse:
+    return ::fuse(pc.L_, pc.param_);
 
   case PragmaCommand::other:
     assert(false && "Invalid pragma");

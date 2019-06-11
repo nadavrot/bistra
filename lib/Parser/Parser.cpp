@@ -758,6 +758,7 @@ parse_loop:
   MATCH(pragmaName, "peel", PragmaCommand::PragmaKind::peel);
   MATCH(pragmaName, "unroll", PragmaCommand::PragmaKind::unroll);
   MATCH(pragmaName, "hoist", PragmaCommand::PragmaKind::hoist);
+  MATCH(pragmaName, "fuse", PragmaCommand::PragmaKind::fuse);
 #undef MATCH
 
   if (pk == PragmaCommand::PragmaKind::other) {

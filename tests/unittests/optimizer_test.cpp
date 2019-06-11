@@ -119,3 +119,41 @@ TEST(opt, sink_loop) {
 
   EXPECT_EQ(res, true);
 }
+
+TEST(opt, fuse_test) {
+  const char *code = R"(
+  func fuse_test(A:float<x:100, y:100, z:100>, B:float<x:100, y:100, z:100>) {
+    for (i in 0 .. 100) {
+      for (j in 0 .. 100) {
+        for (k in 0 .. 100) {
+          A[i,j, k] += 1;
+        }
+      }
+    }
+
+    for (i1 in 0 .. 100) {
+      for (j1 in 0 .. 100) {
+        for (k1 in 0 .. 100) {
+          B[i1, j1, k1] += 4;
+        }
+      }
+    }
+  })";
+
+  ParserContext ctx(code);
+  Parser P(ctx);
+  P.parse();
+  EXPECT_EQ(ctx.getNumErrors(), 0);
+  Program *p = ctx.getProgram();
+  Loop *I = ::getLoopByName(p, "i");
+
+  // Fuse all loops.
+  bool res = ::fuse(I, 3);
+  p->dump();
+  EXPECT_EQ(res, true);
+
+  NodeCounter counter;
+  p->visit(&counter);
+  EXPECT_EQ(counter.stmt, 6);
+  EXPECT_EQ(counter.expr, 8);
+}

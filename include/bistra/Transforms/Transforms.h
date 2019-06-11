@@ -48,6 +48,14 @@ bool vectorize(Loop *L, unsigned vf);
 /// Example: A[i] = 3 becomes A[i] = 3; A[i+1] = 3;
 bool widen(Loop *L, unsigned wf);
 
+/// Fuse the loop L, with the following loop. For example:
+///   for (i in 0..100) {A[i] = 3;}
+///   for (j in 0..100) {B[j] = 9;}
+/// becomes
+///   for (i in 0..100) {A[i] = 3; A[j] = 9;}
+/// \returns True if the loop was modified.
+bool fuse(Loop *L, unsigned levels);
+
 /// Promote some memory usage from the memory to local variables.
 /// \returns true if the program was modified.
 bool promoteLICM(Program *p);
