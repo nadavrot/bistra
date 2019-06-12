@@ -20,6 +20,10 @@ public:
   /// Execute \p iter number of iterations.
   /// \returns the time in seconds it took to execute the proogram.
   virtual double evaluateCode(Program *p, unsigned iter) = 0;
+
+  /// Compile and run the program \p p on the tensors that are stored
+  /// consecutively in \p mem.
+  virtual void runOnce(Program *p, void *mem) = 0;
 };
 
 } // namespace bistra

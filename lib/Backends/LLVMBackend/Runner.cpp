@@ -62,13 +62,6 @@ llvm::TargetMachine &LLVMBackend::getTargetMachine() {
   return JIT->getTargetMachine();
 }
 
-/// Init the buffer with some non-zero and all non-nan values.
-static void initBuffer(float *A, int len) {
-  for (int i = 0; i < len; i++) {
-    A[i] = i % 4 - 2;
-  }
-}
-
 /// Calculate some checksum for the buffer.
 static unsigned crcBuffer(float *A, int len) {
   // This can warp and it's okay.
@@ -79,7 +72,7 @@ static unsigned crcBuffer(float *A, int len) {
   return sum;
 }
 
-double LLVMBackend::run(std::unique_ptr<llvm::Module> M, size_t memSize,
+double LLVMBackend::run(std::unique_ptr<llvm::Module> M, void *mem,
                         unsigned iter) {
   auto H = JIT->addModule(std::move(M));
 
@@ -88,15 +81,12 @@ double LLVMBackend::run(std::unique_ptr<llvm::Module> M, size_t memSize,
 
   auto addr = ExprSymbol.getAddress();
 
-  auto *scratchPad = (float *)malloc(memSize);
-  initBuffer(scratchPad, memSize / sizeof(float));
-
   double timeSpent = 0.0;
 
   if (addr) {
     void (*call)(void *) = (void (*)(void *))addr.get();
     clock_t begin = clock();
-    call(scratchPad);
+    call(mem);
     clock_t end = clock();
     timeSpent += (double)(end - begin) / CLOCKS_PER_SEC;
   }
@@ -104,8 +94,6 @@ double LLVMBackend::run(std::unique_ptr<llvm::Module> M, size_t memSize,
   // Don't warn on the unused function that is used for verification.
   (void)crcBuffer;
 
-  // Free the scratchpad memory.
-  free(scratchPad);
   JIT->removeModule(H);
 
   return timeSpent / iter;

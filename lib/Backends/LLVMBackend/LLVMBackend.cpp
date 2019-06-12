@@ -517,6 +517,13 @@ void LLVMBackend::emitProgramCode(Program *p, const std::string &path,
   }
 }
 
+/// Init the buffer with some non-zero and all non-nan values.
+static void initBuffer(float *A, int len) {
+  for (int i = 0; i < len; i++) {
+    A[i] = i % 4 - 2;
+  }
+}
+
 double LLVMBackend::evaluateCode(Program *p, unsigned iter) {
   LLVMEmitter EE;
   EE.emit(p);
@@ -529,5 +536,19 @@ double LLVMBackend::evaluateCode(Program *p, unsigned iter) {
     memSz += arg->getType()->getSizeInBytes();
   }
 
-  return run(std::move(EE.getModule()), memSz, iter);
+  auto *scratchPad = (float *)malloc(memSz);
+  initBuffer(scratchPad, memSz / sizeof(float));
+
+  auto res = run(std::move(EE.getModule()), scratchPad, iter);
+
+  free(scratchPad);
+  return res;
+}
+
+void LLVMBackend::runOnce(Program *p, void *mem) {
+  LLVMEmitter EE;
+  EE.emit(p);
+  EE.emitBenchmark(p, 1);
+  optimize(getTargetMachine(), EE.getModule().get());
+  run(std::move(EE.getModule()), mem, 1);
 }

@@ -34,9 +34,11 @@ public:
   virtual void emitProgramCode(Program *p, const std::string &path, bool isSrc,
                                int iter) override;
 
-  double run(std::unique_ptr<llvm::Module> M, size_t memSize, unsigned iter);
+  double run(std::unique_ptr<llvm::Module> M, void *mem, unsigned iter);
 
   virtual double evaluateCode(Program *p, unsigned iter) override;
+
+  virtual void runOnce(Program *p, void *mem) override;
 };
 
 } // namespace bistra

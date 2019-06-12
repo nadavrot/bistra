@@ -12,6 +12,8 @@ public:
                                int iter) override;
 
   virtual double evaluateCode(Program *p, unsigned iter) override;
+
+  virtual void runOnce(Program *p, void *mem) override { assert(false); }
 };
 
 } // namespace bistra

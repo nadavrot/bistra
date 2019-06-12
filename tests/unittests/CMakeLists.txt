@@ -85,3 +85,26 @@ add_test(
   COMMAND
     ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}/bytecode_test
   )
+
+add_executable(
+    runtime_test
+    runtime_test.cpp
+    )
+
+target_link_libraries(
+    runtime_test
+    gtest_main
+    Program
+    Analysis
+    Backends
+    Bytecode
+    Parser
+    Transforms
+    )
+
+add_test(
+  NAME
+    runtime_test
+  COMMAND
+    ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}/runtime_test
+  )
