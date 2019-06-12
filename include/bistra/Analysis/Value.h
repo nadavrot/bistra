@@ -129,6 +129,16 @@ void estimateCompute(Stmt *S,
 uint64_t getAccessedMemoryForSubscript(const std::vector<ExprHandle> &indices,
                                        std::set<Loop *> *live);
 
+/// \returns True if any of the elements of \p first are in \p second.
+template <typename T>
+bool doSetsIntersect(const std::set<T> &first, const std::set<T> &second) {
+  for (auto &e : first) {
+    if (second.count(e))
+      return true;
+  }
+  return false;
+}
+
 } // end namespace bistra
 
 #endif

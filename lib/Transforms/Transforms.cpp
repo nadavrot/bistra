@@ -4,6 +4,7 @@
 #include "bistra/Program/Pragma.h"
 #include "bistra/Program/Program.h"
 #include "bistra/Program/Utils.h"
+#include "bistra/Transforms/Dependence.h"
 #include "bistra/Transforms/Simplify.h"
 
 #include <set>
@@ -601,69 +602,6 @@ struct StorageUsageCollector : public NodeVisitor {
 };
 } // namespace
 
-/// \returns True if the expression \p e is the IndexExpr for loop \p L.
-/// if \p recursive is set then search in sub-expressions of \p e.
-static bool isRefOfLoop(Expr *e, Loop *L, bool recursive) {
-  if (auto *IE = dynamic_cast<IndexExpr *>(e)) {
-    return IE->getLoop() == L;
-  }
-  if (recursive)
-    return collectIndices(e, L).size();
-
-  return false;
-}
-
-/// Maps kind of dependencies: "< or >", "=", no-dep.
-enum class DepRelationKind {
-  SomeDep,
-  Equals,
-  NoDep,
-};
-
-/// \returns True if the first subscript depends on the second subscript for the
-/// inices \p I1 and \p I2, and arguments \p A1, and \p A2, for the indices
-/// \p indices1, \p indices2.
-static DepRelationKind
-checkWeakSIVDependenceForIndex(Loop *I1, Loop *I2, Argument *A1, Argument *A2,
-                               std::vector<ExprHandle> &indices1,
-                               std::vector<ExprHandle> &indices2) {
-  // Accessing a different buffer. No dep.
-  if (A1 != A2)
-    return DepRelationKind::NoDep;
-
-  assert(indices1.size() == indices2.size() && "Invalid index vector");
-
-  for (int i = 0; i < indices1.size(); i++) {
-    // Check direct access to I and J.
-    bool isIndex1 = isRefOfLoop(indices1[i], I1, false);
-    bool isIndex2 = isRefOfLoop(indices2[i], I2, false);
-    if (isIndex1 && isIndex2) {
-      // Immediate access at the same array index are allowed.
-      continue;
-    }
-    // Any other index access is disallowed. The buffers depend on each other.
-    // Example: A[I] vs. B[I+1]; A[I, 0] vs. B[0, I]; A[I] vs. B[0];
-    bool hasIndex1 = isRefOfLoop(indices1[i], I1, true);
-    bool hasIndex2 = isRefOfLoop(indices2[i], I2, true);
-    if (hasIndex1 || hasIndex2)
-      return DepRelationKind::SomeDep;
-  }
-
-  // The subscript dependency always overlaps for this index.
-  return DepRelationKind::Equals;
-}
-
-/// \returns True if any of the elements of \p first are in \p second.
-template <typename T>
-static bool doSetsIntersect(const std::set<T> &first,
-                            const std::set<T> &second) {
-  for (auto &e : first) {
-    if (second.count(e))
-      return true;
-  }
-  return false;
-}
-
 bool bistra::fuse(Loop *L, unsigned levels) {
   // Find the parent scope.
   Scope *parent = dynamic_cast<Scope *>(L->getParent());
@@ -706,34 +644,28 @@ bool bistra::fuse(Loop *L, unsigned levels) {
   L->visit(&SUC1);
   L2->visit(&SUC2);
 
-  // 1. Test true dependencies.
-  // 2. Test fake dependencies.
+  // 1. Test fake dependencies (writes on writes).
+  // 2. Test true dependencies (writes on reads).
   for (auto &ss1 : SUC1.argsWrite_) {
     // Check if any of the writes in the first loop conflict with the writes
     // in the second loop.
     for (auto &ss2 : SUC2.argsWrite_) {
-      if (DepRelationKind::SomeDep ==
-          checkWeakSIVDependenceForIndex(L, L2, ss1->getDest(), ss2->getDest(),
-                                         ss1->getIndices(), ss2->getIndices()))
+      if (DepRelationKind::SomeDep == depends(L, L2, ss1, ss2))
         return false;
     }
     // Check if any of the writes in the first loop conflict with the writes
     // in the second loop.
     for (auto &ss2 : SUC2.argsRead_) {
-      if (DepRelationKind::SomeDep ==
-          checkWeakSIVDependenceForIndex(L, L2, ss1->getDest(), ss2->getDest(),
-                                         ss1->getIndices(), ss2->getIndices()))
+      if (DepRelationKind::SomeDep == depends(L, L2, ss1, ss2))
         return false;
     }
   }
-  // 2. Test anti-dependencies.
+  // 3. Test anti-dependencies (reads on writes).
   for (auto &ss1 : SUC1.argsRead_) {
     // Check if any of the reads in the first loop conflict with the writes
     // in the second loop.
     for (auto &ss2 : SUC2.argsWrite_) {
-      if (DepRelationKind::SomeDep ==
-          checkWeakSIVDependenceForIndex(L, L2, ss1->getDest(), ss2->getDest(),
-                                         ss1->getIndices(), ss2->getIndices()))
+      if (DepRelationKind::SomeDep == depends(L2, L, ss2, ss1))
         return false;
     }
   }
