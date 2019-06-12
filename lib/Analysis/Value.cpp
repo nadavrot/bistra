@@ -249,6 +249,12 @@ void bistra::collectIndices(ASTNode *S, std::vector<IndexExpr *> &indices,
   S->visit(&IC);
 }
 
+std::vector<IndexExpr *> bistra::collectIndices(ASTNode *S, Loop *filter) {
+  std::vector<IndexExpr *> indices;
+  collectIndices(S, indices, filter);
+  return indices;
+}
+
 bool bistra::dependsOnLoop(ASTNode *N, Loop *L) {
   std::vector<IndexExpr *> indices;
   collectIndices(N, indices, L);

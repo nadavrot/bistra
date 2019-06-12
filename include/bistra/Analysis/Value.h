@@ -53,6 +53,10 @@ Loop *getContainingLoop(Stmt *s);
 void collectIndices(ASTNode *S, std::vector<IndexExpr *> &indices,
                     Loop *filter = nullptr);
 
+/// Collect all of the indices in \p S ; If \p filter is set then only collect
+/// indices that access the loop \p filter.
+std::vector<IndexExpr *> collectIndices(ASTNode *S, Loop *filter = nullptr);
+
 /// Collect all of the load/store accesses to locals.
 /// If \p filter is set then only accesses to \p filter are collected.
 void collectLocals(ASTNode *S, std::vector<LoadLocalExpr *> &loads,
