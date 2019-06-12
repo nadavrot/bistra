@@ -213,6 +213,7 @@ Expr *Parser::parseExpr(unsigned RBP) {
 
 bool Parser::parseCallArgumentList(std::vector<Expr *> &args, bool sameTy,
                                    int expectedArgs) {
+  auto callLoc = Tok.getLoc();
   assert(args.size() == 0);
   // "("
   if (!consumeIf(TokenKind::l_paren)) {
@@ -258,8 +259,8 @@ bool Parser::parseCallArgumentList(std::vector<Expr *> &args, bool sameTy,
   if (sameTy) {
     for (auto *E : args) {
       if (!E->getType().isEqual(args[0]->getType())) {
-        ctx_.diagnose(DiagnoseKind::Error, E->getLoc(),
-                      "passing arguments of different types");
+        ctx_.diagnose(DiagnoseKind::Error, callLoc,
+                      "passing arguments of different types.");
         return true;
       }
     }
