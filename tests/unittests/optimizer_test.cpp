@@ -126,7 +126,7 @@ TEST(opt, fuse_test) {
     for (i in 0 .. 100) {
       for (j in 0 .. 100) {
         for (k in 0 .. 100) {
-          A[i,j, k] += 1;
+          A[i, j, k] += 1;
         }
       }
     }

@@ -566,31 +566,92 @@ bool bistra::widen(Loop *L, unsigned wf) {
 }
 
 namespace {
-/// A visitor class that collects all uses of variables and arguments.
-struct StorageUsageCollector : public NodeVisitor {
-  std::set<Argument *> argsRead_;
+/// A visitor class that collects all uses of variables.
+struct VarUsageCollector : public NodeVisitor {
   std::set<LocalVar *> varsRead_;
-  std::set<Argument *> argsWrite_;
   std::set<LocalVar *> varsWrite_;
-  StorageUsageCollector() = default;
+  VarUsageCollector() = default;
   virtual void enter(Expr *E) override {
-    if (auto *II = dynamic_cast<LoadExpr *>(E)) {
-      argsRead_.insert(II->getDest());
-    }
     if (auto *II = dynamic_cast<LoadLocalExpr *>(E)) {
       varsRead_.insert(II->getDest());
     }
   }
   virtual void enter(Stmt *S) override {
-    if (auto *II = dynamic_cast<StoreStmt *>(S)) {
-      argsWrite_.insert(II->getDest());
-    }
     if (auto *II = dynamic_cast<StoreLocalStmt *>(S)) {
       varsWrite_.insert(II->getDest());
     }
   }
 };
+
+/// A visitor class that collects all uses of arguments.
+struct StorageUsageCollector : public NodeVisitor {
+  std::set<LoadExpr *> argsRead_;
+  std::set<StoreStmt *> argsWrite_;
+  StorageUsageCollector() = default;
+  virtual void enter(Expr *E) override {
+    if (auto *II = dynamic_cast<LoadExpr *>(E)) {
+      argsRead_.insert(II);
+    }
+  }
+  virtual void enter(Stmt *S) override {
+    if (auto *II = dynamic_cast<StoreStmt *>(S)) {
+      argsWrite_.insert(II);
+    }
+  }
+};
 } // namespace
+
+/// \returns True if the expression \p e is the IndexExpr for loop \p L.
+/// if \p recursive is set then search in sub-expressions of \p e.
+static bool isRefOfLoop(Expr *e, Loop *L, bool recursive) {
+  if (auto *IE = dynamic_cast<IndexExpr *>(e)) {
+    return IE->getLoop() == L;
+  }
+  if (recursive)
+    return collectIndices(e, L).size();
+
+  return false;
+}
+
+/// Maps kind of dependencies: "< or >", "=", no-dep.
+enum class DepRelationKind {
+  SomeDep,
+  Equals,
+  NoDep,
+};
+
+/// \returns True if the first subscript depends on the second subscript for the
+/// inices \p I1 and \p I2, and arguments \p A1, and \p A2, for the indices
+/// \p indices1, \p indices2.
+static DepRelationKind
+checkWeakSIVDependenceForIndex(Loop *I1, Loop *I2, Argument *A1, Argument *A2,
+                               std::vector<ExprHandle> &indices1,
+                               std::vector<ExprHandle> &indices2) {
+  // Accessing a different buffer. No dep.
+  if (A1 != A2)
+    return DepRelationKind::NoDep;
+
+  assert(indices1.size() == indices2.size() && "Invalid index vector");
+
+  for (int i = 0; i < indices1.size(); i++) {
+    // Check direct access to I and J.
+    bool isIndex1 = isRefOfLoop(indices1[i], I1, false);
+    bool isIndex2 = isRefOfLoop(indices2[i], I2, false);
+    if (isIndex1 && isIndex2) {
+      // Immediate access at the same array index are allowed.
+      continue;
+    }
+    // Any other index access is disallowed. The buffers depend on each other.
+    // Example: A[I] vs. B[I+1]; A[I, 0] vs. B[0, I]; A[I] vs. B[0];
+    bool hasIndex1 = isRefOfLoop(indices1[i], I1, true);
+    bool hasIndex2 = isRefOfLoop(indices2[i], I2, true);
+    if (hasIndex1 || hasIndex2)
+      return DepRelationKind::SomeDep;
+  }
+
+  // The subscript dependency always overlaps for this index.
+  return DepRelationKind::Equals;
+}
 
 /// \returns True if any of the elements of \p first are in \p second.
 template <typename T>
@@ -629,29 +690,58 @@ bool bistra::fuse(Loop *L, unsigned levels) {
     return false;
 
   // Collect the variable and argument usage.
+  VarUsageCollector VUC1;
+  VarUsageCollector VUC2;
+  L->visit(&VUC1);
+  L2->visit(&VUC2);
+
+  /// Check if the variable reads/writes intersect.
+  if (doSetsIntersect(VUC1.varsWrite_, VUC2.varsWrite_) ||
+      doSetsIntersect(VUC1.varsWrite_, VUC2.varsRead_) ||
+      doSetsIntersect(VUC1.varsRead_, VUC2.varsWrite_))
+    return false;
+
   StorageUsageCollector SUC1;
   StorageUsageCollector SUC2;
   L->visit(&SUC1);
   L2->visit(&SUC2);
 
-  /// Check if the argument reads/writes intersect.
-  if (doSetsIntersect(SUC1.argsWrite_, SUC2.argsWrite_) ||
-      doSetsIntersect(SUC1.argsWrite_, SUC2.argsRead_) ||
-      doSetsIntersect(SUC1.argsRead_, SUC2.argsWrite_))
-    return false;
-
-  /// Check if the variable reads/writes intersect.
-  if (doSetsIntersect(SUC1.varsWrite_, SUC2.varsWrite_) ||
-      doSetsIntersect(SUC1.varsWrite_, SUC2.varsRead_) ||
-      doSetsIntersect(SUC1.varsRead_, SUC2.varsWrite_))
-    return false;
+  // 1. Test true dependencies.
+  // 2. Test fake dependencies.
+  for (auto &ss1 : SUC1.argsWrite_) {
+    // Check if any of the writes in the first loop conflict with the writes
+    // in the second loop.
+    for (auto &ss2 : SUC2.argsWrite_) {
+      if (DepRelationKind::SomeDep ==
+          checkWeakSIVDependenceForIndex(L, L2, ss1->getDest(), ss2->getDest(),
+                                         ss1->getIndices(), ss2->getIndices()))
+        return false;
+    }
+    // Check if any of the writes in the first loop conflict with the writes
+    // in the second loop.
+    for (auto &ss2 : SUC2.argsRead_) {
+      if (DepRelationKind::SomeDep ==
+          checkWeakSIVDependenceForIndex(L, L2, ss1->getDest(), ss2->getDest(),
+                                         ss1->getIndices(), ss2->getIndices()))
+        return false;
+    }
+  }
+  // 2. Test anti-dependencies.
+  for (auto &ss1 : SUC1.argsRead_) {
+    // Check if any of the reads in the first loop conflict with the writes
+    // in the second loop.
+    for (auto &ss2 : SUC2.argsWrite_) {
+      if (DepRelationKind::SomeDep ==
+          checkWeakSIVDependenceForIndex(L, L2, ss1->getDest(), ss2->getDest(),
+                                         ss1->getIndices(), ss2->getIndices()))
+        return false;
+    }
+  }
 
   // We are good to go. Let's perform the transformation.
 
   // Update all of the indices of the second loop to use the first loop.
-  std::vector<IndexExpr *> indices;
-  collectIndices(L2, indices, L);
-  for (auto *IE : indices) {
+  for (auto *IE : collectIndices(L2, L2)) {
     IE->replaceUseWith(new IndexExpr(L));
   }
 
