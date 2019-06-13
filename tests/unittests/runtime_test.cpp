@@ -100,3 +100,51 @@ TEST(runtime, gemm) {
   free(data);
 #undef GET
 }
+
+TEST(runtime, softmax) {
+  const char *softmax = R"(
+  let size = 7;
+  func softmax(In:float<x:size>,
+               Out:float<x:size>) {
+    var mx : float = In[0]
+
+    // Find Max.
+    for (i in 0 .. size) {
+      mx = max(mx, In[i]);
+    }
+
+    var sum : float = 0.0
+
+    // Compute exp.
+    for (i in 0 .. size) {
+      var e : float = exp(In[i] - mx)
+      sum += e
+      Out[i] = e
+    }
+
+    // Normalize the output.
+    for (i in 0 .. size) {
+      Out[i] = Out[i] / sum;
+    }
+  }
+  )";
+
+  ParserContext ctx(softmax);
+  Parser P(ctx);
+  P.parse();
+  EXPECT_EQ(ctx.getNumErrors(), 0);
+  auto *prog = ctx.getProgram();
+  prog->dump();
+
+  float data[14] = {1.0, 2.0, 3.0, 4.0, 1.0, 2.0, 3.0,
+                    .0,  .0,  .0,  .0,  .0,  .0,  .0};
+
+  float result[7] = {0.024, 0.064, 0.175, 0.475, 0.024, 0.064, 0.175};
+
+  auto backend = getBackend("llvm");
+  backend->runOnce(prog, data);
+
+  for (int i = 0; i < 7; i++) {
+    EXPECT_NEAR(data[7 + i], result[i], 0.001);
+  }
+}
