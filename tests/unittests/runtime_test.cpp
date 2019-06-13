@@ -38,6 +38,30 @@ TEST(runtime, simple_loop) {
   }
 }
 
+TEST(runtime, basic_printing) {
+  const char *basic_printing = R"(
+  func basic_printing(A:float<x:10>) {
+    printf("basic_printing test\n")
+    for (i in 0 .. 10) {
+      printf("%d : %f\n", i, A[i])
+    }
+  })";
+
+  ParserContext ctx(basic_printing);
+  Parser P(ctx);
+  P.parse();
+  EXPECT_EQ(ctx.getNumErrors(), 0);
+  auto *prog = ctx.getProgram();
+  prog->dump();
+
+  float data[10] = {
+      1.9, 2.8, 3.7, 4.6, 5.7, 6.4, 7.3, 8.2, 9.1,
+  };
+
+  auto backend = getBackend("llvm");
+  backend->runOnce(prog, data);
+}
+
 TEST(runtime, gemm) {
   const char *gemm = R"(
   let m = 512

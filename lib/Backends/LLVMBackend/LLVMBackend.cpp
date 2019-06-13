@@ -260,7 +260,14 @@ public:
     std::vector<llvm::Type *> argListType;
 
     for (auto &pp : SS->getParams()) {
-      params.push_back(generate(pp.get()));
+      auto *val = generate(pp.get());
+      // Promote floats to doubles before calling some function.
+      // See section 6.5.2.2 in the C99 standard and section 5.2.2 in the C++
+      // standard.
+      if (val->getType()->isFloatTy()) {
+        val = builder_.CreateFPCast(val, llvm::Type::getDoubleTy(ctx_));
+      }
+      params.push_back(val);
       argListType.push_back(params.back()->getType());
     }
 
