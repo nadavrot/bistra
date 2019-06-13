@@ -23,6 +23,9 @@ bool split(Loop *L);
 /// \returns True if the transform worked.
 bool splitScopes(Loop *L);
 
+/// Distribute all of the loops in \p s.
+bool ditributeAllLoops(Scope *s);
+
 /// Try to hoist the loop \p level levels up.
 bool hoist(Loop *L, unsigned levels);
 

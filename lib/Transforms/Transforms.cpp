@@ -158,6 +158,20 @@ bool bistra::splitScopes(Loop *L) {
   return true;
 }
 
+bool bistra::ditributeAllLoops(Scope *s) {
+  bool changed = false;
+restart:
+  auto loops = collectLoops(s);
+  for (auto *l : loops) {
+    if (splitScopes(l)) {
+      changed = true;
+      goto restart;
+    }
+  }
+
+  return changed;
+}
+
 bool bistra::sink(Loop *L, unsigned levels) {
   if (levels < 1)
     return false;
