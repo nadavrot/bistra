@@ -63,6 +63,11 @@ bool fuse(Loop *L, unsigned levels);
 /// \returns true if the program was modified.
 bool promoteLICM(Program *p);
 
+/// Change the layout of the input tensor at \p argIndex in program \p p, using
+/// the shuffle \p shuffle.
+bool changeLayout(Program *p, unsigned argIndex,
+                  const std::vector<unsigned> &shuffle);
+
 /// Apply the pragma command \p pc to the requested loop.
 /// \returns true if the program was modified.
 bool applyPragmaCommand(const PragmaCommand &pc);

@@ -37,6 +37,9 @@ public:
   /// \returns the type of the argument.
   const Type *getType() const { return &type_; }
 
+  /// Sets the type of the argument.
+  void setType(Type &t) { type_ = t; }
+
   /// \returns the name of the argument.
   const std::string &getName() const { return name_; }
 

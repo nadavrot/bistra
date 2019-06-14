@@ -157,3 +157,30 @@ TEST(opt, fuse_test) {
   EXPECT_EQ(counter.stmt, 6);
   EXPECT_EQ(counter.expr, 8);
 }
+
+TEST(opt, change_layout_test) {
+  const char *code = R"(
+  let m = 512
+  let n = 256
+  func transpose(A:float<m:m, n:n>,
+                 B:float<n:n, m:m>) {
+    for (i in 0 .. A.m) {
+      for (j in 0 .. A.n) {
+        A[i,j] = B[j,i];
+      }
+    }
+  }
+  )";
+
+  ParserContext ctx(code);
+  Parser P(ctx);
+  P.parse();
+  EXPECT_EQ(ctx.getNumErrors(), 0);
+  Program *p = ctx.getProgram();
+  // Change the layout of the second loop.
+  bool res = ::changeLayout(p, 0, {1, 0});
+  p->dump();
+  EXPECT_EQ(res, true);
+
+  p->verify();
+}

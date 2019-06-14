@@ -811,6 +811,49 @@ bool bistra::promoteLICM(Program *p) {
   return changed;
 }
 
+template <class T>
+static void swizzle(std::vector<T> &elems,
+                    const std::vector<unsigned> &shuffle) {
+  assert(elems.size() == shuffle.size() && "Invalid shuffle");
+  std::vector<T> temp;
+  for (int i = 0; i < shuffle.size(); i++) {
+    temp.push_back(std::move(elems[shuffle[i]]));
+  }
+
+  for (int i = 0; i < shuffle.size(); i++) {
+    elems[i] = std::move(temp[i]);
+  }
+}
+
+bool bistra::changeLayout(Program *p, unsigned argIndex,
+                          const std::vector<unsigned> &shuffle) {
+  auto *arg = p->getArg(argIndex);
+
+  std::vector<LoadExpr *> loads;
+  std::vector<StoreStmt *> stores;
+  collectLoadStores(p, loads, stores, arg);
+
+  auto oldTy = arg->getType();
+  auto names = oldTy->getNames();
+  auto dims = oldTy->getDims();
+  swizzle(names, shuffle);
+  swizzle(dims, shuffle);
+  Type newTy(oldTy->getElementType(), dims, names);
+  arg->setType(newTy);
+
+  for (auto *load : loads) {
+    auto &ids = load->getIndices();
+    swizzle(ids, shuffle);
+  }
+
+  for (auto *store : stores) {
+    auto &ids = store->getIndices();
+    swizzle(ids, shuffle);
+  }
+
+  return true;
+}
+
 bool bistra::applyPragmaCommand(const PragmaCommand &pc) {
   switch (pc.kind_) {
   case PragmaCommand::PragmaKind::vectorize:
