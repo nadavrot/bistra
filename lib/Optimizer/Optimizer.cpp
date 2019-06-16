@@ -306,6 +306,13 @@ restart:
 
 Program *bistra::optimizeEvaluate(std::unique_ptr<Backend> backend, Program *p,
                                   const std::string &filename) {
+
+  // A simple search procedure, similar to the one implemented here is
+  // described in the paper:
+  //
+  // Autotuning GEMM Kernels for the Fermi GPU, 2012
+  // Kurzak, Jakub and Tomov, Stanimire and Dongarra, Jack
+
   auto *ev = new EvaluatorPass(std::move(backend), filename);
   Pass *ps = new FilterPass(ev);
   ps = new PromoterPass(ps);
