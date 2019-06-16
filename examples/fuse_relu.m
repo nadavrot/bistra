@@ -6,6 +6,7 @@ let k = 512
 func gemm(C:float<I:m, J:n>,
          A:float<I:m, K:k>,
          B:float<K:k, J:n>) {
+  // Matmul:
   #fuse 3
   for (i in 0 .. C.I) {
     for (j in 0 .. C.J) {
@@ -16,6 +17,7 @@ func gemm(C:float<I:m, J:n>,
     }
   }
 
+  // Relu:
   for (x in 0 .. C.I) {
     for (y in 0 .. C.J) {
       C[x,y] = max(C[x, y], 0.);
