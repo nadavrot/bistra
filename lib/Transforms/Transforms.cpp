@@ -430,7 +430,8 @@ static Expr *vectorizeExpr(Expr *E, Loop *L, unsigned vf) {
     return VLE;
   }
 
-  if (dynamic_cast<ConstantExpr *>(E) || dynamic_cast<ConstantFPExpr *>(E)) {
+  if (dynamic_cast<ConstantExpr *>(E) || dynamic_cast<ConstantFPExpr *>(E) ||
+      dynamic_cast<LoadLocalExpr *>(E)) {
     return E;
   }
 
