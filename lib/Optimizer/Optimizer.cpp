@@ -100,16 +100,17 @@ void VectorizerPass::doIt(Program *p) {
   unsigned VF = backend_.getRegisterWidth();
 
   // The vectorizer pass is pretty simple. Just try to vectorize all loops.
-  std::vector<Loop *> loops;
-  collectLoops(p, loops);
-  for (auto *l : loops) {
-    CloneCtx map;
-    std::unique_ptr<Program> np((Program *)p->clone(map));
+  bool changed = false;
+  CloneCtx map;
+  std::unique_ptr<Program> np((Program *)p->clone(map));
+  for (auto *l : collectLoops(p)) {
     auto *newL = map.get(l);
-    if (::vectorize(newL, VF)) {
-      nextPass_->doIt(np.get());
-    }
+    changed |= ::vectorize(newL, VF);
   }
+
+  // Try the vectorized version:
+  if (changed)
+    nextPass_->doIt(np.get());
 
   // Try the unvectorized code.
   nextPass_->doIt(p);
