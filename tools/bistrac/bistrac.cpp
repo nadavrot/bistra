@@ -246,7 +246,7 @@ int main(int argc, char *argv[]) {
                 << outFile << "\n";
     }
 
-    optimizeEvaluate(std::move(backend), program, outFile);
+    optimizeEvaluate(*backend.get(), program, outFile);
   }
 
   if (FLAGS_opt) {

@@ -22,7 +22,7 @@ void EvaluatorPass::doIt(Program *p) {
   assert(heatmap.count(p) && "No information for the program");
   auto info = heatmap[p];
 
-  auto res = backend_->evaluateCode(p, 10);
+  auto res = backend_.evaluateCode(p, 10);
   if (res < bestTime_) {
     p->dump();
     std::cout << "New best result: " << res << ", "
@@ -33,7 +33,7 @@ void EvaluatorPass::doIt(Program *p) {
 
     if (savePath_.size()) {
       remove(savePath_.c_str());
-      backend_->emitProgramCode(p, savePath_, true, 10);
+      backend_.emitProgramCode(p, savePath_, true, 10);
     }
   } else {
     std::cout << "." << std::flush;
@@ -84,7 +84,7 @@ void FilterPass::doIt(Program *p) {
     }
 
     // This loop must spill (on CPUs). Abort.
-    if (local > 16) {
+    if (local > backend_.getNumRegisters()) {
       return;
     }
   }
@@ -95,7 +95,9 @@ void FilterPass::doIt(Program *p) {
 
 void VectorizerPass::doIt(Program *p) {
   p->verify();
-  nextPass_->doIt(p);
+
+  // Vectorization Factor:
+  unsigned VF = backend_.getRegisterWidth();
 
   // The vectorizer pass is pretty simple. Just try to vectorize all loops.
   std::vector<Loop *> loops;
@@ -104,10 +106,13 @@ void VectorizerPass::doIt(Program *p) {
     CloneCtx map;
     std::unique_ptr<Program> np((Program *)p->clone(map));
     auto *newL = map.get(l);
-    if (::vectorize(newL, 8)) {
+    if (::vectorize(newL, VF)) {
       nextPass_->doIt(np.get());
     }
   }
+
+  // Try the unvectorized code.
+  nextPass_->doIt(p);
 }
 
 /// Add element \p elem into the ordered set vector \p set.
@@ -253,6 +258,8 @@ void WidnerPass::doIt(Program *p) {
   nextPass_->doIt(p);
   int widths[] = {2, 3, 4};
 
+  (void)backend_;
+
   std::vector<Loop *> loops;
   collectLoops(p, loops);
 
@@ -304,7 +311,7 @@ restart:
   nextPass_->doIt(np.get());
 }
 
-Program *bistra::optimizeEvaluate(std::unique_ptr<Backend> backend, Program *p,
+Program *bistra::optimizeEvaluate(Backend &backend, Program *p,
                                   const std::string &filename) {
 
   // A simple search procedure, similar to the one implemented here is
@@ -313,13 +320,13 @@ Program *bistra::optimizeEvaluate(std::unique_ptr<Backend> backend, Program *p,
   // Autotuning GEMM Kernels for the Fermi GPU, 2012
   // Kurzak, Jakub and Tomov, Stanimire and Dongarra, Jack
 
-  auto *ev = new EvaluatorPass(std::move(backend), filename);
-  Pass *ps = new FilterPass(ev);
+  auto *ev = new EvaluatorPass(backend, filename);
+  Pass *ps = new FilterPass(backend, ev);
   ps = new PromoterPass(ps);
-  ps = new WidnerPass(ps);
-  ps = new WidnerPass(ps);
+  ps = new WidnerPass(backend, ps);
+  ps = new WidnerPass(backend, ps);
   ps = new DistributePass(ps);
-  ps = new VectorizerPass(ps);
+  ps = new VectorizerPass(backend, ps);
   ps = new TilerPass(ps);
   ps = new InterchangerPass(ps);
   ps = new DistributePass(ps);

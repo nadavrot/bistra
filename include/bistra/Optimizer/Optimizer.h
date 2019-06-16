@@ -24,28 +24,33 @@ public:
 class EvaluatorPass : public Pass {
   double bestTime_{1000};
   StmtHandle bestProgram_;
-  std::unique_ptr<Backend> backend_;
+  Backend &backend_;
   /// Save the best C program to this optional path, if not empty.
   std::string savePath_;
 
 public:
-  EvaluatorPass(std::unique_ptr<Backend> backend,
-                const std::string &savePath = "")
+  EvaluatorPass(Backend &backend, const std::string &savePath = "")
       : Pass("evaluator", nullptr), bestProgram_(nullptr, nullptr),
-        backend_(std::move(backend)), savePath_(savePath) {}
+        backend_(backend), savePath_(savePath) {}
   virtual void doIt(Program *p) override;
   Program *getBestProgram() { return (Program *)bestProgram_.get(); }
 };
 
 class FilterPass : public Pass {
+  Backend &backend_;
+
 public:
-  FilterPass(Pass *next) : Pass("filter", next) {}
+  FilterPass(Backend &backend, Pass *next)
+      : Pass("filter", next), backend_(backend) {}
   virtual void doIt(Program *p) override;
 };
 
 class VectorizerPass : public Pass {
+  Backend &backend_;
+
 public:
-  VectorizerPass(Pass *next) : Pass("vectorizer", next) {}
+  VectorizerPass(Backend &backend, Pass *next)
+      : Pass("vectorizer", next), backend_(backend) {}
   virtual void doIt(Program *p) override;
 };
 
@@ -62,8 +67,11 @@ public:
 };
 
 class WidnerPass : public Pass {
+  Backend &backend_;
+
 public:
-  WidnerPass(Pass *next) : Pass("widner", next) {}
+  WidnerPass(Backend &backend, Pass *next)
+      : Pass("widner", next), backend_(backend) {}
   virtual void doIt(Program *p) override;
 };
 
@@ -82,7 +90,7 @@ public:
 /// Construct an optimization pipeline and evaluate different configurations for
 /// the program \p. Save intermediate results to \p filename.
 /// \returns the best program.
-Program *optimizeEvaluate(std::unique_ptr<Backend> backend, Program *p,
+Program *optimizeEvaluate(Backend &backend, Program *p,
                           const std::string &filename);
 
 } // namespace bistra

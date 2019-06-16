@@ -39,6 +39,10 @@ public:
   virtual double evaluateCode(Program *p, unsigned iter) override;
 
   virtual void runOnce(Program *p, void *mem) override;
+
+  virtual unsigned getNumRegisters() const override { return 16; }
+
+  virtual unsigned getRegisterWidth() const override { return 8; }
 };
 
 } // namespace bistra

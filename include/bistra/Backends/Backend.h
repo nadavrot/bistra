@@ -24,6 +24,12 @@ public:
   /// Compile and run the program \p p on the tensors that are stored
   /// consecutively in \p mem.
   virtual void runOnce(Program *p, void *mem) = 0;
+
+  /// \returns the number of machine registers.
+  virtual unsigned getNumRegisters() const = 0;
+
+  /// \returns the width of the vector register.
+  virtual unsigned getRegisterWidth() const = 0;
 };
 
 } // namespace bistra
