@@ -255,33 +255,64 @@ void TilerPass::doIt(Program *p) {
 }
 
 void WidnerPass::doIt(Program *p) {
+  std::array<int, 4> widths = {2, 3, 4, 5};
+  unsigned numWidths = widths.size();
   p->verify();
-  nextPass_->doIt(p);
-  int widths[] = {2, 3, 4};
+  unsigned maxRegs = backend_.getNumRegisters();
 
-  (void)backend_;
+  // For each innermost loop:
+  for (auto *inner : collectInnermostLoops(p)) {
+    // Collect the loop nest that contain the current loop.
+    std::vector<Loop *> hierarchy = collectLoopHierarchy(inner, 4);
 
-  std::vector<Loop *> loops;
-  collectLoops(p, loops);
+    // Remove the innermost loop. We don't want to widen it because it is just
+    // like unrolling.
+    hierarchy.erase(hierarchy.begin());
 
-  for (auto *l : loops) {
+    // Don't widen zero loops.
+    if (hierarchy.size() < 1)
+      continue;
+
+    Loop *top = hierarchy.back();
+
     // Don't touch loops that have zero compute (just write memory).
-    if (getComputeIOInfo(l).second == 0)
+    if (getComputeIOInfo(top).second == 0)
       continue;
 
-    // Don't try to widen innermost loop because this is exactly like unrolling.
-    if (isInnermostLoop(l))
-      continue;
+    // Calculate how many different combinations of widths to try. This number
+    // encodes all possible combinations. One way to view this is where each
+    // tile size is a letter in the alphabet and we iterate over the words and
+    // extract one letter at a time.
+    unsigned numTries = ipow(numWidths, hierarchy.size());
+    bool changed = false;
+    assert(numTries < 1e6 && "Too many combinations!");
 
-    for (int ws : widths) {
+    // Try all possible block size combinations (see comment above).
+    for (int attemptID = 0; attemptID < numTries; attemptID++) {
       CloneCtx map;
       std::unique_ptr<Program> np((Program *)p->clone(map));
-      auto *newL = map.get(l);
-      if (!::widen(newL, ws))
-        continue;
-      nextPass_->doIt(np.get());
-    }
-  }
+      unsigned numRegs = 1;
+
+      int ctr = attemptID;
+      for (auto *l : hierarchy) {
+        // Pick a width:
+        int ws = widths[ctr % numWidths];
+        ctr = ctr / numWidths;
+
+        auto *newL = map.get(l);
+        changed |= ::widen(newL, ws);
+        numRegs *= ws;
+      } // Loop hierarchy.
+
+      // Try this configuration.
+      if (changed && numRegs <= maxRegs) {
+        nextPass_->doIt(np.get());
+      }
+    } // Tiling attempt.
+  }   // Each innermost loop.
+
+  // Try unwidened loops.
+  nextPass_->doIt(p);
 }
 
 void PromoterPass::doIt(Program *p) {
@@ -324,7 +355,6 @@ Program *bistra::optimizeEvaluate(Backend &backend, Program *p,
   auto *ev = new EvaluatorPass(backend, filename);
   Pass *ps = new FilterPass(backend, ev);
   ps = new PromoterPass(ps);
-  ps = new WidnerPass(backend, ps);
   ps = new WidnerPass(backend, ps);
   ps = new DistributePass(ps);
   ps = new VectorizerPass(backend, ps);
