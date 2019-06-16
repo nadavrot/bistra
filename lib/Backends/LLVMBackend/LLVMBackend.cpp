@@ -218,7 +218,9 @@ public:
         auto *vecPTy = llvm::PointerType::get(vecTy, 0);
         auto *ptr = builder_.CreateGEP(elemTy, arg, offset);
         auto *vt = builder_.CreateBitCast(ptr, vecPTy);
-        return builder_.CreateLoad(vt, "ld");
+        auto *ld = builder_.CreateLoad(vt, "ld");
+        ld->setAlignment(1);
+        return ld;
       }
 
       auto *ptr = builder_.CreateGEP(arg, offset);
@@ -248,11 +250,13 @@ public:
     auto *vt = builder_.CreateBitCast(ptr, ptelem);
 
     if (SS->isAccumulate()) {
-      auto *prev = builder_.CreateLoad(vt);
-      storedVal = builder_.CreateFAdd(prev, storedVal);
+      auto *ld = builder_.CreateLoad(vt);
+      ld->setAlignment(1);
+      storedVal = builder_.CreateFAdd(ld, storedVal);
     }
 
-    builder_.CreateStore(storedVal, vt);
+    auto *st = builder_.CreateStore(storedVal, vt);
+    st->setAlignment(1);
   }
 
   void emit(CallStmt *SS) {
