@@ -265,7 +265,28 @@ void ConstantExpr::dump() const { std::cout << std::to_string(val_); }
 
 void ConstantFPExpr::dump() const { std::cout << std::to_string(val_); }
 
-void ConstantStringExpr::dump() const { std::cout << " \"" + val_ + "\" "; }
+/// Unescape a c string. Translate '\\n' to '\n', etc.
+static std::string escapeCString(const std::string &s) {
+  std::string res;
+
+  for (const char &c : s) {
+    if (c == '\n') {
+      res += "\\n";
+      continue;
+    }
+    if (c == '\t') {
+      res += "\\t";
+      continue;
+    }
+    res += c;
+  }
+
+  return res;
+}
+
+void ConstantStringExpr::dump() const {
+  std::cout << " \"" + escapeCString(val_) + "\" ";
+}
 
 void BroadcastExpr::dump() const {
   std::cout << "(";

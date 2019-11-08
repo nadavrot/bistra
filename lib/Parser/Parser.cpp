@@ -17,7 +17,9 @@ Parser::~Parser() { delete L_; }
 /// a binary operator.
 static unsigned getBinOpPrecedence(TokenKind Kind) {
   switch (Kind) {
-  default: { return 0; }
+  default: {
+    return 0;
+  }
 #define OPERATOR(ID, PREC)                                                     \
   case TokenKind::ID:                                                          \
     return PREC;
