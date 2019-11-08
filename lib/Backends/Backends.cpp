@@ -7,8 +7,6 @@ using namespace bistra;
 std::unique_ptr<Backend> bistra::getBackend(const std::string &name) {
   if (name == "llvm") {
     return std::make_unique<LLVMBackend>();
-  } else if (name == "C") {
-    return std::make_unique<CBackend>();
   } else {
     assert(false && "Unknown backend");
   }
