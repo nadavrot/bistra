@@ -44,6 +44,13 @@ public:
     verify();
   }
 
+  template <typename Ty>
+  /// \returns a copy of the owned ptr casted to type Ty.
+  Ty *as() const {
+    verify();
+    return (Ty *)(ref_);
+  }
+
   /// \returns a copy of the owned ptr.
   RefTy *get() const {
     verify();
