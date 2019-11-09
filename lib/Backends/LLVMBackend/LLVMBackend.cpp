@@ -374,7 +374,9 @@ public:
     case ElemKind::IndexTy:
       res = int64Ty_;
       break;
-
+    case ElemKind::PtrTy:
+      res = llvm::Type::getInt8PtrTy(ctx_);
+      break;
     default:
       assert(false && "Invalid type");
     }
