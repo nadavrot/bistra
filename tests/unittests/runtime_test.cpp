@@ -15,10 +15,10 @@ TEST(runtime, basic_io) {
   func simple_loop(A:float<x:10>) {
     A[0] = 8.
     A[1] = 6.
-    A[2] = 7.
-    A[3] = 5.
+    A[2] = A[0] - 1.
+    A[3] = 4. + 1.
     A[4] = 3.
-    A[5] = 0.
+    A[5] = A[4] * 0.
     A[6] = 9.
   })";
 
@@ -46,11 +46,13 @@ TEST(runtime, basic_io) {
 
 TEST(runtime, simple_loop) {
   const char *simple_loop = R"(
-  func simple_loop(A:float<x:10>, B:float<x:10>) {
+  func simple_loop(A:float<x:10>, B:float<x:10>, C:float<x:2>) {
     #vectorize 4
     for (i in 0 .. A.x) {
       B[i] = A[i] + 10.0
     }
+  C[0] = 1.0
+  C[1] = 2.0
   })";
 
   ParserContext ctx(simple_loop);
@@ -60,16 +62,17 @@ TEST(runtime, simple_loop) {
   auto *prog = ctx.getProgram();
   prog->dump();
 
-  float data[20] = {
+  float data[22] = {
       1.0, 2.0, 3.0, 4.0, 5.0, 1.0, 2.0, 3.0, 4.0, 5.0,
   };
-
   auto backend = getBackend("llvm");
   backend->runOnce(prog, data);
 
   for (int i = 0; i < 10; i++) {
     EXPECT_EQ(data[10 + i], data[i] + 10.0);
   }
+  EXPECT_EQ(data[20], 1.0);
+  EXPECT_EQ(data[21], 2.0);
 }
 
 TEST(runtime, basic_printing) {
