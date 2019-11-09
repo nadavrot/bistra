@@ -66,7 +66,7 @@ TEST(opt, simplifyExpr) {
   NodeCounter counter;
   p->visit(&counter);
   EXPECT_EQ(counter.stmt, 6);
-  EXPECT_EQ(counter.expr, 22);
+  EXPECT_EQ(counter.expr, 26);
 }
 
 TEST(opt, range_check_loops) {

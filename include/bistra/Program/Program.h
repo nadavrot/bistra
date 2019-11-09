@@ -550,8 +550,8 @@ public:
   virtual void visit(NodeVisitor *visitor) override;
 };
 
-/// Loads some value from a buffer.
-class LoadExpr final : public Expr {
+/// Get the pointer to the array expression.
+class GEPExpr final : public Expr {
   /// The buffer to access.
   Argument *arg_;
   /// The indices for indexing the buffer.
@@ -567,24 +567,56 @@ public:
   /// \returns the indices indexing into the array.
   std::vector<ExprHandle> &getIndices() { return indices_; }
 
-  LoadExpr(Argument *arg, const std::vector<Expr *> &indices, ExprType elemTy,
-           DebugLoc loc)
-      : LoadExpr(arg, indices, loc) {
-    // Override the type that we guess in the untyped ctor.
-    setType(elemTy);
-  }
-
-  LoadExpr(Argument *arg, const std::vector<Expr *> &indices, DebugLoc loc)
-      : Expr(ElemKind::IndexTy, loc), arg_(arg), indices_() {
+  GEPExpr(Argument *arg, const std::vector<Expr *> &indices, DebugLoc loc)
+      : Expr(ElemKind::PtrTy, loc), arg_(arg) {
     for (auto *E : indices) {
       assert(E->getType().isIndexTy() && "Argument must be of index kind");
       indices_.emplace_back(E, this);
     }
     assert(arg->getType()->getNumDims() == indices_.size() &&
            "Invalid number of indices");
-    // This loads a scalar value from the buffer.
-    setType(ExprType(arg->getType()->getElementType()));
   }
+
+  ~GEPExpr() = default;
+
+  virtual void dump() const override;
+  virtual Expr *clone(CloneCtx &map) override;
+  virtual void verify() const override;
+  virtual void visit(NodeVisitor *visitor) override;
+};
+
+/// Loads some value from a buffer.
+class LoadExpr final : public Expr {
+  /// The buffer to load.
+  ExprHandle gep_;
+
+public:
+  /// \returns the GEP expression.
+  GEPExpr *getGep() const { return (GEPExpr *)gep_.get(); }
+
+  /// \returns the buffer destination of the instruction.
+  Argument *getDest() const { return gep_.as<GEPExpr>()->getDest(); }
+
+  /// \returns the indices indexing into the array.
+  const std::vector<ExprHandle> &getIndices() const {
+    return gep_.as<GEPExpr>()->getIndices();
+  }
+
+  /// \returns the indices indexing into the array.
+  std::vector<ExprHandle> &getIndices() {
+    return gep_.as<GEPExpr>()->getIndices();
+  }
+
+  LoadExpr(GEPExpr *gep, DebugLoc loc);
+
+  LoadExpr(GEPExpr *gep, ExprType elemTy, DebugLoc loc);
+
+  /// Convenient ctor that initializes a GEP experssion.
+  LoadExpr(Argument *arg, const std::vector<Expr *> &indices, ExprType elemTy,
+           DebugLoc loc);
+
+  /// Convenient ctor that initializes a GEP experssion.
+  LoadExpr(Argument *arg, const std::vector<Expr *> &indices, DebugLoc loc);
 
   ~LoadExpr() = default;
 
@@ -649,32 +681,36 @@ public:
 /// Stores some value to a buffer.
 class StoreStmt final : public Stmt {
   /// The buffer to access.
-  Argument *arg_;
-  /// The indices for indexing the buffer.
-  std::vector<ExprHandle> indices_;
+  ExprHandle gep_;
   /// The value to store into the buffer.
   ExprHandle value_;
   /// Accumulate the resule into the destination.
   bool accumulate_;
 
 public:
-  /// \returns the write destination of the store instruction.
-  Argument *getDest() { return arg_; }
+  /// \returns the GEP expression.
+  GEPExpr *getGep() const { return (GEPExpr *)gep_.get(); }
+
+  /// \returns the buffer destination of the instruction.
+  Argument *getDest() const { return gep_.as<GEPExpr>()->getDest(); }
 
   /// \returns the indices indexing into the array.
-  const std::vector<ExprHandle> &getIndices() const { return indices_; }
+  const std::vector<ExprHandle> &getIndices() const {
+    return gep_.as<GEPExpr>()->getIndices();
+  }
 
   /// \returns the indices indexing into the array.
-  std::vector<ExprHandle> &getIndices() { return indices_; }
-
-  /// \returns the expression of the last index.
-  const ExprHandle &getLastIndex() const {
-    return indices_[indices_.size() - 1];
+  std::vector<ExprHandle> &getIndices() {
+    return gep_.as<GEPExpr>()->getIndices();
   }
 
   /// \returns the expression of the last index.
-  ExprHandle &getLastIndex() { return indices_[indices_.size() - 1]; }
+  const ExprHandle &getLastIndex() const {
+    return getIndices()[getIndices().size() - 1];
+  }
 
+  /// \returns the expression of the last index.
+  ExprHandle &getLastIndex() { return getIndices()[getIndices().size() - 1]; }
   /// \returns the stored value.
   ExprHandle &getValue() { return value_; }
 
@@ -682,17 +718,10 @@ public:
   /// destination.
   bool isAccumulate() { return accumulate_; }
 
+  StoreStmt(GEPExpr *gep, Expr *value, bool accumulate, DebugLoc loc);
+
   StoreStmt(Argument *arg, const std::vector<Expr *> &indices, Expr *value,
-            bool accumulate, DebugLoc loc)
-      : Stmt(loc), arg_(arg), indices_(), value_(value, this),
-        accumulate_(accumulate) {
-    assert(arg->getType()->getNumDims() == indices.size() &&
-           "Invalid number of indices");
-    for (auto *E : indices) {
-      assert(E->getType().isIndexTy() && "Argument must be of index kind");
-      indices_.emplace_back(E, this);
-    }
-  }
+            bool accumulate, DebugLoc loc);
 
   /// Clone indices and return the list of unowned expr indices.
   std::vector<Expr *> cloneIndicesPtr(CloneCtx &map);

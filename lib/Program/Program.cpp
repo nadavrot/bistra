@@ -294,10 +294,33 @@ void BroadcastExpr::dump() const {
   std::cout << ")";
 }
 
-void LoadExpr::dump() const {
-  std::cout << arg_->getName() << "[";
+LoadExpr::LoadExpr(GEPExpr *gep, DebugLoc loc)
+    : Expr(ElemKind::IndexTy, loc), gep_(gep, this) {
+  setType(ExprType(getDest()->getType()->getElementType()));
+}
+
+LoadExpr::LoadExpr(GEPExpr *gep, ExprType elemTy, DebugLoc loc)
+    : Expr(elemTy, loc), gep_(gep, this) {}
+
+LoadExpr::LoadExpr(Argument *arg, const std::vector<Expr *> &indices,
+                   ExprType elemTy, DebugLoc loc)
+    : LoadExpr(arg, indices, loc) {
+  // Override the type that we guess in the untyped ctor.
+  setType(elemTy);
+}
+
+LoadExpr::LoadExpr(Argument *arg, const std::vector<Expr *> &indices,
+                   DebugLoc loc)
+    : Expr(ElemKind::IndexTy, loc), gep_(new GEPExpr(arg, indices, loc), this) {
+
+  // This loads a scalar value from the buffer.
+  setType(ExprType(arg->getType()->getElementType()));
+}
+
+void GEPExpr::dump() const {
+  std::cout << getDest()->getName() << "[";
   bool first = true;
-  for (auto &I : indices_) {
+  for (auto &I : getIndices()) {
     if (!first) {
       std::cout << ",";
     }
@@ -305,12 +328,25 @@ void LoadExpr::dump() const {
     I->dump();
   }
   std::cout << "]";
+}
+
+void LoadExpr::dump() const {
+  gep_->dump();
   if (getType().isVector()) {
     std::cout << "." << getType().getWidth();
   }
 }
 
 void LoadLocalExpr::dump() const { std::cout << var_->getName(); }
+
+StoreStmt::StoreStmt(GEPExpr *gep, Expr *value, bool accumulate, DebugLoc loc)
+    : Stmt(loc), gep_(gep, this), value_(value, this), accumulate_(accumulate) {
+}
+
+StoreStmt::StoreStmt(Argument *arg, const std::vector<Expr *> &indices,
+                     Expr *value, bool accumulate, DebugLoc loc)
+    : Stmt(loc), gep_(new GEPExpr(arg, indices, loc), this),
+      value_(value, this), accumulate_(accumulate) {}
 
 std::vector<Expr *> StoreStmt::cloneIndicesPtr(CloneCtx &map) {
   std::vector<Expr *> ret;
@@ -347,16 +383,7 @@ void CallStmt::dump(unsigned indent) const {
 
 void StoreStmt::dump(unsigned indent) const {
   spaces(indent);
-  std::cout << arg_->getName() << "[";
-  bool first = true;
-  for (auto &I : indices_) {
-    if (!first) {
-      std::cout << ",";
-    }
-    first = false;
-    I->dump();
-  }
-  std::cout << "]";
+  gep_->dump();
   if (value_->getType().isVector()) {
     std::cout << "." << value_->getType().getWidth();
   }
@@ -434,14 +461,18 @@ Expr *BroadcastExpr::clone(CloneCtx &map) {
   return new BroadcastExpr(val_->clone(map), vf_);
 }
 
-Expr *LoadExpr::clone(CloneCtx &map) {
+Expr *GEPExpr::clone(CloneCtx &map) {
   Argument *arg = map.get(arg_);
   std::vector<Expr *> indices;
   for (auto &E : indices_) {
     indices.push_back(E->clone(map));
   }
 
-  return new LoadExpr(arg, indices, getType(), getLoc());
+  return new GEPExpr(arg, indices, getLoc());
+}
+
+Expr *LoadExpr::clone(CloneCtx &map) {
+  return new LoadExpr((GEPExpr *)gep_->clone(map), getType(), getLoc());
 }
 
 Expr *LoadLocalExpr::clone(CloneCtx &map) {
@@ -457,10 +488,9 @@ Stmt *CallStmt::clone(CloneCtx &map) {
 }
 
 Stmt *StoreStmt::clone(CloneCtx &map) {
-  Argument *arg = map.get(arg_);
   verify();
-  std::vector<Expr *> indices = cloneIndicesPtr(map);
-  return new StoreStmt(arg, indices, value_->clone(map), accumulate_, getLoc());
+  return new StoreStmt((GEPExpr *)gep_->clone(map), value_->clone(map),
+                       accumulate_, getLoc());
 }
 
 Stmt *StoreLocalStmt::clone(CloneCtx &map) {
@@ -581,7 +611,7 @@ void BroadcastExpr::verify() const {
   assert(val_->getType().getWidth() == 1 && "Broadcasting a vector");
 }
 
-void LoadExpr::verify() const {
+void GEPExpr::verify() const {
   for (auto &E : indices_) {
     E.verify();
     assert(E.getParent() == this && "Invalid handle owner pointer");
@@ -591,8 +621,13 @@ void LoadExpr::verify() const {
   assert(arg_->getType()->getNumDims() == indices_.size() &&
          "Invalid number of indices");
 
+  assert(getType().getElementType() == ElemKind::PtrTy);
+}
+
+void LoadExpr::verify() const {
+  gep_->verify();
   // Check the store element kind.
-  ElemKind EK = arg_->getType()->getElementType();
+  ElemKind EK = getDest()->getType()->getElementType();
   assert(getType().getElementType() == EK && "Loaded element type mismatch");
 }
 
@@ -604,16 +639,8 @@ void LoadLocalExpr::verify() const {
 }
 
 void StoreStmt::verify() const {
-  for (auto &E : indices_) {
-    E.verify();
-    E->verify();
-    assert(E.getParent() == this && "Invalid handle owner pointer");
-    assert(E->getType().isIndexTy() && "Argument must be of index kind");
-  }
-  assert(indices_.size() && "Empty argument list");
-  assert(arg_->getType()->getNumDims() == indices_.size() &&
-         "Invalid number of indices");
-
+  gep_->verify();
+  gep_.verify();
   assert(value_.getParent() == this && "Invalid handle owner pointer");
   auto storedType = value_->getType();
 
@@ -621,7 +648,7 @@ void StoreStmt::verify() const {
   value_.verify();
 
   // Check the store value type.
-  ElemKind EK = arg_->getType()->getElementType();
+  ElemKind EK = getDest()->getType()->getElementType();
   assert(storedType.getElementType() == EK && "Stored element type mismatch");
 }
 
@@ -743,11 +770,17 @@ void BroadcastExpr::visit(NodeVisitor *visitor) {
   visitor->leave(this);
 }
 
-void LoadExpr::visit(NodeVisitor *visitor) {
+void GEPExpr::visit(NodeVisitor *visitor) {
   visitor->enter(this);
   for (auto &ii : this->getIndices()) {
     ii.get()->visit(visitor);
   }
+  visitor->leave(this);
+}
+
+void LoadExpr::visit(NodeVisitor *visitor) {
+  visitor->enter(this);
+  gep_->visit(visitor);
   visitor->leave(this);
 }
 

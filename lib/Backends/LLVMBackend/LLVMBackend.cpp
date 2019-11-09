@@ -204,26 +204,34 @@ public:
       return builder_.CreateLoad(allocaTy, alloca, r->getDest()->getName());
     }
 
+    // Handle GEP expressions.
+    if (auto *gep = dynamic_cast<const GEPExpr *>(e)) {
+      auto *bufferTy = gep->getDest()->getType();
+      llvm::Value *offset =
+          getIndexOffsetForBuffer(gep->getIndices(), bufferTy);
+      auto *arg = namedValues_[gep->getDest()->getName()];
+      return builder_.CreateGEP(arg, offset);
+    }
+
     // Handle Load expressions.
     if (auto *ld = dynamic_cast<const LoadExpr *>(e)) {
-      auto *bufferTy = ld->getDest()->getType();
-      llvm::Value *offset = getIndexOffsetForBuffer(ld->getIndices(), bufferTy);
+      auto *ptr = generate(ld->getGep());
       auto *arg = namedValues_[ld->getDest()->getName()];
+      llvm::Type *elemTy = arg->getType();
 
       if (ld->getType().isVector()) {
         auto width = ld->getType().getWidth();
-        auto *elemTy =
-            llvm::cast<llvm::PointerType>(arg->getType())->getElementType();
+        elemTy = llvm::cast<llvm::PointerType>(elemTy)->getElementType();
+
         auto *vecTy = llvm::VectorType::get(elemTy, width);
         auto *vecPTy = llvm::PointerType::get(vecTy, 0);
-        auto *ptr = builder_.CreateGEP(elemTy, arg, offset);
         auto *vt = builder_.CreateBitCast(ptr, vecPTy);
         auto *ld = builder_.CreateLoad(vt, "ld");
         ld->setAlignment(1);
         return ld;
       }
 
-      auto *ptr = builder_.CreateGEP(arg, offset);
+      ptr = builder_.CreateBitCast(ptr, elemTy);
       return builder_.CreateLoad(ptr, "ld");
     }
 
@@ -241,11 +249,8 @@ public:
   }
 
   void emit(StoreStmt *SS) {
+    auto *ptr = generate(SS->getGep());
     auto *storedVal = generate(SS->getValue());
-    auto *bufferTy = SS->getDest()->getType();
-    llvm::Value *offset = getIndexOffsetForBuffer(SS->getIndices(), bufferTy);
-    auto *arg = namedValues_[SS->getDest()->getName()];
-    auto *ptr = builder_.CreateGEP(arg, offset);
     auto *ptelem = llvm::PointerType::get(storedVal->getType(), 0);
     auto *vt = builder_.CreateBitCast(ptr, ptelem);
 
