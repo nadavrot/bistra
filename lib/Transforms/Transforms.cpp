@@ -456,11 +456,11 @@ static StoreStmt *vectorizeStore(StoreStmt *S, Loop *L, unsigned vf) {
                        S->getLoc());
 }
 
-bool bistra::vectorize(Loop *L, unsigned vf) {
+Loop *bistra::vectorize(Loop *L, unsigned vf) {
   unsigned tripCount = L->getEnd();
   // The trip count must contain the vec-width and loop must not be vectorized.
   if (tripCount < vf || L->getStride() != 1) {
-    return false;
+    return nullptr;
   }
 
   // Check if we can handle all of the statements contained in the loop.
@@ -474,7 +474,7 @@ bool bistra::vectorize(Loop *L, unsigned vf) {
       continue;
 
     // We can't handle this kind of statement.
-    return false;
+    return nullptr;
   }
 
   // Collect the indices in the loop L that access the index of L.
@@ -484,17 +484,20 @@ bool bistra::vectorize(Loop *L, unsigned vf) {
   std::set<StoreStmt *> stores;
   bool collected = collectStoreSites(stores, indices);
   if (!collected)
-    return false;
+    return nullptr;
 
   for (auto *S : stores) {
     if (!mayVectorizeStore(S, L)) {
-      return false;
+      return nullptr;
     }
   }
 
+  // The return value of the method.
+  Loop *tailOrOrig = L;
+
   // Transform the loop to divide the loop trip count.
   if (tripCount % vf) {
-    ::peelLoop(L, tripCount - (tripCount % vf));
+    tailOrOrig = ::peelLoop(L, tripCount - (tripCount % vf));
   }
 
   // Update the loop stride to reflect the vectorization factor.
@@ -506,7 +509,7 @@ bool bistra::vectorize(Loop *L, unsigned vf) {
     handle->setReference(vectorizeStore(S, L, vf));
   }
 
-  return true;
+  return tailOrOrig;
 }
 
 /// Widen (duplicate and update index) the store \p S. Using the loop index \p L
@@ -531,7 +534,7 @@ static void widenStore(StoreStmt *S, Loop *L, unsigned offset) {
   ((Scope *)S->getParent())->insertAfterStmt(dup, S);
 }
 
-bool bistra::widen(Loop *L, unsigned wf) {
+Loop *bistra::widen(Loop *L, unsigned wf) {
   assert(wf > 1 && wf < 1024 && "Unexpected widen factor");
   unsigned stride = L->getStride();
   unsigned newStride = stride * wf;
@@ -541,12 +544,12 @@ bool bistra::widen(Loop *L, unsigned wf) {
   collectLocals(L, lloads, lstores, nullptr);
   // We can't handle local loads/stores in this optimization.
   if (lloads.size() || lstores.size())
-    return false;
+    return nullptr;
 
   unsigned tripCount = L->getEnd();
   // The trip count must contain the vec-width and loop must not be vectorized.
   if (tripCount < (newStride)) {
-    return false;
+    return nullptr;
   }
 
   std::vector<IndexExpr *> indices;
@@ -555,11 +558,14 @@ bool bistra::widen(Loop *L, unsigned wf) {
   std::set<StoreStmt *> stores;
   bool collected = collectStoreSites(stores, indices);
   if (!collected)
-    return false;
+    return nullptr;
+
+  // The return value of the method.
+  Loop *tailOrOrig = L;
 
   // Transform the loop to divide the loop trip count.
   if (tripCount % newStride) {
-    ::peelLoop(L, tripCount - (tripCount % (newStride)));
+    tailOrOrig = ::peelLoop(L, tripCount - (tripCount % (newStride)));
   }
 
   // Widen the stores by duplicating them X times, updating the references to
@@ -578,7 +584,7 @@ bool bistra::widen(Loop *L, unsigned wf) {
   // widen vectorized loops, so we need to multiply the widen factor by the
   // current stride.
   L->setStride(newStride);
-  return true;
+  return tailOrOrig;
 }
 
 namespace {
@@ -855,33 +861,51 @@ bool bistra::changeLayout(Program *p, unsigned argIndex,
   return true;
 }
 
-bool bistra::applyPragmaCommand(const PragmaCommand &pc) {
+bool bistra::applyPragmaCommand(Program *prog, const PragmaCommand &pc) {
+
+  auto *L = getLoopByName(prog, pc.loopName_);
+  auto param = pc.param_;
+
   switch (pc.kind_) {
-  case PragmaCommand::PragmaKind::vectorize:
-    return ::vectorize(pc.L_, pc.param_);
+    case PragmaCommand::PragmaKind::vectorize:
+      if (auto *L2 = vectorize(L, param)) {
+        if (pc.newName_.size())
+          L2->setName(pc.newName_);
+        return true;
+      }
+      return false;
+    case PragmaCommand::PragmaKind::unroll:
+      return unrollLoop(L, param);
 
-  case PragmaCommand::PragmaKind::unroll:
-    return ::unrollLoop(pc.L_, pc.param_);
-
-  case PragmaCommand::PragmaKind::widen:
-    return ::widen(pc.L_, pc.param_);
-
-  case PragmaCommand::PragmaKind::tile:
-    return ::tile(pc.L_, pc.param_);
-
-  case PragmaCommand::peel:
-    return ::peelLoop(pc.L_, pc.param_);
-    break;
-  case PragmaCommand::PragmaKind::hoist:
-    return ::hoist(pc.L_, pc.param_);
-  case PragmaCommand::PragmaKind::fuse:
-    return ::fuse(pc.L_, pc.param_);
-
-  case PragmaCommand::other:
-    assert(false && "Invalid pragma");
-    return false;
+    case PragmaCommand::PragmaKind::widen:
+      if (auto *L2 = widen(L, param)) {
+        if (pc.newName_.size())
+          L2->setName(pc.newName_);
+        return true;
+      }
+      return false;
+    case PragmaCommand::PragmaKind::tile:
+      if (auto *L2 = tile(L, param)) {
+        if (pc.newName_.size())
+          L2->setName(pc.newName_);
+        return true;
+      }
+      return false;
+    case PragmaCommand::peel:
+      if (auto *L2 = peelLoop(L, param)) {
+        if (pc.newName_.size())
+          L2->setName(pc.newName_);
+        return true;
+      }
+      return false;
+    case PragmaCommand::PragmaKind::hoist:
+      return ::hoist(L, param);
+    case PragmaCommand::PragmaKind::fuse:
+      return ::fuse(L, param);
+    case PragmaCommand::other:
+      assert(false && "Invalid pragma");
+      return false;
   }
-
   assert(false && "Unhandled pragma");
   return false;
 }

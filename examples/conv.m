@@ -16,8 +16,6 @@ func conv(
 
   for (n in 0 .. Out.N) {
     // For each output channel:
-    #widen 8
-    #vectorize 8
     for (d in 0 .. Out.C) {
       // For each pixel in the output buffer.
       for (outx in 0 .. Out.W) {
@@ -50,4 +48,7 @@ func conv(
   } // N
 }
 
-
+script for "x86" {
+  vectorize "d" to 8 as "d8"
+  widen "d8" to 4 as "d8_4"
+}

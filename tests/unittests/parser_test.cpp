@@ -154,14 +154,18 @@ TEST(basic, if_range_test) {
 
 TEST(basic, pragmas) {
   const char *pragmas_test = R"(
-  func pragmas_test(C:float<x:10>) {
-    #vectorize 8
-    #widen 3
+  func pragmas_test(C:float<x:16>) {
     for (i in 0 .. 34) {
-    #widen 4
       for (r in 0 .. C.x) {  }
     }
-  })";
+  }
+
+  script for "x86" {
+    vectorize "i" to 8
+    vectorize "r" to 4
+    tile "r" to 4 as "r_tiled"
+  }
+  )";
 
   ParserContext ctx(pragmas_test);
   Parser P(ctx);
@@ -171,13 +175,17 @@ TEST(basic, pragmas) {
   p->verify();
   p->dump();
   auto decls = ctx.getPragmaDecls();
+
   EXPECT_EQ(decls.size(), 3);
-  EXPECT_EQ(decls[2].kind_, PragmaCommand::PragmaKind::vectorize);
-  EXPECT_EQ(decls[2].L_->getName(), "i");
-  EXPECT_EQ(decls[1].kind_, PragmaCommand::PragmaKind::widen);
-  EXPECT_EQ(decls[1].L_->getName(), "i");
-  EXPECT_EQ(decls[0].kind_, PragmaCommand::PragmaKind::widen);
-  EXPECT_EQ(decls[0].L_->getName(), "r");
+  EXPECT_EQ(decls[0].kind_, PragmaCommand::PragmaKind::vectorize);
+  EXPECT_EQ(decls[0].loopName_, "i");
+  EXPECT_EQ(decls[0].param_, 8);
+  EXPECT_EQ(decls[1].kind_, PragmaCommand::PragmaKind::vectorize);
+  EXPECT_EQ(decls[1].loopName_, "r");
+  EXPECT_EQ(decls[1].param_, 4);
+  EXPECT_EQ(decls[2].kind_, PragmaCommand::PragmaKind::tile);
+  EXPECT_EQ(decls[2].loopName_, "r");
+  EXPECT_EQ(decls[2].newName_, "r_tiled");
 }
 
 TEST(basic, let_expr) {

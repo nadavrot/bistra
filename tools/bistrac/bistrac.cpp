@@ -195,10 +195,12 @@ Program *parseProgram(ParserContext &ctx) {
 
   // Apply the pragma commands.
   for (auto &pc : ctx.getPragmaDecls()) {
-    bool res = applyPragmaCommand(pc);
+    bool res = applyPragmaCommand(program, pc);
     if (!res) {
+      program->dump();
       ctx.diagnose(ParserContext::DiagnoseKind::Error, pc.loc_,
                    "unable to apply the pragma");
+      return program;
     }
   }
 

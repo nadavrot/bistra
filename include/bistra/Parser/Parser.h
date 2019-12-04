@@ -89,6 +89,8 @@ private:
 
   Program *parseFunctionDecl();
 
+  void parseScriptDecl();
+
   /// Parse the next token and update \p kind, or return true on error.
   bool parseBuiltinType(ElemKind &kind);
 
@@ -134,9 +136,6 @@ private:
 
   /// Parse the for stmt.
   Stmt *parseIfStmt();
-
-  /// Parse a Pragma attribute.
-  Stmt *parsePragma();
 
   /// Parse literal or dimension, such as C.x;
   /// \returns True if an error occured.

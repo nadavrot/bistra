@@ -7,7 +7,6 @@ func gemm(C:float<I:m, J:n>,
          A:float<I:m, K:k>,
          B:float<K:k, J:n>) {
   // Matmul:
-  #fuse 3
   for (i in 0 .. C.I) {
     for (j in 0 .. C.J) {
       C[i,j] = 0.0;
@@ -23,4 +22,8 @@ func gemm(C:float<I:m, J:n>,
       C[x,y] = max(C[x, y], 0.);
     }
   }
+}
+
+script for "x86" {
+  fuse "i" for 3
 }

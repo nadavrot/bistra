@@ -3,6 +3,8 @@
 
 #include "bistra/Base/Base.h"
 
+#include <string>
+
 namespace bistra {
 class Loop;
 
@@ -10,15 +12,20 @@ class Loop;
 struct PragmaCommand {
   enum PragmaKind { vectorize, unroll, widen, tile, peel, hoist, fuse, other };
 
-  PragmaCommand(PragmaKind kind, int param, Loop *L, DebugLoc loc)
-      : kind_(kind), param_(param), L_(L), loc_(loc) {}
+  PragmaCommand(PragmaKind kind, const std::string &loopName,
+                const std::string &newName, int param,
+                DebugLoc loc)
+      : kind_(kind), loopName_(loopName), newName_(newName), param_(param),
+        loc_(loc) {}
 
-  /// The name of the pragma.
+  /// The kind of the pragma.
   PragmaKind kind_;
+  /// A name for the loop to transform.
+  std::string loopName_;
+  /// An optional new name for the loop.
+  std::string newName_;
   /// The parameter for the pragma.
-  int param_;
-  /// The the loop that this pragma applies to.
-  Loop *L_;
+   int param_;
   /// The location of the pragma.
   DebugLoc loc_;
 };

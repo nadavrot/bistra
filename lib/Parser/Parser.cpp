@@ -716,69 +716,6 @@ end_loop_decl:
   return L;
 }
 
-Stmt *Parser::parsePragma() {
-  assert(Tok.is(TokenKind::hash));
-
-  auto pragmaLoc = Tok.getLoc();
-  consumeToken(TokenKind::hash);
-  std::string pragmaName;
-  int param;
-
-  // Parse the pragma name.
-  if (parseIdentifier(pragmaName)) {
-    ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
-                  "unable to parse the pragma name.");
-    skipUntil(TokenKind::kw_for);
-    goto parse_loop;
-  }
-  // Parse the parameter.
-  if (parseIntegerLiteralOrLetConstant(param)) {
-    ctx_.diagnose(
-        DiagnoseKind::Error, pragmaLoc,
-        "expecting a numeric pragma parameter after the pragma name.");
-  }
-
-parse_loop:
-  // Continue to parse statements recursively. Apply the pragma as the loop
-  // returns.
-  Stmt *K = parseOneStmt();
-  if (!K)
-    return nullptr;
-
-  Loop *L = dynamic_cast<Loop *>(K);
-
-  PragmaCommand::PragmaKind pk = PragmaCommand::PragmaKind::other;
-
-#define MATCH(str, name, kind)                                                 \
-  {                                                                            \
-    if (str == name) {                                                         \
-      pk = kind;                                                               \
-    }                                                                          \
-  }
-  MATCH(pragmaName, "vectorize", PragmaCommand::PragmaKind::vectorize);
-  MATCH(pragmaName, "widen", PragmaCommand::PragmaKind::widen);
-  MATCH(pragmaName, "tile", PragmaCommand::PragmaKind::tile);
-  MATCH(pragmaName, "peel", PragmaCommand::PragmaKind::peel);
-  MATCH(pragmaName, "unroll", PragmaCommand::PragmaKind::unroll);
-  MATCH(pragmaName, "hoist", PragmaCommand::PragmaKind::hoist);
-  MATCH(pragmaName, "fuse", PragmaCommand::PragmaKind::fuse);
-#undef MATCH
-
-  if (pk == PragmaCommand::PragmaKind::other) {
-    ctx_.diagnose(DiagnoseKind::Error, pragmaLoc,
-                  "unknown pragma \"" + pragmaName + "\".\n");
-    return nullptr;
-  }
-  if (L) {
-    PragmaCommand pc(pk, param, L, pragmaLoc);
-    ctx_.addPragma(pc);
-  } else {
-    ctx_.diagnose(DiagnoseKind::Error, pragmaLoc,
-                  "unable to apply the pragma to non-loop.");
-  }
-  return L;
-}
-
 Stmt *Parser::parseIfStmt() {
   auto ifLoc = Tok.getLoc();
   // "if"
@@ -992,12 +929,6 @@ bool Parser::parseVarDecl(Scope *s) {
 
 /// Parse a single unit (stmt).
 Stmt *Parser::parseOneStmt() {
-  // Parse pragmas such as :
-  // #vectorize 8
-  if (Tok.is(TokenKind::hash)) {
-    return parsePragma();
-  }
-
   /// Parse variable access:
   ///
   /// Example: A[1,I * 8, 12] += 2
@@ -1128,21 +1059,114 @@ Stmt *Parser::parseOneStmt() {
   return nullptr;
 }
 
-Program *Parser::parseFunctionDecl() {
-  if (!consumeIf(kw_func)) {
-    skipUntil(TokenKind::eof);
-    return nullptr;
-  }
+void Parser::parseScriptDecl() {
+  consumeToken(kw_script);
+  if (!consumeIf(kw_for)) {
+    ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
+                        "expecting 'for' keyword.");
+     skipUntil(TokenKind::eof);
+     return;
+   }
 
   // Indentifier name.
-  std::string progName = "prog";
-  if (parseIdentifier(progName)) {
+  std::string progName = "";
+  if (parseStringLiteral(progName)) {
+    ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
+                  "expecting target name after script definition.");
+    skipUntil(TokenKind::l_brace);
+  }
+
+  if (!consumeIf(TokenKind::l_brace)) {
+    ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
+                  "expecting left brace for scope body.");
+  }
+
+  while (!Tok.is(TokenKind::r_brace)) {
+    std::string loopName = "";
+    std::string newName = "";
+    int arg0 = 0;
+    auto loc = Tok.getLoc();
+
+    PragmaCommand::PragmaKind pk = PragmaCommand::PragmaKind::other;
+    #define MATCH(kind)    \
+    if (Tok.is(TokenKind::kw_##kind)) { pk = PragmaCommand::PragmaKind:: kind; }
+      MATCH(vectorize);
+      MATCH(widen);
+      MATCH(tile);
+      MATCH(peel);
+      MATCH(unroll);
+      MATCH(hoist);
+      MATCH(fuse);
+    #undef MATCH
+
+      if (pk == PragmaCommand::PragmaKind::other) {
+        ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
+                      "unknown command name.\n");
+        skipUntil(r_brace);
+        return;
+      }
+
+    // Consume the command name keyword.
+    consumeToken();
+
+    // Parse pragma parameters:
+    // tile ["i" to 4]
+    // or
+    // tile "i" 4 times
+
+
+    if (parseStringLiteral(loopName)) {
+        ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
+                      "expecting loop name after command.");
+        skipUntil(r_brace);
+        continue;
+      }
+
+    consumeIf(TokenKind::kw_to);
+
+    if (parseIntegerLiteral(arg0)) {
+      ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
+                    "expecting integer literal");
+      skipUntil(r_brace);
+      continue;
+    }
+
+    consumeIf(TokenKind::kw_times);
+
+    // tile "i" 4 times [as "newname"].
+    if (Tok.is(TokenKind::kw_as)) {
+      consumeToken(kw_as);
+      if (parseStringLiteral(newName)) {
+        ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
+                      "expecting string literal");
+        skipUntil(r_brace);
+        continue;
+      }
+    }
+
+    // Register the command.
+    PragmaCommand pc(pk, loopName, newName, arg0, loc);
+    ctx_.addPragma(pc);
+  }
+
+  if (!consumeIf(TokenKind::r_brace)) {
+    ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
+                  "expecting right brace for scope body.");
+  }
+}
+
+Program *Parser::parseFunctionDecl() {
+   consumeToken(kw_func);
+
+  // Indentifier name.
+  std::string targetName = "prog";
+  if (parseIdentifier(targetName)) {
     ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
                   "expecting function name after def.");
     skipUntil(TokenKind::l_paren);
   }
 
-  Program *p = new Program(progName, Tok.getLoc());
+  Program *p = new Program(targetName, Tok.getLoc());
 
   if (!consumeIf(TokenKind::l_paren)) {
     ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
@@ -1196,6 +1220,7 @@ Program *Parser::parseFunctionDecl() {
   return p;
 }
 
+
 void Parser::parse() {
   // Prime the Lexer!
   consumeToken();
@@ -1210,6 +1235,10 @@ void Parser::parse() {
   if (Tok.is(kw_func)) {
     if (Program *func = parseFunctionDecl()) {
       ctx_.registerProgram(func);
+    }
+
+    if (Tok.is(kw_script)) {
+      parseScriptDecl();
     }
 
     if (!Tok.is(TokenKind::eof)) {

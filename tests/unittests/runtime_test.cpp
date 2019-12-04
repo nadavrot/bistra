@@ -47,13 +47,17 @@ TEST(runtime, basic_io) {
 TEST(runtime, simple_loop) {
   const char *simple_loop = R"(
   func simple_loop(A:float<x:10>, B:float<x:10>, C:float<x:2>) {
-    #vectorize 4
     for (i in 0 .. A.x) {
       B[i] = A[i] + 10.0
     }
   C[0] = 1.0
   C[1] = 2.0
-  })";
+  }
+
+  script for "x86" {
+    vectorize "i" to 4
+  }
+)";
 
   ParserContext ctx(simple_loop);
   Parser P(ctx);
@@ -128,8 +132,8 @@ TEST(runtime, gemm) {
 
   auto *J = ::getLoopByName(prog, "j_split_1");
   auto *I = ::getLoopByName(prog, "i_split_1");
-  res &= ::vectorize(J, 4);
-  res &= ::widen(I, 3);
+  res &= (bool)::vectorize(J, 4);
+  res &= (bool)::widen(I, 3);
   EXPECT_EQ(res, true);
   prog->dump();
 

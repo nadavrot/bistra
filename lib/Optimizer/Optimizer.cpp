@@ -105,7 +105,7 @@ void VectorizerPass::doIt(Program *p) {
   std::unique_ptr<Program> np((Program *)p->clone(map));
   for (auto *l : collectLoops(p)) {
     auto *newL = map.get(l);
-    changed |= ::vectorize(newL, VF);
+    changed |= (bool)::vectorize(newL, VF);
   }
 
   // Try the vectorized version:
@@ -300,7 +300,7 @@ void WidnerPass::doIt(Program *p) {
         ctr = ctr / numWidths;
 
         auto *newL = map.get(l);
-        changed |= ::widen(newL, ws);
+        changed |= (bool)::widen(newL, ws);
         numRegs *= ws;
       } // Loop hierarchy.
 

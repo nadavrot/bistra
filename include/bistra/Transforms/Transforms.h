@@ -43,13 +43,17 @@ bool unrollLoop(Loop *L, unsigned maxTripCount);
 Loop *peelLoop(Loop *L, int k);
 
 /// Try to vectorize the loop \p L for the vectorization factor \p vf.
-bool vectorize(Loop *L, unsigned vf);
+/// \returns NULL if the transformation failed. Or the new tail loop, if one was
+/// created, or the original loop if it was modified.
+Loop *vectorize(Loop *L, unsigned vf);
 
 /// Widen the loop by the factor \p wf. Widening is similar to vectorization
 /// because we perform more work on each iteration. It is also similar unrolling
 /// Each store site that uses the induction variable is duplicated.
 /// Example: A[i] = 3 becomes A[i] = 3; A[i+1] = 3;
-bool widen(Loop *L, unsigned wf);
+/// \returns NULL if the transformation failed. Or the new tail loop, if one was
+/// created, or the original loop if it was modified.
+Loop *widen(Loop *L, unsigned wf);
 
 /// Fuse the loop L, with the following loop. For example:
 ///   for (i in 0..100) {A[i] = 3;}
@@ -70,7 +74,7 @@ bool changeLayout(Program *p, unsigned argIndex,
 
 /// Apply the pragma command \p pc to the requested loop.
 /// \returns true if the program was modified.
-bool applyPragmaCommand(const PragmaCommand &pc);
+bool applyPragmaCommand(Program *prog, const PragmaCommand &pc);
 
 } // namespace bistra
 

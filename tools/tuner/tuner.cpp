@@ -17,13 +17,19 @@ let sz = 512;
 func gemm (C:float<I:sz,J:sz>, A:float<I:sz,K:sz>, B:float<K:sz,J:sz>) {
   for (i in 0 .. C.I) {
     for (j in 0 .. C.J) {
-      //C[i,j] =  0.000000 ;
+      C[i,j] =  0.000000 ;
       for (k in 0 .. A.K) {
         C[i,j] += A[i,k] * B[k,j];
       }
     }
   }
 }
+
+script for "x86" {
+  vectorize "i" to 4
+  tile "j" to 16 as "j_tiled"
+}
+
 )";
 
 int main() {
