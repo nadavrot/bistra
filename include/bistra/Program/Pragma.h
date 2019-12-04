@@ -13,8 +13,7 @@ struct PragmaCommand {
   enum PragmaKind { vectorize, unroll, widen, tile, peel, hoist, fuse, other };
 
   PragmaCommand(PragmaKind kind, const std::string &loopName,
-                const std::string &newName, int param,
-                DebugLoc loc)
+                const std::string &newName, int param, DebugLoc loc)
       : kind_(kind), loopName_(loopName), newName_(newName), param_(param),
         loc_(loc) {}
 
@@ -25,7 +24,7 @@ struct PragmaCommand {
   /// An optional new name for the loop.
   std::string newName_;
   /// The parameter for the pragma.
-   int param_;
+  int param_;
   /// The location of the pragma.
   DebugLoc loc_;
 };

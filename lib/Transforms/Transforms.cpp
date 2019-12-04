@@ -867,44 +867,44 @@ bool bistra::applyPragmaCommand(Program *prog, const PragmaCommand &pc) {
   auto param = pc.param_;
 
   switch (pc.kind_) {
-    case PragmaCommand::PragmaKind::vectorize:
-      if (auto *L2 = vectorize(L, param)) {
-        if (pc.newName_.size())
-          L2->setName(pc.newName_);
-        return true;
-      }
-      return false;
-    case PragmaCommand::PragmaKind::unroll:
-      return unrollLoop(L, param);
+  case PragmaCommand::PragmaKind::vectorize:
+    if (auto *L2 = vectorize(L, param)) {
+      if (pc.newName_.size())
+        L2->setName(pc.newName_);
+      return true;
+    }
+    return false;
+  case PragmaCommand::PragmaKind::unroll:
+    return unrollLoop(L, param);
 
-    case PragmaCommand::PragmaKind::widen:
-      if (auto *L2 = widen(L, param)) {
-        if (pc.newName_.size())
-          L2->setName(pc.newName_);
-        return true;
-      }
-      return false;
-    case PragmaCommand::PragmaKind::tile:
-      if (auto *L2 = tile(L, param)) {
-        if (pc.newName_.size())
-          L2->setName(pc.newName_);
-        return true;
-      }
-      return false;
-    case PragmaCommand::peel:
-      if (auto *L2 = peelLoop(L, param)) {
-        if (pc.newName_.size())
-          L2->setName(pc.newName_);
-        return true;
-      }
-      return false;
-    case PragmaCommand::PragmaKind::hoist:
-      return ::hoist(L, param);
-    case PragmaCommand::PragmaKind::fuse:
-      return ::fuse(L, param);
-    case PragmaCommand::other:
-      assert(false && "Invalid pragma");
-      return false;
+  case PragmaCommand::PragmaKind::widen:
+    if (auto *L2 = widen(L, param)) {
+      if (pc.newName_.size())
+        L2->setName(pc.newName_);
+      return true;
+    }
+    return false;
+  case PragmaCommand::PragmaKind::tile:
+    if (auto *L2 = tile(L, param)) {
+      if (pc.newName_.size())
+        L2->setName(pc.newName_);
+      return true;
+    }
+    return false;
+  case PragmaCommand::peel:
+    if (auto *L2 = peelLoop(L, param)) {
+      if (pc.newName_.size())
+        L2->setName(pc.newName_);
+      return true;
+    }
+    return false;
+  case PragmaCommand::PragmaKind::hoist:
+    return ::hoist(L, param);
+  case PragmaCommand::PragmaKind::fuse:
+    return ::fuse(L, param);
+  case PragmaCommand::other:
+    assert(false && "Invalid pragma");
+    return false;
   }
   assert(false && "Unhandled pragma");
   return false;

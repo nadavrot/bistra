@@ -1063,10 +1063,10 @@ void Parser::parseScriptDecl() {
   consumeToken(kw_script);
   if (!consumeIf(kw_for)) {
     ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
-                        "expecting 'for' keyword.");
-     skipUntil(TokenKind::eof);
-     return;
-   }
+                  "expecting 'for' keyword.");
+    skipUntil(TokenKind::eof);
+    return;
+  }
 
   // Indentifier name.
   std::string progName = "";
@@ -1088,23 +1088,25 @@ void Parser::parseScriptDecl() {
     auto loc = Tok.getLoc();
 
     PragmaCommand::PragmaKind pk = PragmaCommand::PragmaKind::other;
-    #define MATCH(kind)    \
-    if (Tok.is(TokenKind::kw_##kind)) { pk = PragmaCommand::PragmaKind:: kind; }
-      MATCH(vectorize);
-      MATCH(widen);
-      MATCH(tile);
-      MATCH(peel);
-      MATCH(unroll);
-      MATCH(hoist);
-      MATCH(fuse);
-    #undef MATCH
+#define MATCH(kind)                                                            \
+  if (Tok.is(TokenKind::kw_##kind)) {                                          \
+    pk = PragmaCommand::PragmaKind::kind;                                      \
+  }
+    MATCH(vectorize);
+    MATCH(widen);
+    MATCH(tile);
+    MATCH(peel);
+    MATCH(unroll);
+    MATCH(hoist);
+    MATCH(fuse);
+#undef MATCH
 
-      if (pk == PragmaCommand::PragmaKind::other) {
-        ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
-                      "unknown command name.\n");
-        skipUntil(r_brace);
-        return;
-      }
+    if (pk == PragmaCommand::PragmaKind::other) {
+      ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
+                    "unknown command name.\n");
+      skipUntil(r_brace);
+      return;
+    }
 
     // Consume the command name keyword.
     consumeToken();
@@ -1114,13 +1116,12 @@ void Parser::parseScriptDecl() {
     // or
     // tile "i" 4 times
 
-
     if (parseStringLiteral(loopName)) {
-        ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
-                      "expecting loop name after command.");
-        skipUntil(r_brace);
-        continue;
-      }
+      ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
+                    "expecting loop name after command.");
+      skipUntil(r_brace);
+      continue;
+    }
 
     consumeIf(TokenKind::kw_to);
 
@@ -1156,7 +1157,7 @@ void Parser::parseScriptDecl() {
 }
 
 Program *Parser::parseFunctionDecl() {
-   consumeToken(kw_func);
+  consumeToken(kw_func);
 
   // Indentifier name.
   std::string targetName = "prog";
@@ -1219,7 +1220,6 @@ Program *Parser::parseFunctionDecl() {
   }
   return p;
 }
-
 
 void Parser::parse() {
   // Prime the Lexer!
