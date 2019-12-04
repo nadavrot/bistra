@@ -503,7 +503,7 @@ struct ComputeEstimator : public NodeVisitor {
     }
     // Constants and indices have no cost.
     if (dynamic_cast<IndexExpr *>(E) || dynamic_cast<ConstantExpr *>(E) ||
-        dynamic_cast<ConstantFPExpr *>(E)) {
+        dynamic_cast<ConstantFPExpr *>(E) || dynamic_cast<GEPExpr *>(E)) {
       heatmap_[E] = {0, 0};
       return;
     }
