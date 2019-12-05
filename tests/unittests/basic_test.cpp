@@ -174,7 +174,7 @@ TEST(basic, visitor_collect_indices) {
   p->visit(&counter);
 
   EXPECT_EQ(counter.stmt, 5);
-  EXPECT_EQ(counter.expr, 11);
+  EXPECT_EQ(counter.expr, 12);
   delete p;
 }
 
@@ -242,7 +242,7 @@ TEST(basic, tile_loop) {
   p->visit(&counter);
 
   EXPECT_EQ(counter.stmt, 4);
-  EXPECT_EQ(counter.expr, 14);
+  EXPECT_EQ(counter.expr, 15);
   delete p->clone();
   delete p;
 }
@@ -268,7 +268,7 @@ TEST(basic, unroll_loop) {
   p->visit(&counter);
 
   EXPECT_EQ(counter.stmt, 11);
-  EXPECT_EQ(counter.expr, 20);
+  EXPECT_EQ(counter.expr, 30);
   delete p->clone();
   delete p;
 }
@@ -296,7 +296,7 @@ TEST(basic, peel_loop) {
   p->visit(&counter);
 
   EXPECT_EQ(counter.stmt, 5);
-  EXPECT_EQ(counter.expr, 12);
+  EXPECT_EQ(counter.expr, 14);
   delete p->clone();
   delete p;
 }
@@ -338,7 +338,7 @@ TEST(basic, peel_loop2) {
   p->visit(&counter);
 
   EXPECT_EQ(counter.stmt, 8);
-  EXPECT_EQ(counter.expr, 22);
+  EXPECT_EQ(counter.expr, 25);
   delete p->clone();
   delete p;
 }
@@ -369,7 +369,7 @@ TEST(basic, vectorize_memcpy_loop) {
   p->visit(&counter);
 
   EXPECT_EQ(counter.stmt, 3);
-  EXPECT_EQ(counter.expr, 4);
+  EXPECT_EQ(counter.expr, 5);
   delete p->clone();
   delete p;
 }
@@ -395,7 +395,7 @@ TEST(basic, vectorize_memset) {
   p->visit(&counter);
 
   EXPECT_EQ(counter.stmt, 5);
-  EXPECT_EQ(counter.expr, 7);
+  EXPECT_EQ(counter.expr, 9);
   delete p->clone();
   delete p;
 }
@@ -421,7 +421,7 @@ TEST(basic, widen_loop) {
   p->visit(&counter);
 
   EXPECT_EQ(counter.stmt, 7);
-  EXPECT_EQ(counter.expr, 14);
+  EXPECT_EQ(counter.expr, 18);
   delete p->clone();
   delete p;
 }
@@ -451,7 +451,7 @@ TEST(basic, vectorize_widen_loop) {
   p->visit(&counter);
 
   EXPECT_EQ(counter.stmt, 9);
-  EXPECT_EQ(counter.expr, 22);
+  EXPECT_EQ(counter.expr, 27);
   delete p->clone();
   delete p;
 }
@@ -482,7 +482,7 @@ TEST(basic, simplify_program) {
   p->visit(&counter);
 
   EXPECT_EQ(counter.stmt, 2);
-  EXPECT_EQ(counter.expr, 2);
+  EXPECT_EQ(counter.expr, 3);
   delete p->clone();
   delete p;
 }
@@ -530,7 +530,7 @@ TEST(basic, hois_loads) {
   NodeCounter counter;
   p->visit(&counter);
   EXPECT_EQ(counter.stmt, 4);
-  EXPECT_EQ(counter.expr, 5);
+  EXPECT_EQ(counter.expr, 6);
   delete p->clone();
   delete p;
 }
@@ -556,7 +556,7 @@ TEST(basic, sink_stores) {
   NodeCounter counter;
   p->visit(&counter);
   EXPECT_EQ(counter.stmt, 5);
-  EXPECT_EQ(counter.expr, 6);
+  EXPECT_EQ(counter.expr, 7);
   delete p->clone();
   delete p;
 }

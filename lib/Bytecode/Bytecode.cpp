@@ -178,6 +178,7 @@ enum ExprTokenKind {
   LoadLocalExprKind,
   BroadcastExprKind,
   IndexExprKind,
+  GEPExprKind,
   LastExprKind
 };
 
@@ -289,16 +290,12 @@ void Bytecode::serialize(StreamWriter &SW, BytecodeHeader &BH,
     SW.write((uint32_t)ExprTokenKind::LoadExprKind);
     // My ID:
     SW.write((uint32_t)BC.exprTable_.getIdFor(LE));
-    // Save the index of the argument that we are indexing.
-    SW.write((uint32_t)p->getArgIndex(LE->getDest()));
+
     // Write the index to the expr load type.
     SW.write((uint32_t)BH.getExprTyTable().getIdFor(LE->getType()));
-    // Write the number of subscript indices.
-    SW.write((uint32_t)LE->getIndices().size());
-    // Save the indices ids:
-    for (auto &E : LE->getIndices()) {
-      SW.write((uint32_t)BC.exprTable_.getIdFor(E.get()));
-    }
+
+    // Save the index of the GEP that we are indexing.
+    SW.write((uint32_t)BC.exprTable_.getIdFor(LE->getGep()));
     return;
   }
 
@@ -330,6 +327,23 @@ void Bytecode::serialize(StreamWriter &SW, BytecodeHeader &BH,
     SW.write((uint32_t)BC.exprTable_.getIdFor(IE));
     // Save the broadcasted value.
     SW.write((uint32_t)BC.stmtTable_.getIdFor(IE->getLoop()));
+    return;
+  }
+
+  if (auto *GEP = dynamic_cast<GEPExpr *>(E)) {
+    // Kind:
+    SW.write((uint32_t)ExprTokenKind::GEPExprKind);
+    // My ID:
+    SW.write((uint32_t)BC.exprTable_.getIdFor(GEP));
+
+    // Save the index of the argument that we are indexing.
+    SW.write((uint32_t)p->getArgIndex(GEP->getDest()));
+    // Write the number of subscript indices.
+    SW.write((uint32_t)GEP->getIndices().size());
+    // Save the indices ids:
+    for (auto &E : GEP->getIndices()) {
+      SW.write((uint32_t)BC.exprTable_.getIdFor(E.get()));
+    }
     return;
   }
 
@@ -392,18 +406,12 @@ void Bytecode::serialize(StreamWriter &SW, BytecodeHeader &BH,
     SW.write((uint32_t)BC.stmtTable_.getIdFor(ST));
     // Parent ID:
     SW.write((uint32_t)BC.stmtTable_.getIdFor((Stmt *)ST->getParent()));
-    // Save the index of the argument that we are indexing.
-    SW.write((uint32_t)p->getArgIndex(ST->getDest()));
     // Write if this is a write-only or accumulator store.
     SW.write((uint8_t)ST->isAccumulate());
     // Write the index to the saved expression.
     SW.write((uint32_t)BC.exprTable_.getIdFor(ST->getValue().get()));
-    // Write the number of subscript indices.
-    SW.write((uint32_t)ST->getIndices().size());
-    // Save the indices ids:
-    for (auto &E : ST->getIndices()) {
-      SW.write((uint32_t)BC.exprTable_.getIdFor(E.get()));
-    }
+    // Save the index of the GEP that we are indexing.
+    SW.write((uint32_t)BC.exprTable_.getIdFor(ST->getGep()));
     return;
   }
   if (auto *STL = dynamic_cast<StoreLocalStmt *>(S)) {
@@ -465,18 +473,25 @@ void Bytecode::deserializeExpr(StreamReader &SR, BytecodeHeader &BH,
                     new UnaryExpr(V, (UnaryExpr::UnaryOpKind)kind, loc));
     return;
   }
-  case LoadExprKind: {
+  case GEPExprKind: {
     // Read the argument that we index.
     auto arg = p->getArg(SR.readU32());
-    // Read the type that we load.
-    auto exprTy = BH.getExprTyTable().getById(SR.readU32());
     // Read the indices, as a list of expression references.
     auto numIndices = SR.readU32();
     std::vector<Expr *> indices;
     for (int i = 0; i < numIndices; i++) {
       indices.push_back(BC.getExpr(SR.readU32()));
     }
-    BC.registerExpr(exprId, new LoadExpr(arg, indices, exprTy, loc));
+    BC.registerExpr(exprId, new LoadExpr(arg, indices, ElemKind::IndexTy, loc));
+    return;
+  }
+  case LoadExprKind: {
+    // Read the type that we load.
+    auto exprTy = BH.getExprTyTable().getById(SR.readU32());
+
+    // Read the GEP.
+    auto *GEP = BC.getExpr(SR.readU32());
+    BC.registerExpr(exprId, new LoadExpr((GEPExpr *)GEP, exprTy, loc));
     return;
   }
   case LoadLocalExprKind: {
@@ -562,20 +577,14 @@ void Bytecode::deserializeStmt(StreamReader &SR, BytecodeHeader &BH,
     return;
   }
   case StoreStmtKind: {
-    // Read the argument that we index.
-    auto arg = p->getArg(SR.readU32());
     // Is this an accumulate store or write-only.
     bool accumulate = SR.readU8();
     // Read the index of the stored expr.
     auto storedVal = BC.getExpr(SR.readU32());
-    // Read the indices, as a list of expression references.
-    auto numIndices = SR.readU32();
-    std::vector<Expr *> indices;
-    for (int i = 0; i < numIndices; i++) {
-      indices.push_back(BC.getExpr(SR.readU32()));
-    }
+    // Read the GEP.
+    auto *GEP = BC.getExpr(SR.readU32());
     // Register the store.
-    auto *st = new StoreStmt(arg, indices, storedVal, accumulate, loc);
+    auto *st = new StoreStmt((GEPExpr *)GEP, storedVal, accumulate, loc);
     parent->addStmt(st);
     BC.registerStmt(stmtId, st);
     return;

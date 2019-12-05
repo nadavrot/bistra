@@ -66,7 +66,7 @@ TEST(opt, simplifyExpr) {
   NodeCounter counter;
   p->visit(&counter);
   EXPECT_EQ(counter.stmt, 6);
-  EXPECT_EQ(counter.expr, 26);
+  EXPECT_EQ(counter.expr, 30);
 }
 
 TEST(opt, range_check_loops) {
@@ -92,7 +92,7 @@ TEST(opt, range_check_loops) {
   NodeCounter counter;
   p->visit(&counter);
   EXPECT_EQ(counter.stmt, 8);
-  EXPECT_EQ(counter.expr, 14);
+  EXPECT_EQ(counter.expr, 18);
 }
 
 TEST(opt, sink_loop) {
@@ -155,7 +155,7 @@ TEST(opt, fuse_test) {
   NodeCounter counter;
   p->visit(&counter);
   EXPECT_EQ(counter.stmt, 6);
-  EXPECT_EQ(counter.expr, 8);
+  EXPECT_EQ(counter.expr, 10);
 }
 
 TEST(opt, change_layout_test) {

@@ -213,7 +213,7 @@ TEST(basic, let_expr) {
   NodeCounter counter;
   p->visit(&counter);
   EXPECT_EQ(counter.stmt, 4);
-  EXPECT_EQ(counter.expr, 6);
+  EXPECT_EQ(counter.expr, 7);
   // Make sure that the inner scope clobbers 'offset2'.
   EXPECT_EQ(::getLoopByName(p, "j")->getEnd(), 300);
 }

@@ -743,9 +743,7 @@ void IfRange::visit(NodeVisitor *visitor) {
 
 void StoreStmt::visit(NodeVisitor *visitor) {
   visitor->enter(this);
-  for (auto &ii : this->getIndices()) {
-    ii.get()->visit(visitor);
-  }
+  gep_->visit(visitor);
   value_->visit(visitor);
   visitor->leave(this);
 }
