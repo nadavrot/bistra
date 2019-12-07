@@ -25,5 +25,7 @@ func gemm(C:float<I:m, J:n>,
 }
 
 script for "x86" {
+  // Merge the relu into the matmul. The paraeter 3 means to recursively apply
+  // loop fusion to subloops.
   fuse "i" for 3
 }

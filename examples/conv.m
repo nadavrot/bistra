@@ -52,3 +52,4 @@ script for "x86" {
   vectorize "d" to 8 as "d8"
   widen "d8" to 4 as "d8_4"
 }
+

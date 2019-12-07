@@ -1,6 +1,6 @@
 
 func softmax(Out:float<x:100>,
-            In:float<x:100>) {
+             In:float<x:100>) {
     var mx : float
     mx = In[0]
 
@@ -9,7 +9,7 @@ func softmax(Out:float<x:100>,
       mx = max(mx, In[i]);
     }
 
-    var sum : float
+    var sum : float = 0
 
     // Compute exp.
     for (i in 0 .. 100) {
