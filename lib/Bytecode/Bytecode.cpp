@@ -118,7 +118,7 @@ void BytecodeHeader::serialize(StreamWriter &SW) {
 void BytecodeHeader::deserialize(StreamReader &SR) {
   auto magic = SR.readU32();
   if (magic != 0x03070102) {
-    assert("Invalid signature");
+    assert(false && "Invalid signature");
     return;
   }
 
