@@ -143,7 +143,6 @@ examples/batchnorm.m:14:5: warning: consider tiling a loop that touches 131K ele
 examples/batchnorm.m:15:7: note: here is a possible inner loop that touches only 4K elements
       for (y in 0 .. hw) {
       ^
-
 ```
 
 The following command will auto-tune the program and save the best program in a textual llvm-ir file.
@@ -177,7 +176,7 @@ The generated object will contain a function entry with the C signature:
   ./bin/bistrac examples/batchnorm.m --opt --out file.s --textual
   ```
 
-### Domain Specific language
+### Domain Specific Language
 
 It is possible to generate kernels from code that's written in a domain specific
 language. The code below builds the transpose function that operates on two
@@ -185,7 +184,7 @@ arrays. The performance script mutates and transforms the program. The
 performance script is optional and the system will try to generate a performance
 script automatically if one is not provided.
 
-  ```bash
+  ```swift
 let sx = 1024
 let sy = 1024
 
