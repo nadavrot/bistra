@@ -18,6 +18,7 @@ Load the submodules with the command:
 
   ```bash
   git submodule update --init --recursive
+q
   ```
 
 #### macOS
@@ -45,6 +46,9 @@ CMake will need to be told where to find LLVM when building.
 
 To build the compiler, create a build directory and run cmake on the source
 directory.
+p
+r
+t
 
   ```bash
   mkdir build_bistra
@@ -63,8 +67,11 @@ like GNU Makefiles, Ninja and Xcode build.
 The project has a few unit tests in the tests/unittests subdirectory. To run all
 of them, simply run `ninja test`.
 
+q
 ### C++ API examples
 
+t
+y
 A few test programs that use the C++ API are found under the `tools/`
 subdirectory. The unit tests also use the C++ API.
 
@@ -84,6 +91,7 @@ Program *createMatMull(unsigned szI, unsigned szJ, unsigned szK) {
   auto *B = p->addArgument("B", {szJ, szK}, {"K", "J"}, ElemKind::Float32Ty);
 
   // Create 3 loops with named indices.
+y
   auto *I = new Loop("i", loc, szI, 1);
   auto *J = new Loop("j", loc, szJ, 1);
   auto *K = new Loop("k", loc, szK, 1);
@@ -185,23 +193,30 @@ performance script is optional and the system will try to generate a performance
 script automatically if one is not provided.
 
   ```swift
-let sx = 1024
-let sy = 1024
+  let sx = 1024
+  let sy = 1024
 
-func transpose(A:float<width:sx, height:sy>,
-               B:float<height:sy, width:sx>) {
-  for (i in 0 .. A.height) {
-    for (j in 0 .. A.width) {
-      A[i,j] = B[j,i];
+  func transpose(A:float<width:sx, height:sy>,
+                 B:float<height:sy, width:sx>) {
+    for (i in 0 .. A.height) {
+      for (j in 0 .. A.width) {
+        A[i,j] = B[j,i];
+      }
     }
   }
-}
 
-script for "x86" {
-  // Tile the two loops into blocks of 64x64.
-  tile "i" to 64 as "i_tiled"
-  tile "j" to 64 as "j_tiled"
-  // Reorder the loops as [i, j, i_t, j_t].
-  hoist "j" 1 times
-}
+  script for "x86" {
+    // Tile the two loops into blocks of 64x64.
+    tile "i" to 64 as "i_tiled"
+    tile "j" to 64 as "j_tiled"
+    // Reorder the loops as [i, j, i_t, j_t].
+    hoist "j" 1 times
+  }
   ```
+
+The optional script section of the program exposes the loop transformations that
+are available through the C++ API. The following commands are supported:
+`vectorize`, `unroll`, `widen` (partial unrolling), `tile`, `peel`, `hoist`,
+`fuse`, `distribute`.
+
+
