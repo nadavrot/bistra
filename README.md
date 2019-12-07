@@ -123,8 +123,28 @@ buffer overflows, and performance suggestions, such as loops that blow the cache
 and loads that need to be vectorized.
 
   ```bash
-    ./bin/bistrac examples/batched_add.m --warn
+    ./bin/bistrac examples/batchnorm.m --warn
   ```
+
+The program will print the following diagnosis:
+```
+examples/batchnorm.m:5:15: note: the program performs 58720256 arithmetic ops and 50331648 memory ops
+func batchnorm(
+              ^
+
+examples/batchnorm.m:17:25: warning: a hot loop performs 8M unvectorized operations
+            let input = In[n, x, y, c]
+                        ^
+
+examples/batchnorm.m:14:5: warning: consider tiling a loop that touches 131K elements
+    for (x in 0 .. hw) {
+    ^
+
+examples/batchnorm.m:15:7: note: here is a possible inner loop that touches only 4K elements
+      for (y in 0 .. hw) {
+      ^
+
+```
 
 The following command will auto-tune the program and save the best program in a textual llvm-ir file.
 
