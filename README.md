@@ -1,8 +1,9 @@
 ## Bistra
 
-Bistra is a code generator and programming language designed to make it easier
-to write high-performance kernels. The library is designed to allow state of the art
-compiler optimizations and code generation of numeric programs.
+Bistra is a code generator and a small domain specific language, designed to
+make it easier to write high-performance kernels. The library is designed to
+allow state of the art compiler optimizations and code generation of numeric
+programs.
 
 ## Getting Started
 
@@ -156,3 +157,32 @@ The generated object will contain a function entry with the C signature:
   ./bin/bistrac examples/batchnorm.m --opt --out file.s --textual
   ```
 
+### Domain Specific language
+
+It is possible to generate kernels from code that's written in a domain specific
+language. The code below builds the transpose function that operates on two
+arrays. The performance script mutates and transforms the program. The
+performance script is optional and the system will try to generate a performance
+script automatically if one is not provided.
+
+  ```bash
+let sx = 1024
+let sy = 1024
+
+func transpose(A:float<width:sx, height:sy>,
+               B:float<height:sy, width:sx>) {
+  for (i in 0 .. A.height) {
+    for (j in 0 .. A.width) {
+      A[i,j] = B[j,i];
+    }
+  }
+}
+
+script for "x86" {
+  // Tile the two loops into blocks of 64x64.
+  tile "i" to 64 as "i_tiled"
+  tile "j" to 64 as "j_tiled"
+  // Reorder the loops as [i, j, i_t, j_t].
+  hoist "j" 1 times
+}
+  ```
