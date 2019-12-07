@@ -74,7 +74,7 @@ clean-up optimizations such as LICM and promotion to registers, and finally dump
 the program and measure the execution time of 10 iterations.
 
   ```bash
-  ./bin/bistrac examples/gemm.m --opt --dump --time
+  ./bin/bistrac examples/transpose.m --opt --dump --time
   ```
 
 The following command will diagnose the program and will print warnings about
