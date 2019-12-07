@@ -27,11 +27,17 @@ class EvaluatorPass : public Pass {
   Backend &backend_;
   /// Save the best C program to this optional path, if not empty.
   std::string savePath_;
+  /// Is the format textual?
+  bool isText_;
+  // Is the saved format bytecode?
+  bool isBytecode_;
 
 public:
-  EvaluatorPass(Backend &backend, const std::string &savePath = "")
+  EvaluatorPass(Backend &backend, const std::string &savePath, bool isText,
+                bool isBytecode)
       : Pass("evaluator", nullptr), bestProgram_(nullptr, nullptr),
-        backend_(backend), savePath_(savePath) {}
+        backend_(backend), savePath_(savePath), isText_(isText),
+        isBytecode_(isBytecode) {}
   virtual void doIt(Program *p) override;
   Program *getBestProgram() { return (Program *)bestProgram_.get(); }
 };
@@ -91,7 +97,8 @@ public:
 /// the program \p. Save intermediate results to \p filename.
 /// \returns the best program.
 Program *optimizeEvaluate(Backend &backend, Program *p,
-                          const std::string &filename);
+                          const std::string &filename, bool isTextual,
+                          bool isBytecode);
 
 } // namespace bistra
 

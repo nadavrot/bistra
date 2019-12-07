@@ -3,6 +3,7 @@
 #include "bistra/Analysis/Value.h"
 #include "bistra/Backends/Backend.h"
 #include "bistra/Backends/Backends.h"
+#include "bistra/Bytecode/Bytecode.h"
 #include "bistra/Program/Program.h"
 #include "bistra/Program/Utils.h"
 #include "bistra/Transforms/Simplify.h"
@@ -33,7 +34,12 @@ void EvaluatorPass::doIt(Program *p) {
 
     if (savePath_.size()) {
       remove(savePath_.c_str());
-      backend_.emitProgramCode(p, savePath_, true, 10);
+      if (isBytecode_) {
+        writeFile(savePath_, Bytecode::serialize(p));
+      } else {
+        // Emit the program code.
+        backend_.emitProgramCode(p, savePath_, isText_, 10);
+      }
     }
   } else {
     std::cout << "." << std::flush;
@@ -344,7 +350,8 @@ restart:
 }
 
 Program *bistra::optimizeEvaluate(Backend &backend, Program *p,
-                                  const std::string &filename) {
+                                  const std::string &filename, bool isTextual,
+                                  bool isBytecode) {
 
   // A simple search procedure, similar to the one implemented here is
   // described in the paper:
@@ -352,7 +359,7 @@ Program *bistra::optimizeEvaluate(Backend &backend, Program *p,
   // Autotuning GEMM Kernels for the Fermi GPU, 2012
   // Kurzak, Jakub and Tomov, Stanimire and Dongarra, Jack
 
-  auto *ev = new EvaluatorPass(backend, filename);
+  auto *ev = new EvaluatorPass(backend, filename, isTextual, isBytecode);
   Pass *ps = new FilterPass(backend, ev);
   ps = new PromoterPass(ps);
   ps = new WidnerPass(backend, ps);

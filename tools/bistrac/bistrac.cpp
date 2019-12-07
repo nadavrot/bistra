@@ -248,7 +248,8 @@ int main(int argc, char *argv[]) {
                 << outFile << "\n";
     }
 
-    optimizeEvaluate(*backend.get(), program, outFile);
+    optimizeEvaluate(*backend.get(), program, outFile, FLAGS_textual,
+                     FLAGS_bytecode);
   }
 
   if (FLAGS_opt) {
