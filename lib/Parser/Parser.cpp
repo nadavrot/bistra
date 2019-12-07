@@ -898,6 +898,7 @@ bool Parser::parseVarDecl(Scope *s) {
   }
 
   Expr *storedValue = nullptr;
+  auto storedValLoc = Tok.getLoc();
   // Parse the assignment to the variable.
   if (consumeIf(TokenKind::assign)) {
     storedValue = parseExpr();
@@ -919,6 +920,14 @@ bool Parser::parseVarDecl(Scope *s) {
   // If the variable was initialized then store the value into a variable at the
   // right place in the scope.
   if (storedValue) {
+
+    // Check if the stored type is correct.
+    if (!storedValue->getType().isEqual(var->getType())) {
+      ctx_.diagnose(DiagnoseKind::Error, storedValLoc,
+                    "assignment types mismatch");
+      return true;
+    }
+
     auto *init =
         new StoreLocalStmt(var, storedValue, false, storedValue->getLoc());
     s->addStmt(init);
@@ -967,7 +976,7 @@ Stmt *Parser::parseOneStmt() {
 
       // Check that the number of subscript arguments is correct.
       if (!var->getType().isEqual(storedValue->getType())) {
-        ctx_.diagnose(DiagnoseKind::Error, argLoc, "Invalid assignment type");
+        ctx_.diagnose(DiagnoseKind::Error, argLoc, "invalid assignment type");
         return nullptr;
       }
 
