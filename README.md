@@ -106,3 +106,13 @@ bytecode file and evaluate it.
   ./bin/bistrac examples/gemm.m --bytecode --out 1.bc
   ./bin/bistrac 1.bc --dump --time
   ```
+
+The following commands will generate code in binary, or assembly format.
+The generated object will contain a function entry with the C signature:
+`void batchnorm(float* out float* in, float* mean, float* var, float* gamma, float* beta); `
+
+  ```bash
+  ./bin/bistrac examples/batchnorm.m --opt --out file.o
+  ./bin/bistrac examples/batchnorm.m --opt --out file.s --textual
+  ```
+
