@@ -97,3 +97,12 @@ The following commands will save the file as bytecode, and later load it and pri
   ./bin/bistrac 1.bc --dump
   ```
 
+
+A typical optimization of a single program may look like this. First, auto-tune
+some program, and save the best result to a bytecode file. Next, load the
+bytecode file and evaluate it.
+
+  ```bash
+  ./bin/bistrac examples/gemm.m --bytecode --out 1.bc
+  ./bin/bistrac 1.bc --dump --time
+  ```
