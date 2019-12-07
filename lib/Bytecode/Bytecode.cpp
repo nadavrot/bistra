@@ -416,7 +416,7 @@ void Bytecode::serialize(StreamWriter &SW, BytecodeHeader &BH,
   }
   if (auto *STL = dynamic_cast<StoreLocalStmt *>(S)) {
     // Kind:
-    SW.write((uint32_t)StmtTokenKind::StoreStmtKind);
+    SW.write((uint32_t)StmtTokenKind::StoreLocalStmtKind);
     // My ID:
     SW.write((uint32_t)BC.stmtTable_.getIdFor(STL));
     // Parent ID:
