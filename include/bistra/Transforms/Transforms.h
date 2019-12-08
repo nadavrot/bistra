@@ -16,10 +16,14 @@ Loop *tile(Loop *L, unsigned blockSize);
 /// \returns True if the transform worked.
 bool split(Loop *L);
 
+/// Distribute all of the loops in the scope \p s. This creates a structure that
+/// allows loop interchange because loops are either innermost loops with
+/// content or contain one other nested loop.
+/// \returns True if the transform worked.
+bool distributeAllLoops(Scope *s);
+
 /// Split the loop to multiple consecutive loops but keep non-scope statements
-/// together. This creates a structure that allows loop interchange because
-/// loops are either innermost loops with content or contain one other nested
-/// loop.
+/// together. This enables loop distribution.
 /// \returns True if the transform worked.
 bool splitScopes(Loop *L);
 

@@ -100,6 +100,22 @@ bool bistra::split(Loop *L) {
   return true;
 }
 
+bool bistra::distributeAllLoops(Scope *s) {
+  bool changed = false;
+  // Distribute all of the loops to ensure that all of the non-scope stmts are
+  // located in innermost loops. This allows us to interchange loops.
+restart:
+  auto loops = collectLoops(s);
+  s->verify();
+  for (auto *l : loops) {
+    if (splitScopes(l)) {
+      changed = true;
+      goto restart;
+    }
+  }
+  return changed;
+}
+
 bool bistra::splitScopes(Loop *L) {
   L->verify();
   // Divide the statements in the original loop into packets of statements that
@@ -862,8 +878,8 @@ bool bistra::changeLayout(Program *p, unsigned argIndex,
 }
 
 bool bistra::applyPragmaCommand(Program *prog, const PragmaCommand &pc) {
-
   auto *L = getLoopByName(prog, pc.loopName_);
+  assert(L && "Could not find the loop L");
   auto param = pc.param_;
 
   switch (pc.kind_) {
@@ -900,8 +916,14 @@ bool bistra::applyPragmaCommand(Program *prog, const PragmaCommand &pc) {
     return false;
   case PragmaCommand::PragmaKind::hoist:
     return ::hoist(L, param);
+  case PragmaCommand::PragmaKind::sink:
+    return ::sink(L, param);
   case PragmaCommand::PragmaKind::fuse:
     return ::fuse(L, param);
+  case PragmaCommand::distribute:
+    // We distribute all loops inside L, including L, so we pass the parent
+    // scope.
+    return ::distributeAllLoops((Scope *)L->getParent());
   case PragmaCommand::other:
     assert(false && "Invalid pragma");
     return false;

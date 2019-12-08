@@ -1107,7 +1107,9 @@ void Parser::parseScriptDecl() {
     MATCH(peel);
     MATCH(unroll);
     MATCH(hoist);
+    MATCH(sink);
     MATCH(fuse);
+    MATCH(distribute);
 #undef MATCH
 
     if (pk == PragmaCommand::PragmaKind::other) {
@@ -1132,6 +1134,11 @@ void Parser::parseScriptDecl() {
       continue;
     }
 
+    if (pk == PragmaCommand::PragmaKind::distribute) {
+      // We are not parsing any arguments for the distribute command.
+      goto pragma_done;
+    }
+
     consumeIf(TokenKind::kw_to);
 
     if (parseIntegerLiteral(arg0)) {
@@ -1154,6 +1161,7 @@ void Parser::parseScriptDecl() {
       }
     }
 
+  pragma_done:
     // Register the command.
     PragmaCommand pc(pk, loopName, newName, arg0, loc);
     ctx_.addPragma(pc);

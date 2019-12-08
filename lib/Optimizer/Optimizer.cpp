@@ -335,16 +335,9 @@ void DistributePass::doIt(Program *p) {
   p->verify();
   CloneCtx map;
   std::unique_ptr<Program> np((Program *)p->clone(map));
-
-  // Distribute all of tthe loops to ensure that all of the non-scope stmts are
+  // Distribute all of the loops to ensure that all of the non-scope stmts are
   // located in innermost loops. This allows us to interchange loops.
-restart:
-  auto loops = collectLoops(np.get());
-  p->verify();
-  for (auto *l : loops) {
-    if (splitScopes(l))
-      goto restart;
-  }
+  ::distributeAllLoops(np.get());
   ::simplify(np.get());
   nextPass_->doIt(np.get());
 }
