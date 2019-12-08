@@ -132,6 +132,10 @@ template <class T> void addOnce(std::vector<T *> &set, T *elem) {
 void InterchangerPass::doIt(Program *p) {
   p->verify();
 
+  bool changed = false;
+  CloneCtx map;
+  std::unique_ptr<Program> np((Program *)p->clone(map));
+
   for (auto *l : collectInnermostLoops(p)) {
     std::vector<Loop *> lastSubscriptIndex;
 
@@ -154,17 +158,13 @@ void InterchangerPass::doIt(Program *p) {
       continue;
 
     auto loopToSink = lastSubscriptIndex.back();
-
-    CloneCtx map;
-    std::unique_ptr<Program> np((Program *)p->clone(map));
     auto *newL = map.get(loopToSink);
-    if (::sink(newL, 8)) {
-      // If we were not able to sink the loop all the way then quit.
-      if (!isInnermostLoop(newL))
-        continue;
-      np->verify();
-      nextPass_->doIt(np.get());
-    }
+    changed |= ::sink(newL, 8);
+    np->verify();
+  }
+
+  if (changed) {
+    nextPass_->doIt(np.get());
   }
 
   // Evaluate the original version.
