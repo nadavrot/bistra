@@ -5,6 +5,7 @@ make it easier to write high-performance kernels. The library is designed to
 allow state of the art compiler optimizations and code generation of numeric
 programs.
 
+
 ## Getting Started
 
 ### System Requirements
@@ -212,4 +213,11 @@ are available through the C++ API. The following commands are supported:
 `vectorize`, `unroll`, `widen` (partial unrolling), `tile`, `peel`, `hoist`,
 `fuse`, `distribute`.
 
+## Acknowledgement
+
+ The performance script approach is based on the paper:
+
+```
+  CHiLL: A Framework for Composing High-Level Loop Transformations" by Chun Chen, Jacqueline Chame and Mary Hall, 2008.
+```
 
