@@ -300,7 +300,9 @@ LoadExpr::LoadExpr(GEPExpr *gep, DebugLoc loc)
 }
 
 LoadExpr::LoadExpr(GEPExpr *gep, ExprType elemTy, DebugLoc loc)
-    : Expr(elemTy, loc), gep_(gep, this) {}
+    : Expr(elemTy, loc), gep_(gep, this) {
+      assert(dynamic_cast<GEPExpr*>(gep_.get()));
+    }
 
 LoadExpr::LoadExpr(Argument *arg, const std::vector<Expr *> &indices,
                    ExprType elemTy, DebugLoc loc)
@@ -341,12 +343,15 @@ void LoadLocalExpr::dump() const { std::cout << var_->getName(); }
 
 StoreStmt::StoreStmt(GEPExpr *gep, Expr *value, bool accumulate, DebugLoc loc)
     : Stmt(loc), gep_(gep, this), value_(value, this), accumulate_(accumulate) {
+      assert(dynamic_cast<GEPExpr*>(gep_.get()));
 }
 
 StoreStmt::StoreStmt(Argument *arg, const std::vector<Expr *> &indices,
                      Expr *value, bool accumulate, DebugLoc loc)
     : Stmt(loc), gep_(new GEPExpr(arg, indices, loc), this),
-      value_(value, this), accumulate_(accumulate) {}
+      value_(value, this), accumulate_(accumulate) {
+        assert(dynamic_cast<GEPExpr*>(gep_.get()));
+      }
 
 std::vector<Expr *> StoreStmt::cloneIndicesPtr(CloneCtx &map) {
   std::vector<Expr *> ret;
@@ -614,6 +619,7 @@ void BroadcastExpr::verify() const {
 void GEPExpr::verify() const {
   for (auto &E : indices_) {
     E.verify();
+    E->verify();
     assert(E.getParent() == this && "Invalid handle owner pointer");
     assert(E->getType().isIndexTy() && "Argument must be of index kind");
   }
@@ -625,6 +631,7 @@ void GEPExpr::verify() const {
 }
 
 void LoadExpr::verify() const {
+  assert(dynamic_cast<GEPExpr*>(gep_.get()));
   gep_->verify();
   // Check the store element kind.
   ElemKind EK = getDest()->getType()->getElementType();
@@ -639,6 +646,7 @@ void LoadLocalExpr::verify() const {
 }
 
 void StoreStmt::verify() const {
+  assert(dynamic_cast<GEPExpr*>(gep_.get()));
   gep_->verify();
   gep_.verify();
   assert(value_.getParent() == this && "Invalid handle owner pointer");

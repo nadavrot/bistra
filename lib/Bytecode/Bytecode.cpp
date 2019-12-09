@@ -482,7 +482,7 @@ void Bytecode::deserializeExpr(StreamReader &SR, BytecodeHeader &BH,
     for (int i = 0; i < numIndices; i++) {
       indices.push_back(BC.getExpr(SR.readU32()));
     }
-    BC.registerExpr(exprId, new LoadExpr(arg, indices, ElemKind::IndexTy, loc));
+    BC.registerExpr(exprId, new GEPExpr(arg, indices, loc));
     return;
   }
   case LoadExprKind: {

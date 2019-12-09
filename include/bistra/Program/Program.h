@@ -689,7 +689,7 @@ class StoreStmt final : public Stmt {
 
 public:
   /// \returns the GEP expression.
-  GEPExpr *getGep() const { return (GEPExpr *)gep_.get(); }
+  GEPExpr *getGep() const { return gep_.as<GEPExpr>(); }
 
   /// \returns the buffer destination of the instruction.
   Argument *getDest() const { return gep_.as<GEPExpr>()->getDest(); }
