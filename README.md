@@ -85,7 +85,6 @@ Program *createMatMull(unsigned szI, unsigned szJ, unsigned szK) {
   auto *B = p->addArgument("B", {szJ, szK}, {"K", "J"}, ElemKind::Float32Ty);
 
   // Create 3 loops with named indices.
-
   auto *I = new Loop("i", loc, szI, 1);
   auto *J = new Loop("j", loc, szJ, 1);
   auto *K = new Loop("k", loc, szK, 1);
@@ -171,7 +170,7 @@ bytecode file and evaluate it.
 
 The following commands will generate code in binary, or assembly format.
 The generated object will contain a function entry with the C signature:
-`void batchnorm(float* out float* in, float* mean, float* var, float* gamma, float* beta); `
+`void batchnorm(float* out, float* in, float* mean, float* var, float* gamma, float* beta); `
 
   ```bash
   ./bin/bistrac examples/batchnorm.m --opt --out file.o
@@ -210,8 +209,8 @@ script automatically if one is not provided.
 
 The optional script section of the program exposes the loop transformations that
 are available through the C++ API. The following commands are supported:
-`vectorize`, `unroll`, `widen` (partial unrolling), `tile`, `peel`, `hoist`,
-`fuse`, `distribute`.
+`vectorize`, `unroll`, `widen` (partial unrolling), `tile`, `peel`, `hoist` and `sink` (reorder)
+`fuse` and `distribute`.
 
 ## Acknowledgement
 
