@@ -182,7 +182,7 @@ static bool endsWith(const std::string &str, const std::string &suffix) {
   return 0 == str.compare(str.size() - suffix.size(), suffix.size(), suffix);
 }
 
-Program *parseProgram(ParserContext &ctx) {
+Program *parseAndOptimize(ParserContext &ctx) {
   Parser P(ctx);
   P.parse();
 
@@ -232,7 +232,7 @@ int main(int argc, char *argv[]) {
   if (endsWith(inFile, ".bc")) {
     program = Bytecode::deserialize(content);
   } else {
-    program = parseProgram(ctx);
+    program = parseAndOptimize(ctx);
   }
 
   // Unable to parse or load bytecode.

@@ -1270,9 +1270,24 @@ void Parser::parse() {
   return;
 }
 
-Program *bistra::parseProgram(const char *src) {
-  ParserContext ctx(src);
+Program *bistra::parseProgram(ParserContext &ctx,
+                              const std::vector<std::string> &letNames,
+                              const std::vector<int> &letValues) {
+  assert(letNames.size() == letValues.size() && "Invalid let initialization");
+
+  // Register the input 'let' constants.
+  unsigned len = letNames.size();
+  for (int i = 0; i < len; i++) {
+    ctx.getLetStack().registerValue(letNames[i],
+                                    new ConstantExpr(letValues[i]));
+  }
+
   Parser P(ctx);
   P.parse();
   return ctx.getProgram();
+}
+
+Program *bistra::parseProgram(const char *src) {
+  ParserContext ctx(src);
+  return parseProgram(ctx);
 }

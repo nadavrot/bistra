@@ -152,6 +152,13 @@ private:
   bool parseToken(TokenKind K);
 };
 
+/// Parses the source code that initialized the context \p ctx and returns a
+/// valid program or nullptr.
+/// Register the values \p letValues with the variables in \p letNames.
+Program *parseProgram(ParserContext &ctx,
+                      const std::vector<std::string> &letNames = {},
+                      const std::vector<int> &letValues = {});
+
 /// Parses the program in \p src and returns a valid program or nullptr.
 Program *parseProgram(const char *src);
 
