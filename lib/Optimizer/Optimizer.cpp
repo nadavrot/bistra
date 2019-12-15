@@ -15,6 +15,89 @@
 
 using namespace bistra;
 
+class Pass {
+  std::string name_;
+
+protected:
+  Pass *nextPass_;
+
+public:
+  Pass(const std::string &name, Pass *next) : name_(name), nextPass_(next) {}
+  virtual void doIt(Program *p) = 0;
+};
+
+class EvaluatorPass : public Pass {
+  double bestTime_{1000};
+  StmtHandle bestProgram_;
+  Backend &backend_;
+  /// Save the best C program to this optional path, if not empty.
+  std::string savePath_;
+  /// Is the format textual?
+  bool isText_;
+  // Is the saved format bytecode?
+  bool isBytecode_;
+
+public:
+  EvaluatorPass(Backend &backend, const std::string &savePath, bool isText,
+                bool isBytecode)
+      : Pass("evaluator", nullptr), bestProgram_(nullptr, nullptr),
+        backend_(backend), savePath_(savePath), isText_(isText),
+        isBytecode_(isBytecode) {}
+  virtual void doIt(Program *p) override;
+  Program *getBestProgram() { return (Program *)bestProgram_.get(); }
+};
+
+class FilterPass : public Pass {
+  Backend &backend_;
+
+public:
+  FilterPass(Backend &backend, Pass *next)
+      : Pass("filter", next), backend_(backend) {}
+  virtual void doIt(Program *p) override;
+};
+
+class VectorizerPass : public Pass {
+  Backend &backend_;
+
+public:
+  VectorizerPass(Backend &backend, Pass *next)
+      : Pass("vectorizer", next), backend_(backend) {}
+  virtual void doIt(Program *p) override;
+};
+
+class InterchangerPass : public Pass {
+public:
+  InterchangerPass(Pass *next) : Pass("interchange", next) {}
+  virtual void doIt(Program *p) override;
+};
+
+class TilerPass : public Pass {
+public:
+  TilerPass(Pass *next) : Pass("tiler", next) {}
+  virtual void doIt(Program *p) override;
+};
+
+class WidnerPass : public Pass {
+  Backend &backend_;
+
+public:
+  WidnerPass(Backend &backend, Pass *next)
+      : Pass("widner", next), backend_(backend) {}
+  virtual void doIt(Program *p) override;
+};
+
+class PromoterPass : public Pass {
+public:
+  PromoterPass(Pass *next) : Pass("promoter", next) {}
+  virtual void doIt(Program *p) override;
+};
+
+class DistributePass : public Pass {
+public:
+  DistributePass(Pass *next) : Pass("distribute", next) {}
+  virtual void doIt(Program *p) override;
+};
+
 void EvaluatorPass::doIt(Program *p) {
   p->verify();
 
@@ -99,20 +182,26 @@ void FilterPass::doIt(Program *p) {
   nextPass_->doIt(p);
 }
 
+// Try to vectorize all of the loops.
+bool tryToVectorizeAllLoops(Program *p, unsigned VF) {
+  bool changed = false;
+  for (auto *l : collectLoops(p)) {
+    changed |= (bool)::vectorize(l, VF);
+  }
+  return changed;
+}
+
 void VectorizerPass::doIt(Program *p) {
   p->verify();
 
   // Vectorization Factor:
   unsigned VF = backend_.getRegisterWidth();
 
-  // The vectorizer pass is pretty simple. Just try to vectorize all loops.
-  bool changed = false;
   CloneCtx map;
   std::unique_ptr<Program> np((Program *)p->clone(map));
-  for (auto *l : collectLoops(p)) {
-    auto *newL = map.get(l);
-    changed |= (bool)::vectorize(newL, VF);
-  }
+
+  // The vectorizer pass is pretty simple. Just try to vectorize all loops.
+  bool changed = tryToVectorizeAllLoops(np.get(), VF);
 
   // Try the vectorized version:
   if (changed)
@@ -129,13 +218,9 @@ template <class T> void addOnce(std::vector<T *> &set, T *elem) {
   }
 }
 
-void InterchangerPass::doIt(Program *p) {
-  p->verify();
-
+// Try to sink loops to allow consecutive access and vectorization.
+bool sinkLoopsForConsecutiveIndexAccess(Program *p) {
   bool changed = false;
-  CloneCtx map;
-  std::unique_ptr<Program> np((Program *)p->clone(map));
-
   for (auto *l : collectInnermostLoops(p)) {
     std::vector<Loop *> lastSubscriptIndex;
 
@@ -158,10 +243,20 @@ void InterchangerPass::doIt(Program *p) {
       continue;
 
     auto loopToSink = lastSubscriptIndex.back();
-    auto *newL = map.get(loopToSink);
-    changed |= ::sink(newL, 8);
-    np->verify();
+    changed |= ::sink(loopToSink, 8);
+    p->verify();
   }
+
+  return changed;
+}
+
+void InterchangerPass::doIt(Program *p) {
+  p->verify();
+  CloneCtx map;
+  std::unique_ptr<Program> np((Program *)p->clone(map));
+
+  // Sink loops to allow vectorization.
+  bool changed = sinkLoopsForConsecutiveIndexAccess(np.get());
 
   if (changed) {
     nextPass_->doIt(np.get());
@@ -363,4 +458,30 @@ Program *bistra::optimizeEvaluate(Backend &backend, Program *p,
   ps = new DistributePass(ps);
   ps->doIt(p);
   return ev->getBestProgram();
+}
+
+std::unique_ptr<Program> *bistra::optimizeStatic(Backend &backend, Program *p) {
+  bool changed = false;
+  CloneCtx map;
+  std::unique_ptr<Program> np((Program *)p->clone(map));
+
+  // Vectorization factor.
+  unsigned VF = backend.getRegisterWidth();
+
+  // Distribute all of the loops to ensure that all of the non-scope stmts are
+  // located in innermost loops. This allows us to interchange loops.
+  changed |= ::distributeAllLoops(np.get());
+  changed |= ::simplify(np.get());
+
+  // Sink loops to allow consecutive access.
+  changed |= sinkLoopsForConsecutiveIndexAccess(np.get());
+
+  changed |= tryToVectorizeAllLoops(np.get(), VF);
+
+  // Perform LICM and cleanup the program one last time.
+  changed |= ::simplify(np.get());
+  changed |= ::promoteLICM(np.get());
+  changed |= ::simplify(np.get());
+
+  return nullptr;
 }
