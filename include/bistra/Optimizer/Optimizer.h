@@ -19,7 +19,7 @@ Program *optimizeEvaluate(Backend &backend, Program *p,
 
 /// Try to statically optimize the program \p P based on heuristics.
 /// \return the owned optimized program.
-std::unique_ptr<Program> *optimizeStatic(Backend &backend, Program *p);
+std::unique_ptr<Program> optimizeStatic(Backend *backend, Program *p);
 
 } // namespace bistra
 

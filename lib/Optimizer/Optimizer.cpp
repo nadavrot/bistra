@@ -460,13 +460,13 @@ Program *bistra::optimizeEvaluate(Backend &backend, Program *p,
   return ev->getBestProgram();
 }
 
-std::unique_ptr<Program> *bistra::optimizeStatic(Backend &backend, Program *p) {
+std::unique_ptr<Program> bistra::optimizeStatic(Backend *backend, Program *p) {
   bool changed = false;
   CloneCtx map;
   std::unique_ptr<Program> np((Program *)p->clone(map));
 
   // Vectorization factor.
-  unsigned VF = backend.getRegisterWidth();
+  unsigned VF = backend->getRegisterWidth();
 
   // Distribute all of the loops to ensure that all of the non-scope stmts are
   // located in innermost loops. This allows us to interchange loops.
@@ -483,5 +483,5 @@ std::unique_ptr<Program> *bistra::optimizeStatic(Backend &backend, Program *p) {
   changed |= ::promoteLICM(np.get());
   changed |= ::simplify(np.get());
 
-  return nullptr;
+  return np;
 }

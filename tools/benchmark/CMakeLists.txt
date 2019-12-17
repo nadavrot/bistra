@@ -6,9 +6,11 @@ target_link_libraries(benchmark
                       PUBLIC
                         Analysis
                         Backends
+                        Optimizer
+                        Parser
                         Program
                         Transforms
-                        Parser
-                        Optimizer
+                        Bytecode
+                        gflags::gflags
                         )
 
