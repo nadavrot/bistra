@@ -182,6 +182,28 @@ void FilterPass::doIt(Program *p) {
   nextPass_->doIt(p);
 }
 
+// Try to fuse all of the shallow fusable loops.
+bool tryToFuseAllShallowLoops(Program *p) {
+  bool changed = false;
+
+restart:
+  for (auto *l : collectLoops(p)) {
+    // Only handle small loops.
+    if (collectStmts(l).size() > 5)
+      continue;
+    // Fuse the loop to the next loop.
+    bool f = (bool)::fuse(l, 1);
+    changed |= f;
+
+    // The fuser deleted a loop. Simplify the code and run again.
+    if (f) {
+      ::simplify(p);
+      goto restart;
+    }
+  }
+  return changed;
+}
+
 // Try to vectorize all of the loops.
 bool tryToVectorizeAllLoops(Program *p, unsigned VF) {
   bool changed = false;
@@ -475,6 +497,9 @@ std::unique_ptr<Program> bistra::optimizeStatic(Backend *backend, Program *p) {
 
   // Sink loops to allow consecutive access.
   changed |= sinkLoopsForConsecutiveIndexAccess(np.get());
+
+  // Try to fuse shallow loops.
+  changed |= tryToFuseAllShallowLoops(np.get());
 
   changed |= tryToVectorizeAllLoops(np.get(), VF);
 
