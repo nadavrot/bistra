@@ -46,6 +46,9 @@ public:
   /// Prints the argument.
   void dump() const;
 
+  /// \returns a hash for this Argument.
+  uint64_t hash() const;
+
   /// Crash if the program is in an invalid state.
   void verify() const;
 };
@@ -71,6 +74,9 @@ public:
   /// Prints the variable.
   void dump() const;
 
+  /// \returns a hash for this Argument.
+  uint64_t hash() const;
+
   /// Crash if the program is in an invalid state.
   void verify() const;
 };
@@ -86,6 +92,13 @@ public:
 
   /// Prints the statement.
   virtual void dump(unsigned indent) const = 0;
+
+  /// \returns True if this is identical to the other statement.
+  virtual bool compare(const Stmt *other) const = 0;
+
+  /// \returns a hash for this statement.
+  virtual uint64_t hash() const = 0;
+
   virtual ~Stmt() = default;
   /// \returns an unowned clone of the current node and updates \p map with the
   /// cloned value.
@@ -138,6 +151,12 @@ public:
   /// \p map to refer to the updated indices and arguments.
   virtual Expr *clone(CloneCtx &map) = 0;
 
+  /// \returns True if this is identical to the other expression.
+  virtual bool compare(const Expr *other) const = 0;
+
+  /// \returns a hash for this expression.
+  virtual uint64_t hash() const = 0;
+
   Expr() = delete;
   Expr(const Expr &other) = delete;
 };
@@ -185,6 +204,11 @@ public:
   /// \returns the body of the loop.
   std::vector<StmtHandle> &getBody() { return body_; }
 
+  /// \returns the body of the loop.
+  const std::vector<StmtHandle> &getBody() const { return body_; }
+
+  virtual bool compare(const Stmt *other) const override;
+  virtual uint64_t hash() const override;
   virtual void dump(unsigned indent) const override;
   virtual void verify() const override;
   virtual void visit(NodeVisitor *visitor) override;
@@ -224,6 +248,8 @@ public:
   /// Updated the loop stride.
   void setStride(unsigned s) { stride_ = s; }
 
+  virtual bool compare(const Stmt *other) const override;
+  virtual uint64_t hash() const override;
   virtual void dump(unsigned indent) const override;
   virtual Stmt *clone(CloneCtx &map) override;
   virtual void verify() const override;
@@ -262,6 +288,8 @@ public:
   /// \returns the if-range range.
   std::pair<int, int> getRange() const { return {start_, end_}; }
 
+  virtual bool compare(const Stmt *other) const override;
+  virtual uint64_t hash() const override;
   virtual void dump(unsigned indent) const override;
   virtual Stmt *clone(CloneCtx &map) override;
   virtual void verify() const override;
@@ -294,6 +322,11 @@ public:
   std::vector<Argument *> &getArgs() { return args_; }
   /// Vars getter.
   std::vector<LocalVar *> &getVars() { return vars_; }
+
+  /// Argument getter.
+  const std::vector<Argument *> &getArgs() const { return args_; }
+  /// Vars getter.
+  const std::vector<LocalVar *> &getVars() const { return vars_; }
 
   /// \return the variable with the name \p name or nullptr if there is no
   /// variable with this name.
@@ -355,6 +388,9 @@ public:
   void addVar(LocalVar *arg);
 
   Program *clone();
+
+  virtual bool compare(const Stmt *other) const override;
+  virtual uint64_t hash() const override;
   void dump() const { dump(0); }
   virtual void dump(unsigned indent) const override;
   virtual Stmt *clone(CloneCtx &map) override;
@@ -383,6 +419,8 @@ public:
   /// Update the loop index. We use this API during model serialization.
   void setLoop(Loop *L) { loop_ = L; }
 
+  virtual bool compare(const Expr *other) const override;
+  virtual uint64_t hash() const override;
   virtual void dump() const override;
   virtual Expr *clone(CloneCtx &map) override;
   virtual void verify() const override;
@@ -401,6 +439,8 @@ public:
   /// \returns the value stored by this constant.
   int64_t getValue() const { return val_; }
 
+  virtual bool compare(const Expr *other) const override;
+  virtual uint64_t hash() const override;
   virtual void dump() const override;
   virtual Expr *clone(CloneCtx &map) override;
   virtual void verify() const override;
@@ -419,6 +459,8 @@ public:
   /// \returns the value stored by this constant.
   float getValue() const { return val_; }
 
+  virtual bool compare(const Expr *other) const override;
+  virtual uint64_t hash() const override;
   virtual void dump() const override;
   virtual Expr *clone(CloneCtx &map) override;
   virtual void verify() const override;
@@ -437,6 +479,8 @@ public:
   /// \returns the value stored by this constant.
   const std::string &getValue() const { return val_; }
 
+  virtual bool compare(const Expr *other) const override;
+  virtual uint64_t hash() const override;
   virtual void dump() const override;
   virtual Expr *clone(CloneCtx &map) override;
   virtual void verify() const override;
@@ -484,6 +528,8 @@ public:
   void setLHS(Expr *e) { return LHS_.setReference(e); }
   void setRHS(Expr *e) { return RHS_.setReference(e); }
 
+  virtual bool compare(const Expr *other) const override;
+  virtual uint64_t hash() const override;
   virtual void dump() const override;
   virtual Expr *clone(CloneCtx &map) override;
   virtual void verify() const override;
@@ -520,6 +566,8 @@ public:
   Expr *getVal() const { return val_.get(); }
   void setVal(Expr *e) { return val_.setReference(e); }
 
+  virtual bool compare(const Expr *other) const override;
+  virtual uint64_t hash() const override;
   virtual void dump() const override;
   virtual Expr *clone(CloneCtx &map) override;
   virtual void verify() const override;
@@ -544,6 +592,8 @@ public:
   /// \returns the vectorization factor.
   unsigned getVF() const { return vf_; }
 
+  virtual bool compare(const Expr *other) const override;
+  virtual uint64_t hash() const override;
   virtual void dump() const override;
   virtual Expr *clone(CloneCtx &map) override;
   virtual void verify() const override;
@@ -579,6 +629,11 @@ public:
 
   ~GEPExpr() = default;
 
+  /// \returns True if the other GEP \p another points to the same location.
+  bool isSameAddres(GEPExpr *another);
+
+  virtual bool compare(const Expr *other) const override;
+  virtual uint64_t hash() const override;
   virtual void dump() const override;
   virtual Expr *clone(CloneCtx &map) override;
   virtual void verify() const override;
@@ -620,6 +675,8 @@ public:
 
   ~LoadExpr() = default;
 
+  virtual bool compare(const Expr *other) const override;
+  virtual uint64_t hash() const override;
   virtual void dump() const override;
   virtual Expr *clone(CloneCtx &map) override;
   virtual void verify() const override;
@@ -638,6 +695,8 @@ public:
   LoadLocalExpr(LocalVar *var, DebugLoc loc)
       : Expr(var->getType(), loc), var_(var) {}
 
+  virtual bool compare(const Expr *other) const override;
+  virtual uint64_t hash() const override;
   virtual void dump() const override;
   virtual Expr *clone(CloneCtx &map) override;
   virtual void verify() const override;
@@ -672,6 +731,8 @@ public:
   /// Clone indices and return the list of unowned expr indices.
   std::vector<Expr *> cloneIndicesPtr(CloneCtx &map);
 
+  virtual bool compare(const Stmt *other) const override;
+  virtual uint64_t hash() const override;
   virtual void dump(unsigned indent) const override;
   virtual Stmt *clone(CloneCtx &map) override;
   virtual void verify() const override;
@@ -726,6 +787,8 @@ public:
   /// Clone indices and return the list of unowned expr indices.
   std::vector<Expr *> cloneIndicesPtr(CloneCtx &map);
 
+  virtual bool compare(const Stmt *other) const override;
+  virtual uint64_t hash() const override;
   virtual void dump(unsigned indent) const override;
   virtual Stmt *clone(CloneCtx &map) override;
   virtual void verify() const override;
@@ -757,6 +820,8 @@ public:
     assert(value->getType() == var->getType() && "invalid stored type");
   }
 
+  virtual bool compare(const Stmt *other) const override;
+  virtual uint64_t hash() const override;
   virtual void dump(unsigned indent) const override;
   virtual Stmt *clone(CloneCtx &map) override;
   virtual void verify() const override;

@@ -138,6 +138,9 @@ struct Type final {
     return sizes[(int)Ty];
   }
 
+  /// \returns a hash for this Argument.
+  uint64_t hash() const;
+
   /// Prints the type.
   void dump() const;
 };
@@ -200,6 +203,9 @@ struct ExprType final {
 
   /// Prints the type.
   void dump() const;
+
+  /// \returns a hash for this Argument.
+  uint64_t hash() const;
 };
 
 inline bool operator==(const Type &LHS, const Type &RHS) {

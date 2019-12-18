@@ -28,6 +28,15 @@ std::string readFile(const std::string &filename);
 /// G, etc.
 std::string prettyPrintNumber(uint64_t num);
 
+/// \return X right-rotate \bits times.
+uint64_t ror(uint64_t x, unsigned int bits);
+
+uint64_t hashJoin(uint64_t one, uint64_t two);
+
+uint64_t hashJoin(uint64_t one, uint64_t two, uint64_t three);
+
+uint64_t hashString(const std::string &str);
+
 } // namespace bistra
 
 #endif // BISTRA_PROGRAM_UTILS_H

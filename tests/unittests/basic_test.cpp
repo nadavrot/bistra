@@ -560,3 +560,21 @@ TEST(basic, sink_stores) {
   delete p->clone();
   delete p;
 }
+
+// Check that we can build a simple program.
+TEST(basic, clone_hash_compare) {
+  Program *p = generateGemm(1024, 256, 128);
+  Program *p2 = p->clone();
+  Program *p3 = generateGemm(64, 64, 64);
+
+  EXPECT_EQ(p->hash(), p2->hash());
+  EXPECT_NE(p->hash(), p3->hash());
+
+  // We can only compare subexpressions within the same program.
+  EXPECT_FALSE(p->compare(p2));
+  EXPECT_FALSE(p->compare(p3));
+
+  delete p3;
+  delete p2;
+  delete p;
+}

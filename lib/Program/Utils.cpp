@@ -72,3 +72,23 @@ std::string bistra::prettyPrintNumber(uint64_t num) {
 
   return std::to_string(num) + units[unit];
 }
+
+uint64_t bistra::ror(uint64_t x, unsigned int bits) {
+  return (x >> bits) | (x << (64 - bits));
+}
+
+uint64_t bistra::hashJoin(uint64_t one, uint64_t two) {
+  return ror(one, 8) ^ ror(two, 16) ^ (one * two);
+}
+
+uint64_t bistra::hashJoin(uint64_t one, uint64_t two, uint64_t three) {
+  return hashJoin(one, hashJoin(two, three));
+}
+
+uint64_t bistra::hashString(const std::string &str) {
+  uint64_t h = 0;
+  for (char c : str) {
+    h = hashJoin(h, c);
+  }
+  return h;
+}

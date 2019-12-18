@@ -119,6 +119,56 @@ void Program::dump(unsigned indent) const {
   std::cout << "}\n";
 }
 
+uint64_t Type::hash() const {
+  uint64_t h = hashJoin(getNumDims(), (uint64_t)elementType_);
+  for (auto &name : getNames()) {
+    h = hashJoin(h, hashString(name));
+  }
+  for (auto &dim : getDims()) {
+    h = hashJoin(h, dim);
+  }
+  return h;
+}
+
+uint64_t ExprType::hash() const {
+  return hashJoin((uint64_t)elementType_, width_);
+}
+
+uint64_t Argument::hash() const {
+  return hashJoin(hashString(getName()), getType()->hash());
+}
+
+uint64_t LocalVar::hash() const {
+  return hashJoin(hashString(getName()), type_.hash());
+}
+
+uint64_t Program::hash() const {
+  // Hash the name, args and local variables.
+  uint64_t hash = hashString(getName());
+  for (auto &arg : args_) {
+    hash = hashJoin(hash, arg->hash());
+  }
+  for (auto &var : vars_) {
+    hash = hashJoin(hash, var->hash());
+  }
+
+  // Hash the body of the program.
+  return hashJoin(Scope::hash(), hash);
+}
+
+bool Program::compare(const Stmt *other) const {
+  auto *p = dynamic_cast<const Program *>(other);
+  if (!p)
+    return false;
+  if (p->name_ != name_)
+    return false;
+  if (p->getArgs() != getArgs())
+    return false;
+  if (p->getVars() != getVars())
+    return false;
+  return Scope::compare(other);
+}
+
 bool BinaryExpr::isCommutative() const {
   switch (kind_) {
   case bistra::BinaryExpr::Mul:
@@ -174,6 +224,30 @@ void Scope::dump(unsigned indent) const {
   for (auto &SH : body_) {
     SH->dump(indent);
   }
+}
+
+uint64_t Scope::hash() const {
+  uint64_t hash = body_.size();
+  for (auto &SH : body_) {
+    hash = hashJoin(hash, SH->hash());
+  }
+  return hash;
+}
+
+bool Scope::compare(const Stmt *other) const {
+  // Compare the body of the scope.
+  auto *s = dynamic_cast<const Scope *>(other);
+  if (!s)
+    return false;
+  auto &B = s->getBody();
+  if (B.size() != body_.size())
+    return false;
+  // Compare all of the statements.
+  for (int i = 0, e = B.size(); i < e; i++) {
+    if (!body_[i]->compare(B[i].get()))
+      return false;
+  }
+  return true;
 }
 
 void Scope::clear() {
@@ -236,6 +310,31 @@ void Scope::insertAfterStmt(Stmt *s, Stmt *where) {
   body_.emplace(iter, s, this);
 }
 
+uint64_t Loop::hash() const {
+  // Hash the name, stride, range.
+  uint64_t hash = hashString(getName());
+  hash = hashJoin(hash, getEnd(), getStride());
+  // Hash the body:
+  return hashJoin(hash, Scope::hash());
+}
+
+bool Loop::compare(const Stmt *other) const {
+  // Compare the members:
+  auto *s = dynamic_cast<const Loop *>(other);
+  if (!s)
+    return false;
+
+  if (s->getName() != getName())
+    return false;
+  if (s->getEnd() != getEnd())
+    return false;
+  if (s->getStride() != getStride())
+    return false;
+
+  // Compare the body:
+  return Scope::compare(other);
+}
+
 void Loop::dump(unsigned indent) const {
   spaces(indent);
   std::string stride;
@@ -261,9 +360,59 @@ void IfRange::dump(unsigned indent) const {
   std::cout << "}\n";
 }
 
+bool IfRange::compare(const Stmt *other) const {
+  // Compare the members:
+  auto *s = dynamic_cast<const IfRange *>(other);
+  if (!s)
+    return false;
+
+  if (s->getRange() != getRange())
+    return false;
+  if (!val_->compare(s->val_.get()))
+    return false;
+
+  // Compare the body:
+  return Scope::compare(other);
+}
+
+uint64_t IfRange::hash() const {
+  // Hash the members.
+  uint64_t hash = val_->hash();
+  hash = hashJoin(hash, start_, end_);
+  // Hash the body:
+  return hashJoin(hash, Scope::hash());
+}
+
 void ConstantExpr::dump() const { std::cout << std::to_string(val_); }
 
 void ConstantFPExpr::dump() const { std::cout << std::to_string(val_); }
+
+bool ConstantExpr::compare(const Expr *other) const {
+  auto *s = dynamic_cast<const ConstantExpr *>(other);
+  if (!s)
+    return false;
+  return s->val_ == val_;
+}
+
+bool ConstantFPExpr::compare(const Expr *other) const {
+  auto *s = dynamic_cast<const ConstantFPExpr *>(other);
+  if (!s)
+    return false;
+  return s->val_ == val_;
+}
+
+bool ConstantStringExpr::compare(const Expr *other) const {
+  auto *s = dynamic_cast<const ConstantStringExpr *>(other);
+  if (!s)
+    return false;
+  return s->val_ == val_;
+}
+
+uint64_t ConstantExpr::hash() const { return val_; }
+
+uint64_t ConstantFPExpr::hash() const { return static_cast<uint64_t>(val_); }
+
+uint64_t ConstantStringExpr::hash() const { return hashString(getValue()); }
 
 /// Unescape a c string. Translate '\\n' to '\n', etc.
 static std::string escapeCString(const std::string &s) {
@@ -294,6 +443,26 @@ void BroadcastExpr::dump() const {
   std::cout << ")";
 }
 
+bool BroadcastExpr::compare(const Expr *other) const {
+  auto *e = dynamic_cast<const BroadcastExpr *>(other);
+  if (!e)
+    return false;
+
+  if (e->vf_ != vf_)
+    return false;
+  return val_->compare(e->val_.get());
+}
+
+uint64_t BroadcastExpr::hash() const {
+  // Hash the type, which includes the VF.
+  return hashJoin(getType().hash(), getValue()->hash());
+}
+
+uint64_t LoadExpr::hash() const {
+  // Hash the type, which includes the VF.
+  return hashJoin(getType().hash(), getGep()->hash());
+}
+
 LoadExpr::LoadExpr(GEPExpr *gep, DebugLoc loc)
     : Expr(ElemKind::IndexTy, loc), gep_(gep, this) {
   setType(ExprType(getDest()->getType()->getElementType()));
@@ -319,6 +488,17 @@ LoadExpr::LoadExpr(Argument *arg, const std::vector<Expr *> &indices,
   setType(ExprType(arg->getType()->getElementType()));
 }
 
+bool LoadExpr::compare(const Expr *other) const {
+  auto *e = dynamic_cast<const LoadExpr *>(other);
+  if (!e)
+    return false;
+
+  if (!e->getType().isEqual(getType()))
+    return false;
+
+  return gep_->compare(e->gep_.get());
+}
+
 void GEPExpr::dump() const {
   std::cout << getDest()->getName() << "[";
   bool first = true;
@@ -332,6 +512,35 @@ void GEPExpr::dump() const {
   std::cout << "]";
 }
 
+uint64_t GEPExpr::hash() const {
+  uint64_t hash = arg_->hash();
+  for (auto &I : indices_) {
+    hash = hashJoin(hash, I->hash());
+  }
+  return hash;
+}
+
+bool GEPExpr::compare(const Expr *other) const {
+  auto *e = dynamic_cast<const GEPExpr *>(other);
+  if (!e)
+    return false;
+
+  if (e->getDest() != getDest())
+    return false;
+
+  auto &B = e->getIndices();
+  if (B.size() != indices_.size())
+    return false;
+
+  // Compare all of the indices.
+  for (int i = 0, e = B.size(); i < e; i++) {
+    if (!indices_[i]->compare(B[i].get()))
+      return false;
+  }
+
+  return true;
+}
+
 void LoadExpr::dump() const {
   gep_->dump();
   if (getType().isVector()) {
@@ -340,6 +549,21 @@ void LoadExpr::dump() const {
 }
 
 void LoadLocalExpr::dump() const { std::cout << var_->getName(); }
+
+bool LoadLocalExpr::compare(const Expr *other) const {
+  auto *e = dynamic_cast<const LoadLocalExpr *>(other);
+  if (!e)
+    return false;
+
+  // Compare the type and address.
+  if (!e->getType().isEqual(getType()))
+    return false;
+  return e->getDest() == getDest();
+}
+
+uint64_t LoadLocalExpr::hash() const {
+  return hashJoin(getType().hash(), var_->hash());
+}
 
 StoreStmt::StoreStmt(GEPExpr *gep, Expr *value, bool accumulate, DebugLoc loc)
     : Stmt(loc), gep_(gep, this), value_(value, this), accumulate_(accumulate) {
@@ -351,6 +575,19 @@ StoreStmt::StoreStmt(Argument *arg, const std::vector<Expr *> &indices,
     : Stmt(loc), gep_(new GEPExpr(arg, indices, loc), this),
       value_(value, this), accumulate_(accumulate) {
         assert(dynamic_cast<GEPExpr*>(gep_.get()));
+      }
+
+      bool StoreStmt::compare(const Stmt *other) const {
+        auto *e = dynamic_cast<const StoreStmt *>(other);
+        if (!e)
+          return false;
+
+        return e->accumulate_ == accumulate_ && gep_->compare(e->gep_.get()) &&
+               value_->compare(e->value_.get());
+      }
+
+      uint64_t StoreStmt::hash() const {
+        return hashJoin(accumulate_, gep_->hash(), value_->hash());
       }
 
 std::vector<Expr *> StoreStmt::cloneIndicesPtr(CloneCtx &map) {
@@ -371,6 +608,14 @@ std::vector<Expr *> CallStmt::cloneIndicesPtr(CloneCtx &map) {
   return ret;
 }
 
+uint64_t CallStmt::hash() const {
+  uint64_t hash = hashString(name_);
+  for (auto &p : params_) {
+    hash = hashJoin(hash, p->hash());
+  }
+  return hashJoin(hash, params_.size());
+}
+
 void CallStmt::dump(unsigned indent) const {
   spaces(indent);
   std::cout << getName() << "(";
@@ -386,6 +631,27 @@ void CallStmt::dump(unsigned indent) const {
   std::cout << ";\n";
 }
 
+bool CallStmt::compare(const Stmt *other) const {
+  auto *e = dynamic_cast<const CallStmt *>(other);
+  if (!e)
+    return false;
+
+  if (e->getName() != getName())
+    return false;
+
+  auto &B = e->getParams();
+  if (B.size() != params_.size())
+    return false;
+
+  // Compare all of the indices.
+  for (int i = 0, e = B.size(); i < e; i++) {
+    if (!params_[i]->compare(B[i].get()))
+      return false;
+  }
+
+  return true;
+}
+
 void StoreStmt::dump(unsigned indent) const {
   spaces(indent);
   gep_->dump();
@@ -397,6 +663,22 @@ void StoreStmt::dump(unsigned indent) const {
   std::cout << ";\n";
 }
 
+uint64_t StoreLocalStmt::hash() const {
+  return hashJoin(accumulate_, var_->hash(), value_->hash());
+}
+
+bool StoreLocalStmt::compare(const Stmt *other) const {
+  auto *e = dynamic_cast<const StoreLocalStmt *>(other);
+  if (!e)
+    return false;
+
+  if (e->accumulate_ != accumulate_)
+    return false;
+  if (e->var_ != var_)
+    return false;
+  return e->value_->compare(value_.get());
+}
+
 void StoreLocalStmt::dump(unsigned indent) const {
   spaces(indent);
   std::cout << var_->getName();
@@ -406,6 +688,30 @@ void StoreLocalStmt::dump(unsigned indent) const {
 }
 
 void IndexExpr::dump() const { std::cout << loop_->getName(); }
+
+bool IndexExpr::compare(const Expr *other) const {
+  auto *e = dynamic_cast<const IndexExpr *>(other);
+  if (!e)
+    return false;
+  return e->getLoop() == getLoop();
+}
+
+uint64_t IndexExpr::hash() const {
+  // We need to break a cycle here. Just use the name and some random number.
+  return hashJoin(hashString(getLoop()->getName()), 0xff);
+}
+
+bool BinaryExpr::compare(const Expr *other) const {
+  auto *e = dynamic_cast<const BinaryExpr *>(other);
+  if (!e)
+    return false;
+  return e->getKind() == getKind() && LHS_->compare(e->LHS_.get()) &&
+         RHS_->compare(e->RHS_.get());
+}
+
+uint64_t BinaryExpr::hash() const {
+  return hashJoin((uint64_t)kind_, getLHS()->hash(), getRHS()->hash());
+}
 
 void BinaryExpr::dump() const {
   std::cout << "(";
@@ -443,6 +749,16 @@ void UnaryExpr::dump() const {
     std::cout << ")";
     break;
   }
+}
+uint64_t UnaryExpr::hash() const {
+  return hashJoin((uint64_t)kind_, val_->hash());
+}
+
+bool UnaryExpr::compare(const Expr *other) const {
+  auto *e = dynamic_cast<const UnaryExpr *>(other);
+  if (!e)
+    return false;
+  return e->getKind() == getKind() && val_->compare(e->val_.get());
 }
 
 Expr *ConstantExpr::clone(CloneCtx &map) { return new ConstantExpr(val_); }
