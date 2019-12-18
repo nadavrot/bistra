@@ -54,13 +54,6 @@ func transpose(A:float<width:sx, height:sy>,
     }
   }
 }
-
-script for "x86" {
-  tile "i" to 64 as "i_tiled"
-  tile "j" to 64 as "j_tiled"
-  // Reorder the loops as [i, j, i_t, j_t].
-  hoist "j" 1 times
-}
 )";
 
 const char *saxpySource = R"(

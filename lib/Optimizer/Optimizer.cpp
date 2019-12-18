@@ -248,31 +248,39 @@ template <class T> void addOnce(std::vector<T *> &set, T *elem) {
   }
 }
 
+/// \returns a single index that is used as the last dimension for all array
+/// access. All access patterns are consecutive on this dimension.
+Loop* collectLastIndexForAllIndices(Scope *s) {
+  std::vector<Loop *> lastSubscriptIndex;
+
+  std::vector<LoadExpr *> loads;
+  std::vector<StoreStmt *> stores;
+  collectLoadStores(s, loads, stores);
+
+  // Collect loops that are used as the last index for some load.
+  for (auto *st : stores) {
+    if (auto *idx = dynamic_cast<IndexExpr *>(st->getIndices().back().get()))
+      addOnce(lastSubscriptIndex, idx->getLoop());
+  }
+  for (auto *ld : loads) {
+    if (auto *idx = dynamic_cast<IndexExpr *>(ld->getIndices().back().get()))
+      addOnce(lastSubscriptIndex, idx->getLoop());
+  }
+
+  // If there is only one dominent dimension then try to sink it down.
+  if (lastSubscriptIndex.size() != 1)
+    return nullptr;
+
+  return lastSubscriptIndex.back();
+}
+
 // Try to sink loops to allow consecutive access and vectorization.
 bool sinkLoopsForConsecutiveIndexAccess(Program *p) {
   bool changed = false;
   for (auto *l : collectInnermostLoops(p)) {
-    std::vector<Loop *> lastSubscriptIndex;
+    auto *loopToSink = collectLastIndexForAllIndices(l);
+    if (!loopToSink) continue;
 
-    std::vector<LoadExpr *> loads;
-    std::vector<StoreStmt *> stores;
-    collectLoadStores(l, loads, stores);
-
-    // Collect loops that are used as the last index for some load.
-    for (auto *st : stores) {
-      if (auto *idx = dynamic_cast<IndexExpr *>(st->getIndices().back().get()))
-        addOnce(lastSubscriptIndex, idx->getLoop());
-    }
-    for (auto *ld : loads) {
-      if (auto *idx = dynamic_cast<IndexExpr *>(ld->getIndices().back().get()))
-        addOnce(lastSubscriptIndex, idx->getLoop());
-    }
-
-    // If there is only one dominent dimension then try to sink it down.
-    if (lastSubscriptIndex.size() != 1)
-      continue;
-
-    auto loopToSink = lastSubscriptIndex.back();
     changed |= ::sink(loopToSink, 8);
     p->verify();
   }
@@ -316,6 +324,46 @@ static uint64_t ipow(uint64_t a, uint64_t b) {
     res *= a;
   }
   return res;
+}
+
+bool tryToTileForLocality(Program *p) {
+  bool changed = false;
+  // Collect the innermost loops.
+  std::vector<Loop *> innermost = collectInnermostLoops(p);
+  unsigned tileSize = 32;
+
+   for (auto *inner : innermost) {
+     // Collect the loop nest that contain the current loop.
+     Loop *top = getContainingLoop(inner);
+
+     if (!top) continue;
+
+     // Ignore loops that don't touch much memory.
+     auto IOPL = getNumLoadsInLoop(top);
+     if (IOPL < (1 << 13))
+       continue;
+
+     // Don't touch loops that operate on a small tile.
+     if (top->getEnd() < tileSize || inner->getEnd() < tileSize)
+       continue;
+
+     // All of the loops are consecutive on some dimension. Tiling may not help
+     // here.
+     auto *lastIndexLoop = collectLastIndexForAllIndices(top);
+     if (lastIndexLoop) continue;
+
+     bool t1 = ::tile(inner, tileSize);
+     bool t2 = ::tile(top, tileSize);
+     // If we were not able to tile the loops just continue and hope we did not
+     // mess things up.
+     if (!t1 && !t2)
+       continue;
+
+     ::hoist(inner, 1);
+     changed = true;
+   }
+
+  return changed;
 }
 
 void TilerPass::doIt(Program *p) {
@@ -510,6 +558,8 @@ std::unique_ptr<Program> bistra::optimizeStatic(Backend *backend, Program *p) {
   changed |= tryToFuseAllShallowLoops(np.get());
 
   changed |= tryToVectorizeAllLoops(np.get(), VF);
+
+  changed |=  tryToTileForLocality(np.get());
 
   // Perform LICM and cleanup the program one last time.
   changed |= ::simplify(np.get());
