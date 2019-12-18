@@ -574,6 +574,11 @@ TEST(basic, clone_hash_compare) {
   EXPECT_FALSE(p->compare(p2));
   EXPECT_FALSE(p->compare(p3));
 
+  EXPECT_TRUE(p->compare(p));
+  EXPECT_TRUE(p2->compare(p2));
+  EXPECT_TRUE(p3->compare(p3));
+
+
   delete p3;
   delete p2;
   delete p;
