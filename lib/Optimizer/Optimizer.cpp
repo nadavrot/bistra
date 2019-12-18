@@ -36,6 +36,8 @@ class EvaluatorPass : public Pass {
   bool isText_;
   // Is the saved format bytecode?
   bool isBytecode_;
+  // A set of already-ran programs hash codes.
+  std::set<uint64_t> alreadyRan_;
 
 public:
   EvaluatorPass(Backend &backend, const std::string &savePath, bool isText,
@@ -99,6 +101,12 @@ public:
 };
 
 void EvaluatorPass::doIt(Program *p) {
+  // Check if we already benchmarked this program.
+  if (!alreadyRan_.insert(p->hash()).second) {
+    std::cout << ":" << std::flush;
+    return;
+  }
+
   p->verify();
 
   std::unordered_map<ASTNode *, ComputeCostTy> heatmap;
