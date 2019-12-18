@@ -253,8 +253,9 @@ int main(int argc, char *argv[]) {
   }
 
   if (FLAGS_opt) {
-    ::simplify(program);
-    ::promoteLICM(program);
+    auto np = ::optimizeStatic(backend.get(), program);
+    delete program;
+    program = np.release();
   }
 
   if (FLAGS_dump) {
