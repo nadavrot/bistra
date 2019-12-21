@@ -646,15 +646,7 @@ bool bistra::fuse(Loop *L, unsigned levels) {
     return false;
 
   // Find the following consecutive loop.
-  Loop *L2 = nullptr;
-  auto &body = parent->getBody();
-  // For each stmt except for the last one.
-  for (int i = 0, e = body.size() - 1; i < e; i++) {
-    if (body[i].get() == L) {
-      L2 = dynamic_cast<Loop *>(body[i + 1].get());
-      break;
-    }
-  }
+  Loop *L2 = dynamic_cast<Loop*>(getNextStmt(L));
 
   // We were not able to find a consecutive loop.
   if (!L2)
