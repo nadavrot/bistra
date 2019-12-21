@@ -5,6 +5,8 @@
 #include "bistra/Program/Program.h"
 #include "bistra/Transforms/Simplify.h"
 
+#include <cassert>
+
 using namespace bistra;
 
 using DiagnoseKind = ParserContext::DiagnoseKind;

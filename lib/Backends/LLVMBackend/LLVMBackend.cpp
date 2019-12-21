@@ -282,7 +282,8 @@ public:
 
     auto *proto = llvm::FunctionType::get(llvm::Type::getVoidTy(ctx_),
                                           argListType, false);
-    auto *callee = M_->getOrInsertFunction(SS->getName(), proto);
+    M_->getOrInsertFunction(SS->getName(), proto);
+    auto *callee = M_->getFunction(SS->getName());
     builder_.CreateCall(callee, params);
     return;
   }

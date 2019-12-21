@@ -2,6 +2,8 @@
 #include "bistra/Analysis/Value.h"
 #include "bistra/Program/Program.h"
 
+#include <cstring>
+#include <memory>
 #include <unordered_map>
 
 using namespace bistra;

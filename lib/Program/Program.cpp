@@ -2,6 +2,7 @@
 #include "bistra/Analysis/Visitors.h"
 #include "bistra/Program/Utils.h"
 
+#include <algorithm>
 #include <iostream>
 
 using namespace bistra;

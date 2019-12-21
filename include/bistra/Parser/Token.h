@@ -3,6 +3,7 @@
 
 #include "bistra/Base/Base.h"
 
+#include <cassert>
 #include <string>
 
 namespace bistra {

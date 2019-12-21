@@ -5,10 +5,12 @@
 #include "bistra/Program/Types.h"
 #include "bistra/Program/UseDef.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <memory>
 #include <type_traits>
 #include <unordered_map>
 #include <utility>

@@ -1,6 +1,8 @@
 #include "bistra/Parser/Lexer.h"
 #include "bistra/Parser/ParserContext.h"
 
+#include <cassert>
+
 using namespace bistra;
 
 //===----------------------------------------------------------------------===//

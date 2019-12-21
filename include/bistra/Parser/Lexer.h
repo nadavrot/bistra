@@ -4,6 +4,8 @@
 #include "bistra/Parser/ParserContext.h"
 #include "bistra/Parser/Token.h"
 
+#include <cassert>
+
 namespace bistra {
 class Token;
 class ParserContext;

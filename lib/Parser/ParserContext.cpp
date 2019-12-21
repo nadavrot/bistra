@@ -2,6 +2,7 @@
 #include "bistra/Base/Base.h"
 #include "bistra/Program/Program.h"
 
+#include <cstring>
 #include <iostream>
 
 using namespace bistra;

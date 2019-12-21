@@ -4,6 +4,7 @@
 #include "bistra/Base/Base.h"
 #include "bistra/Program/Pragma.h"
 
+#include <cassert>
 #include <string>
 #include <unordered_map>
 #include <vector>
