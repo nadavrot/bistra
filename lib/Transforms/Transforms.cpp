@@ -249,7 +249,7 @@ bool bistra::unrollLoop(Loop *L, unsigned maxTripCount) {
   std::vector<Stmt *> unrolledBodies;
 
   // For each unroll iteration:
-  for (unsigned iter = 0; iter < L->getEnd(); iter++) {
+  for (unsigned iter = 0; iter < L->getEnd(); iter+=L->getStride()) {
     // For each statement in the body of the loop:
     for (auto &ST : L->getBody()) {
       // Copy the body.
