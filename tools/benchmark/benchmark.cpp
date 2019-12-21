@@ -136,17 +136,17 @@ func batchnorm(
 
 const char *concatSource = R"(
 let sx2 = sx * 2
-func concat(O:float<width:sx2, height:sy>,
-            A:float<width:sx, height:sy>,
-            B:float<height:sy, width:sx>) {
+func concat(O:float<height:sx2, width:sy>,
+            A:float<height:sx, width:sy>,
+            B:float<height:sx, width:sy>) {
   for (i in 0 .. A.height) {
     for (j in 0 .. A.width) {
-      O[i,j] = A[j,i]
+      O[i,j] = A[i,j]
     }
   }
   for (i in 0 .. B.height) {
     for (j in 0 .. B.width) {
-      O[i + sx, j] = B[j,i]
+      O[i + sx, j] = B[i,j]
     }
   }
 }
