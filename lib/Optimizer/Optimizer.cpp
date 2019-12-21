@@ -100,6 +100,12 @@ public:
   virtual void doIt(Program *p) override;
 };
 
+class FusePass : public Pass {
+public:
+  FusePass(Pass *next) : Pass("fuse", next) {}
+  virtual void doIt(Program *p) override;
+};
+
 void EvaluatorPass::doIt(Program *p) {
   // Check if we already benchmarked this program.
   if (!alreadyRan_.insert(p->hash()).second) {
@@ -546,6 +552,18 @@ void DistributePass::doIt(Program *p) {
   nextPass_->doIt(np.get());
 }
 
+void FusePass::doIt(Program *p) {
+  p->verify();
+  CloneCtx map;
+  std::unique_ptr<Program> np((Program *)p->clone(map));
+  // Try to fuse some of the loops that belong together.
+  bool changed = ::tryToFuseAllShallowLoops(np.get());
+  if (changed) {
+    nextPass_->doIt(np.get());
+  }
+  nextPass_->doIt(p);
+}
+
 Program *bistra::optimizeEvaluate(Backend &backend, Program *p,
                                   const std::string &filename, bool isTextual,
                                   bool isBytecode) {
@@ -560,8 +578,8 @@ Program *bistra::optimizeEvaluate(Backend &backend, Program *p,
   Pass *ps = new FilterPass(backend, ev);
   ps = new PromoterPass(ps);
   ps = new WidnerPass(backend, ps);
-  ps = new DistributePass(ps);
   ps = new VectorizerPass(backend, ps);
+  ps = new FusePass(ps);
   ps = new TilerPass(ps);
   ps = new InterchangerPass(ps);
   ps = new DistributePass(ps);
