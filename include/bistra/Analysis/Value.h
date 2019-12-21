@@ -98,10 +98,11 @@ bool areLoadsStoresDisjoint(const std::vector<LoadExpr *> &loads,
                             const std::vector<StoreStmt *> &stores);
 
 /// This is similar to LLVM's simplify demanded bits.
-/// Updates the possible range in \p range.
+/// Updates the possible full-interval range in \p range.
 /// The nullable values in \p liveLoops are fixed to be zero. This parameter is
 /// used when performing analysis for a specific context like parts of a loop.
-/// \returns True if the range was computed;
+/// \returns True if the range was computed.
+/// Note: the rane must be monotonic (start <= end)
 bool computeKnownIntegerRange(Expr *e, std::pair<int, int> &range,
                               const std::set<Loop *> *liveLoops = nullptr);
 
