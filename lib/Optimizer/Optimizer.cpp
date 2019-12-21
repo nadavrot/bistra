@@ -190,17 +190,48 @@ void FilterPass::doIt(Program *p) {
   nextPass_->doIt(p);
 }
 
+/// Collect the arguments that are used in the region \p s.
+std::set<Argument*> collectArgsUsed(Stmt *s) {
+  std::set<Argument*> args;
+  // Scan the first loop and look for buffers.
+  for (auto &e : collectExprs(s)) {
+    if (auto *gep = dynamic_cast<GEPExpr*>(e)) {
+      args.insert(gep->getDest());
+    }
+  }
+  return args;
+}
+
 // Try to fuse all of the shallow fusable loops.
 bool tryToFuseAllShallowLoops(Program *p) {
   bool changed = false;
 
 restart:
-  for (auto *l : collectLoops(p)) {
-    // Only handle small loops.
-    if (collectStmts(l).size() > 5)
-      continue;
-    // Fuse the loop to the next loop.
-    bool f = (bool)::fuse(l, 1);
+  for (auto *L : collectLoops(p)) {
+    // Find the following consecutive loop.
+    Loop *L2 = dynamic_cast<Loop*>(getNextStmt(L));
+
+    // We were not able to find a consecutive loop.
+    if (!L2)
+      return false;
+
+    /// Scan the first and second loops and collect the buffers that we access.
+    std::set<Argument*> buffers1 = collectArgsUsed(L);
+    std::set<Argument*> buffers2 = collectArgsUsed(L2);
+
+    // The number of shared buffers between L1 and L2.
+    unsigned numShared = 0;
+    for (auto &A : buffers1) {
+      if (buffers2.count(A)) { numShared++; }
+    }
+
+    // Heuristics: loops must share most of the buffers.
+    unsigned numBuffers = std::max(buffers1.size(), buffers2.size());
+    if (numShared < numBuffers/2)
+        continue;
+
+    // Okay, the loops share most buffers. Let's merge them.
+    bool f = (bool)::fuse(L, 8);
     changed |= f;
 
     // The fuser deleted a loop. Simplify the code and run again.
