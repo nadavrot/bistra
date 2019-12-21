@@ -51,6 +51,19 @@ bistra::DepRelationKind bistra::checkWeakSIVDependenceForIndex(
       // Immediate access at the same array index are allowed.
       continue;
     }
+
+    // Check if the possible ranges of indices are disjoint.
+    // For example: A[0..10] A[20..30]
+    std::pair<int, int> range1;
+    std::pair<int, int> range2;
+    bool r1 = computeKnownIntegerRange(indices1[i], range1);
+    bool r2 = computeKnownIntegerRange(indices2[i], range2);
+    if (r1 && r2) {
+      // If the analysis worked: check if the ranges are disjoint.
+      if (range1.second < range2.first || range2.second < range1.first)
+        continue;
+    }
+
     // Any other index access is disallowed. The buffers depend on each other.
     // Example: A[I] vs. B[I+1]; A[I, 0] vs. B[0, I]; A[I] vs. B[0];
     bool hasIndex1 = isRefOfLoop(indices1[i], I1, true);
