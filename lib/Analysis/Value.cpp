@@ -394,6 +394,7 @@ bool bistra::computeKnownIntegerRange(Expr *e, std::pair<int, int> &range,
     // The loop jumps in steps (stride). The last value of the loop is the end
     // range minus the stride value. The stride must evenly divide the loop.
     range.second = IE->getLoop()->getEnd() - IE->getLoop()->getStride();
+    assert(range.first <= range.second && "invalid range");
     return true;
   }
 
@@ -412,6 +413,7 @@ bool bistra::computeKnownIntegerRange(Expr *e, std::pair<int, int> &range,
                                L.second * R.first, L.second * R.second}};
       range.first = *std::min_element(perm.begin(), perm.end());
       range.second = *std::max_element(perm.begin(), perm.end());
+      assert(range.first <= range.second && "invalid range");
       return true;
     }
     case BinaryExpr::Add: {
@@ -420,6 +422,7 @@ bool bistra::computeKnownIntegerRange(Expr *e, std::pair<int, int> &range,
                                L.second + R.first, L.second + R.second}};
       range.first = *std::min_element(perm.begin(), perm.end());
       range.second = *std::max_element(perm.begin(), perm.end());
+      assert(range.first <= range.second && "invalid range");
       return true;
     }
     case BinaryExpr::Div:
@@ -430,18 +433,21 @@ bool bistra::computeKnownIntegerRange(Expr *e, std::pair<int, int> &range,
                                L.second - R.first, L.second - R.second}};
       range.first = *std::min_element(perm.begin(), perm.end());
       range.second = *std::max_element(perm.begin(), perm.end());
+      assert(range.first <= range.second && "invalid range");
       return true;
     }
 
     case BinaryExpr::Min: {
       range.first = std::min(L.first, R.first);
       range.second = std::min(L.second, R.second);
+      assert(range.first <= range.second && "invalid range");
       return true;
     }
 
     case BinaryExpr::Max: {
       range.first = std::min(L.first, R.first);
       range.second = std::min(L.second, R.second);
+      assert(range.first <= range.second && "invalid range");
       return true;
     }
 
