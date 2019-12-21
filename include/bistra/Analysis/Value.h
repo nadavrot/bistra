@@ -75,6 +75,10 @@ void collectLoops(Stmt *S, std::vector<Loop *> &loops);
 /// \returns all of the loops under statement \p S.
 std::vector<Loop *> collectLoops(Stmt *S);
 
+/// \returns the statement that comes after \p s or null if s is the last
+/// statement in the parent scope.
+Stmt* getNextStmt(Stmt* s);
+
 /// Collect all of the ifs under statement \p S into \p ifs;
 void collectIfs(Stmt *S, std::vector<IfRange *> &ifs);
 

@@ -272,6 +272,24 @@ std::vector<Loop *> bistra::collectLoops(Stmt *S) {
   return loops;
 }
 
+Stmt* bistra::getNextStmt(Stmt *s) {
+  // Find the parent scope.
+  Scope *parent = dynamic_cast<Scope *>(s->getParent());
+  if (!parent)
+    return nullptr;
+
+  // Find the following consecutive loop.
+  auto &body = parent->getBody();
+  // For each stmt except for the last one.
+  for (int i = 0, e = body.size() - 1; i < e; i++) {
+    if (body[i].get() == s) {
+      return body[i + 1].get();
+    }
+  }
+
+  return nullptr;
+}
+
 void bistra::collectIfs(Stmt *S, std::vector<IfRange *> &ifs) {
   IfCollector IC(ifs);
   S->visit(&IC);
