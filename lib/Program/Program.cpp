@@ -183,6 +183,7 @@ bool BinaryExpr::isCommutative() const {
   case bistra::BinaryExpr::Pow:
     return false;
   }
+  return false;
 }
 
 const char *BinaryExpr::getOpSymbol(BinOpKind kind_) {
@@ -201,6 +202,7 @@ const char *BinaryExpr::getOpSymbol(BinOpKind kind_) {
     CASE(Pow, "pow")
   }
 #undef CASE
+  return "";
 }
 
 const char *UnaryExpr::getOpSymbol(UnaryOpKind kind_) {
@@ -215,6 +217,7 @@ const char *UnaryExpr::getOpSymbol(UnaryOpKind kind_) {
     CASE(Abs, "abs")
   }
 #undef CASE
+  return "";
 }
 
 const char *BinaryExpr::getOpSymbol() const { return getOpSymbol(getKind()); }

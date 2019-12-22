@@ -58,9 +58,9 @@ uint8_t StreamReader::readU8() {
 }
 
 std::string StreamReader::readStr() {
-  auto len = readU8();
+  unsigned len = readU8();
   std::string res;
-  for (int i = 0; i < len; i++) {
+  for (unsigned i = 0; i < len; i++) {
     res.push_back(stream_[pos_++]);
   }
 
@@ -109,7 +109,7 @@ void BytecodeHeader::serialize(StreamWriter &SW) {
     SW.write((uint8_t)tt.getNumDims());
 
     // Write the name and sizes of the dims.
-    for (int i = 0; i < tt.getNumDims(); i++) {
+    for (unsigned i = 0; i < tt.getNumDims(); i++) {
       SW.write((uint32_t)tt.getDims()[i]);
       auto &dimName = tt.getNames()[i];
       SW.write((uint32_t)stringTable_.getIdFor(dimName));
@@ -125,9 +125,9 @@ void BytecodeHeader::deserialize(StreamReader &SR) {
   }
 
   // Read the number of strings.
-  auto n = SR.readU32();
+  unsigned n = SR.readU32();
   // And read the strings.
-  for (int i = 0; i < n; i++) {
+  for (unsigned i = 0; i < n; i++) {
     auto ss = SR.readStr();
     stringTable_.getIdFor(ss);
   }
@@ -135,7 +135,7 @@ void BytecodeHeader::deserialize(StreamReader &SR) {
   // Read the number expr types.
   n = SR.readU32();
   // And read the types.
-  for (int i = 0; i < n; i++) {
+  for (unsigned i = 0; i < n; i++) {
     auto tp = SR.readU8();
     auto width = SR.readU8();
     ExprType ET((ElemKind)tp, (unsigned)width);
@@ -146,7 +146,7 @@ void BytecodeHeader::deserialize(StreamReader &SR) {
   n = SR.readU32();
 
   // And read the tensor types.
-  for (int i = 0; i < n; i++) {
+  for (unsigned i = 0; i < n; i++) {
     // Read the element type of the tensor.
     auto elemTy = SR.readU8();
 
@@ -156,7 +156,7 @@ void BytecodeHeader::deserialize(StreamReader &SR) {
     std::vector<unsigned> sizes;
     std::vector<std::string> names;
 
-    for (int i = 0; i < numDims; i++) {
+    for (unsigned i = 0; i < numDims; i++) {
       sizes.push_back(SR.readU32());
       names.push_back(stringTable_.getById(SR.readU32()));
     }
@@ -477,11 +477,11 @@ void Bytecode::deserializeExpr(StreamReader &SR, BytecodeHeader &BH,
   }
   case GEPExprKind: {
     // Read the argument that we index.
-    auto arg = p->getArg(SR.readU32());
+    auto *arg = p->getArg(SR.readU32());
     // Read the indices, as a list of expression references.
-    auto numIndices = SR.readU32();
+    unsigned numIndices = SR.readU32();
     std::vector<Expr *> indices;
-    for (int i = 0; i < numIndices; i++) {
+    for (unsigned i = 0; i < numIndices; i++) {
       indices.push_back(BC.getExpr(SR.readU32()));
     }
     BC.registerExpr(exprId, new GEPExpr(arg, indices, loc));
@@ -567,9 +567,9 @@ void Bytecode::deserializeStmt(StreamReader &SR, BytecodeHeader &BH,
     // Read the callee name.
     std::string name = BH.getStringTable().getById(SR.readU32());
     // Read the parameters, as a list of expression references.
-    auto numParams = SR.readU8();
+    unsigned numParams = SR.readU8();
     std::vector<Expr *> params;
-    for (int i = 0; i < numParams; i++) {
+    for (unsigned i = 0; i < numParams; i++) {
       params.push_back(BC.getExpr(SR.readU32()));
     }
     // Register the store.
@@ -709,14 +709,14 @@ Program *Bytecode::deserialize(const std::string &media) {
   // Read the number of expressions.
   auto numExprs = SR.readU32();
   // Read the expressions:
-  for (int i = 0; i < numExprs; i++) {
+  for (unsigned i = 0; i < numExprs; i++) {
     deserializeExpr(SR, BH, BC, p);
   }
 
   // Read the number of statements.
-  auto numStmts = SR.readU32();
+  unsigned numStmts = SR.readU32();
   // Read the statements:
-  for (int i = 0; i < numStmts; i++) {
+  for (unsigned i = 0; i < numStmts; i++) {
     deserializeStmt(SR, BH, BC, p);
   }
 

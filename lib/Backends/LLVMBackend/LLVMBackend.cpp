@@ -88,11 +88,11 @@ public:
     // Accumulate the whole expression.
     llvm::Value *offset = int64Zero_;
     // For each index (x, y, z ... )
-    for (int i = 0; i < indices.size(); i++) {
+    for (unsigned i = 0; i < indices.size(); i++) {
       // Generate the expression; (x * dims[1] * dims[2]).
       llvm::Value *dimSizeVal = generate(indices[i].get());
       // For each sizeScale:
-      for (int j = i + 1; j < indices.size(); j++) {
+      for (unsigned j = i + 1; j < indices.size(); j++) {
         auto dimSize = bufferTy->getDims()[j];
         auto val = llvm::APInt(64, dimSize);
         llvm::Value *dimsI = llvm::Constant::getIntegerValue(int64Ty_, val);

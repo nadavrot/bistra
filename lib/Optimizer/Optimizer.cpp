@@ -357,7 +357,7 @@ static unsigned roundTileSize(unsigned tileSize, unsigned stride) {
 /// \returns a ** b;
 static uint64_t ipow(uint64_t a, uint64_t b) {
   uint64_t res = 1;
-  for (int i = 0; i < b; i++) {
+  for (unsigned i = 0; i < b; i++) {
     res *= a;
   }
   return res;
@@ -440,7 +440,7 @@ void TilerPass::doIt(Program *p) {
     assert(numTries < 1e6 && "Too many combinations!");
 
     // Try all possible block size combinations (see comment above).
-    for (int attemptID = 0; attemptID < numTries; attemptID++) {
+    for (unsigned attemptID = 0; attemptID < numTries; attemptID++) {
 
       CloneCtx map;
       std::unique_ptr<Program> np((Program *)p->clone(map));
@@ -504,7 +504,7 @@ void WidnerPass::doIt(Program *p) {
     assert(numTries < 1e6 && "Too many combinations!");
 
     // Try all possible block size combinations (see comment above).
-    for (int attemptID = 0; attemptID < numTries; attemptID++) {
+    for (unsigned attemptID = 0; attemptID < numTries; attemptID++) {
       CloneCtx map;
       std::unique_ptr<Program> np((Program *)p->clone(map));
       unsigned numRegs = 1;

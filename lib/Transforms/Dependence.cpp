@@ -43,7 +43,7 @@ bistra::DepRelationKind bistra::checkWeakSIVDependenceForIndex(
 
   assert(indices1.size() == indices2.size() && "Invalid index vector");
 
-  for (int i = 0; i < indices1.size(); i++) {
+  for (unsigned i = 0; i < indices1.size(); i++) {
     // Check direct access to I and J.
     bool isIndex1 = isRefOfLoop(indices1[i], I1, false);
     bool isIndex2 = isRefOfLoop(indices2[i], I2, false);

@@ -216,7 +216,7 @@ Expr *Parser::parseExpr(unsigned RBP) {
 }
 
 bool Parser::parseCallArgumentList(std::vector<Expr *> &args, bool sameTy,
-                                   int expectedArgs) {
+                                   unsigned expectedArgs) {
   auto callLoc = Tok.getLoc();
   assert(args.size() == 0);
   // "("
@@ -909,7 +909,7 @@ bool Parser::parseVarDecl(Scope *s) {
   if (auto *LV = ctx_.getVarMap().getByName(varName)) {
     // TODO: add diagnostics for the location of the other var.
     ctx_.diagnose(DiagnoseKind::Error, Tok.getLoc(),
-                  "variable with this name already exists");
+                  LV->getName() + " variable with this name already exists");
     return true;
   }
 
@@ -1279,7 +1279,7 @@ Program *bistra::parseProgram(ParserContext &ctx,
 
   // Register the input 'let' constants.
   unsigned len = letNames.size();
-  for (int i = 0; i < len; i++) {
+  for (unsigned i = 0; i < len; i++) {
     ctx.getLetStack().registerValue(letNames[i],
                                     new ConstantExpr(letValues[i]));
   }

@@ -277,7 +277,7 @@ bool bistra::unrollLoop(Loop *L, unsigned maxTripCount) {
 }
 
 Loop *bistra::peelLoop(Loop *L, int k) {
-  unsigned origLoopEndRange = L->getEnd();
+  int origLoopEndRange = L->getEnd();
   // If K is a negative number then peel from the end of the loop.
   if (k < 1) {
     // Check if the k fits within the loop range:
@@ -324,7 +324,7 @@ Loop *bistra::peelLoop(Loop *L, int k) {
 static bool mayVectorizeLoadStoreAccess(const std::vector<ExprHandle> &indices,
                                         Loop *L) {
   // Iterate over all of the indices and check if they allow vectorization.
-  for (int i = 0, e = indices.size(); i < e; i++) {
+  for (unsigned i = 0, e = indices.size(); i < e; i++) {
     auto kind = getIndexAccessKind(indices[i].get(), L);
     bool isLastIndex = (i == e - 1);
 
@@ -588,7 +588,7 @@ Loop *bistra::widen(Loop *L, unsigned wf) {
   // the induction variable.
   for (auto *S : stores) {
     // Duplicate and update the store WF times.
-    for (int i = 1; i < wf; i++) {
+    for (unsigned i = 1; i < wf; i++) {
       // We generate the dups in reverse order because we insert the code right
       // after the original store, so reverse order creates consecutive orders
       // that are easy to read and could help the compiler generate better code.
@@ -831,11 +831,11 @@ static void swizzle(std::vector<T> &elems,
                     const std::vector<unsigned> &shuffle) {
   assert(elems.size() == shuffle.size() && "Invalid shuffle");
   std::vector<T> temp;
-  for (int i = 0; i < shuffle.size(); i++) {
+  for (unsigned i = 0; i < shuffle.size(); i++) {
     temp.push_back(std::move(elems[shuffle[i]]));
   }
 
-  for (int i = 0; i < shuffle.size(); i++) {
+  for (unsigned i = 0; i < shuffle.size(); i++) {
     elems[i] = std::move(temp[i]);
   }
 }

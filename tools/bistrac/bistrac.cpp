@@ -97,13 +97,13 @@ static bool isRangeProtected(ASTNode *n) {
 void detectOverflow(DebugLoc opLoc, const Type *opType,
                     const std::vector<ExprHandle> &indices,
                     ParserContext &ctx) {
-  for (int i = 0; i < indices.size(); i++) {
+  for (unsigned i = 0; i < indices.size(); i++) {
     auto &idx = indices[i];
     std::pair<int, int> range;
     if (!computeKnownIntegerRange(idx.get(), range))
       continue;
 
-    auto bufferSize = opType->getDims()[i];
+    int bufferSize = opType->getDims()[i];
     if (range.first < 0 || range.second > bufferSize) {
       std::string message =
           "buffer overflow detected at index " + std::to_string(i);

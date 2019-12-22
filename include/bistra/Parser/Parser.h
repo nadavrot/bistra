@@ -75,7 +75,7 @@ private:
   /// function should not verify the number of arguments. If \p sameTy is set
   /// then the function will verify that the args are all of the same type.
   bool parseCallArgumentList(std::vector<Expr *> &args, bool sameTy,
-                             int expectedArgs);
+                             unsigned expectedArgs);
 
   /// Parses expressions.
   /// Parse the right hand side of a binary expression and assemble it according

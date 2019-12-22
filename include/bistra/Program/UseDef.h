@@ -76,8 +76,8 @@ public:
   }
 
   void verify() const {
-    assert(ref_ == nullptr || ref_->getOwnerHandle() == this &&
-                                  "The handle pointes to an unowned ref.");
+    assert((ref_ == nullptr || ref_->getOwnerHandle() == this) &&
+           "The handle pointes to an unowned ref.");
   }
 
   operator RefTy *() { return ref_; }

@@ -94,7 +94,7 @@ void Lexer::lexIdentifier(Token &result) {
 /// LexNumber - Match [0-9]+
 void Lexer::lexNumber(Token &result) {
   const char *tokStart = curPtr_ - 1;
-  assert(isdigit(*tokStart) || *tokStart == '-' && "Unexpected start");
+  assert((isdigit(*tokStart) || *tokStart == '-') && "Unexpected start");
 
   if (*curPtr_ == '-') {
     ++curPtr_;
