@@ -4,9 +4,9 @@
 #include "bistra/Program/Program.h"
 #include "bistra/Program/Utils.h"
 
-#include <cmath>
 #include <algorithm>
 #include <array>
+#include <cmath>
 
 using namespace bistra;
 

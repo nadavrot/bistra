@@ -197,11 +197,11 @@ void FilterPass::doIt(Program *p) {
 }
 
 /// Collect the arguments that are used in the region \p s.
-std::set<Argument*> collectArgsUsed(Stmt *s) {
-  std::set<Argument*> args;
+std::set<Argument *> collectArgsUsed(Stmt *s) {
+  std::set<Argument *> args;
   // Scan the first loop and look for buffers.
   for (auto &e : collectExprs(s)) {
-    if (auto *gep = dynamic_cast<GEPExpr*>(e)) {
+    if (auto *gep = dynamic_cast<GEPExpr *>(e)) {
       args.insert(gep->getDest());
     }
   }
@@ -215,26 +215,28 @@ bool tryToFuseAllShallowLoops(Program *p) {
 restart:
   for (auto *L : collectLoops(p)) {
     // Find the following consecutive loop.
-    Loop *L2 = dynamic_cast<Loop*>(getNextStmt(L));
+    Loop *L2 = dynamic_cast<Loop *>(getNextStmt(L));
 
     // We were not able to find a consecutive loop.
     if (!L2)
       return false;
 
     /// Scan the first and second loops and collect the buffers that we access.
-    std::set<Argument*> buffers1 = collectArgsUsed(L);
-    std::set<Argument*> buffers2 = collectArgsUsed(L2);
+    std::set<Argument *> buffers1 = collectArgsUsed(L);
+    std::set<Argument *> buffers2 = collectArgsUsed(L2);
 
     // The number of shared buffers between L1 and L2.
     unsigned numShared = 0;
     for (auto &A : buffers1) {
-      if (buffers2.count(A)) { numShared++; }
+      if (buffers2.count(A)) {
+        numShared++;
+      }
     }
 
     // Heuristics: loops must share most of the buffers.
     unsigned numBuffers = std::max(buffers1.size(), buffers2.size());
-    if (numShared < numBuffers/2)
-        continue;
+    if (numShared < numBuffers / 2)
+      continue;
 
     // Okay, the loops share most buffers. Let's merge them.
     bool f = (bool)::fuse(L, 8);
@@ -287,7 +289,7 @@ template <class T> void addOnce(std::vector<T *> &set, T *elem) {
 
 /// \returns a single index that is used as the last dimension for all array
 /// access. All access patterns are consecutive on this dimension.
-Loop* collectLastIndexForAllIndices(Scope *s) {
+Loop *collectLastIndexForAllIndices(Scope *s) {
   std::vector<Loop *> lastSubscriptIndex;
 
   std::vector<LoadExpr *> loads;
@@ -316,7 +318,8 @@ bool sinkLoopsForConsecutiveIndexAccess(Program *p) {
   bool changed = false;
   for (auto *l : collectInnermostLoops(p)) {
     auto *loopToSink = collectLastIndexForAllIndices(l);
-    if (!loopToSink) continue;
+    if (!loopToSink)
+      continue;
 
     changed |= ::sink(loopToSink, 8);
     p->verify();
@@ -369,36 +372,38 @@ bool tryToTileForLocality(Program *p) {
   std::vector<Loop *> innermost = collectInnermostLoops(p);
   unsigned tileSize = 32;
 
-   for (auto *inner : innermost) {
-     // Collect the loop nest that contain the current loop.
-     Loop *top = getContainingLoop(inner);
+  for (auto *inner : innermost) {
+    // Collect the loop nest that contain the current loop.
+    Loop *top = getContainingLoop(inner);
 
-     if (!top) continue;
+    if (!top)
+      continue;
 
-     // Ignore loops that don't touch much memory.
-     auto IOPL = getNumLoadsInLoop(top);
-     if (IOPL < (1 << 13))
-       continue;
+    // Ignore loops that don't touch much memory.
+    auto IOPL = getNumLoadsInLoop(top);
+    if (IOPL < (1 << 13))
+      continue;
 
-     // Don't touch loops that operate on a small tile.
-     if (top->getEnd() < tileSize || inner->getEnd() < tileSize)
-       continue;
+    // Don't touch loops that operate on a small tile.
+    if (top->getEnd() < tileSize || inner->getEnd() < tileSize)
+      continue;
 
-     // All of the loops are consecutive on some dimension. Tiling may not help
-     // here.
-     auto *lastIndexLoop = collectLastIndexForAllIndices(top);
-     if (lastIndexLoop) continue;
+    // All of the loops are consecutive on some dimension. Tiling may not help
+    // here.
+    auto *lastIndexLoop = collectLastIndexForAllIndices(top);
+    if (lastIndexLoop)
+      continue;
 
-     bool t1 = ::tile(inner, tileSize);
-     bool t2 = ::tile(top, tileSize);
-     // If we were not able to tile the loops just continue and hope we did not
-     // mess things up.
-     if (!t1 && !t2)
-       continue;
+    bool t1 = ::tile(inner, tileSize);
+    bool t2 = ::tile(top, tileSize);
+    // If we were not able to tile the loops just continue and hope we did not
+    // mess things up.
+    if (!t1 && !t2)
+      continue;
 
-     ::hoist(inner, 1);
-     changed = true;
-   }
+    ::hoist(inner, 1);
+    changed = true;
+  }
 
   return changed;
 }
@@ -608,7 +613,7 @@ std::unique_ptr<Program> bistra::optimizeStatic(Backend *backend, Program *p) {
 
   changed |= tryToVectorizeAllLoops(np.get(), VF);
 
-  changed |=  tryToTileForLocality(np.get());
+  changed |= tryToTileForLocality(np.get());
 
   // Perform LICM and cleanup the program one last time.
   changed |= ::simplify(np.get());

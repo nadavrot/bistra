@@ -249,7 +249,7 @@ bool bistra::unrollLoop(Loop *L, unsigned maxTripCount) {
   std::vector<Stmt *> unrolledBodies;
 
   // For each unroll iteration:
-  for (unsigned iter = 0; iter < L->getEnd(); iter+=L->getStride()) {
+  for (unsigned iter = 0; iter < L->getEnd(); iter += L->getStride()) {
     // For each statement in the body of the loop:
     for (auto &ST : L->getBody()) {
       // Copy the body.
@@ -646,7 +646,7 @@ bool bistra::fuse(Loop *L, unsigned levels) {
     return false;
 
   // Find the following consecutive loop.
-  Loop *L2 = dynamic_cast<Loop*>(getNextStmt(L));
+  Loop *L2 = dynamic_cast<Loop *>(getNextStmt(L));
 
   // We were not able to find a consecutive loop.
   if (!L2)

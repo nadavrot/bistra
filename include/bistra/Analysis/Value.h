@@ -3,10 +3,10 @@
 
 #include "bistra/Program/UseDef.h"
 
-#include <vector>
 #include <set>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 namespace bistra {
 
@@ -78,7 +78,7 @@ std::vector<Loop *> collectLoops(Stmt *S);
 
 /// \returns the statement that comes after \p s or null if s is the last
 /// statement in the parent scope.
-Stmt* getNextStmt(Stmt* s);
+Stmt *getNextStmt(Stmt *s);
 
 /// Collect all of the ifs under statement \p S into \p ifs;
 void collectIfs(Stmt *S, std::vector<IfRange *> &ifs);

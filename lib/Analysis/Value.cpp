@@ -272,7 +272,7 @@ std::vector<Loop *> bistra::collectLoops(Stmt *S) {
   return loops;
 }
 
-Stmt* bistra::getNextStmt(Stmt *s) {
+Stmt *bistra::getNextStmt(Stmt *s) {
   // Find the parent scope.
   Scope *parent = dynamic_cast<Scope *>(s->getParent());
   if (!parent)
