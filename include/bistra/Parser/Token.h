@@ -37,6 +37,9 @@ class Token {
   const char *end_;
 
 public:
+  // Ctor.
+  Token() : kind_(TokenKind::comment), start_(nullptr), end_(nullptr) {}
+
   /// Initializes the token.
   void setToken(TokenKind K, const char *start, const char *end) {
     kind_ = K;
