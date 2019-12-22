@@ -1,10 +1,18 @@
 ## Bistra
 
-Bistra is a code generator and a small domain specific language, designed to
-make it easier to write high-performance kernels. The library is designed to
-allow state of the art compiler optimizations and code generation of numeric
-programs.
+Bistra (быстро) is a code generator and a small domain-specific language, designed to
+generate high-performance kernels (such as GEMMs, convolutions, etc). The
+program is designed to allow powerful compiler optimizations and code generation
+that are not possible in C. The tool can auto-tune GEMM kernels to around 90% of
+peak performance (on X86/AVX2) within seconds.
 
+Bistra contains a branching/filtering pass manager that enables efficient
+auto-tuning. The tool combines static analysis methods for estimating things
+like register pressure, and cache utilization, with code that runs and measures
+the performance of the generated code. The tool also emits useful diagnostics
+and allows modification of the kernel with pragmas or C-API. The tool enables
+automatic operator fusion, which is very useful in accelerating linear algebra
+operations.
 
 ## Getting Started
 
