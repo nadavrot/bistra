@@ -8,6 +8,7 @@
 #include "bistra/Transforms/Simplify.h"
 #include "bistra/Transforms/Transforms.h"
 
+#include <string>
 #include <iostream>
 
 using namespace bistra;

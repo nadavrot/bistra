@@ -3,6 +3,7 @@
 
 #include "bistra/Program/UseDef.h"
 
+#include <string>
 #include <set>
 #include <unordered_map>
 #include <utility>
