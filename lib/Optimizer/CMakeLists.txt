@@ -1,5 +1,5 @@
 add_library(Optimizer
-            Optimizer
+            Optimizer.cpp
             )
 
 target_link_libraries(Optimizer
