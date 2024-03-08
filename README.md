@@ -19,7 +19,7 @@ operations.
 ### System Requirements
 
 Bistra builds and runs on macOS and Linux. The software depends on a modern C++
-compiler that supports C++11, on CMake, LLVM and gtest.
+compiler that supports C++17, on CMake, LLVM and gtest.
 
 #### Submodules
 
@@ -29,31 +29,10 @@ Load the submodules with the command:
   git submodule update --init --recursive
   ```
 
-#### macOS
-
-Install the required dependencies using either [Homebrew](https://brew.sh/) or
-[MacPorts](https://www.macports.org/). If using Homebrew, run:
-
-  ```bash
-  brew install cmake ninja
-  brew install llvm@8
-  ```
-
-If using MacPorts, run:
-
-  ```bash
-  port install cmake ninja llvm-8.0 
-  ```
-
-Note that LLVM is installed in a non-default location to avoid conflicts with
-the system's LLVM --Homebrew usually installs LLVM in `/usr/local/opt/llvm/`,
-whereas MacPorts installs it in `/opt/local/libexec/llvm-8.0/`. This means that
-CMake will need to be told where to find LLVM when building.
-
 ### Configure and Build
 
 To build the compiler, create a build directory and run cmake on the source
-directory.
+directory. If cmake does not find LLVM then add the flag `-DLLVM_DIR=`.
 
   ```bash
   mkdir build_bistra
@@ -64,6 +43,11 @@ directory.
 
 It's possible to configure and build the compiler with any CMake generator,
 like GNU Makefiles, Ninja and Xcode build.
+
+### Docker
+
+The attached docker file builds the project cleanly. The scripts in the `utils`
+directory build and run the docker container.
 
 ## Testing and Running
 
