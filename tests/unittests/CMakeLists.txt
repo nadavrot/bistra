@@ -108,3 +108,4 @@ add_test(
   COMMAND
     ${CMAKE_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}/runtime_test
   )
+install(TARGETS parser_test basic_test optimizer_test  bytecode_test runtime_test DESTINATION tests)

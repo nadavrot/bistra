@@ -14,5 +14,4 @@ target_link_libraries(bistrac
                         gflags::gflags
                      )
 
-
-
+install(TARGETS bistrac DESTINATION bin)

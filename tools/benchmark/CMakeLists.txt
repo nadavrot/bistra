@@ -14,3 +14,4 @@ target_link_libraries(benchmark
                         gflags::gflags
                         )
 
+install(TARGETS benchmark DESTINATION tests)
