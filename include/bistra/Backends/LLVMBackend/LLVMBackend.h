@@ -9,6 +9,7 @@ namespace orc {
 class SimpleJIT;
 }
 class Module;
+class LLVMContext;
 class TargetMachine;
 } // namespace llvm
 
@@ -34,7 +35,9 @@ public:
   virtual void emitProgramCode(Program *p, const std::string &path, bool isSrc,
                                int iter) override;
 
-  double run(std::unique_ptr<llvm::Module> M, void *mem, unsigned iter);
+  double run(std::unique_ptr<llvm::Module> M,
+             std::unique_ptr<llvm::LLVMContext> ctx,
+              void *mem, unsigned iter);
 
   virtual double evaluateCode(Program *p, unsigned iter) override;
 

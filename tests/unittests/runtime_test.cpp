@@ -10,6 +10,38 @@
 
 using namespace bistra;
 
+TEST(runtime, easy_test) {
+  const char *easy_test = R"(
+  func simple_loop(A:float<x:10>) {
+    A[0] += 8.
+    A[1] += 6.
+    A[2] += 9.
+    A[3] += 4.
+  })";
+
+  ParserContext ctx(easy_test);
+  Parser P(ctx);
+  P.parse();
+  EXPECT_EQ(ctx.getNumErrors(), 0);
+  auto *prog = ctx.getProgram();
+  prog->dump();
+
+  float data[4] = {
+      1.,1.,1.,1.,
+  };
+  float result[4] = {
+      9.0, 7.0, 10.0, 5.0,
+  };
+
+  auto backend = getBackend("llvm");
+  backend->runOnce(prog, data);
+
+  for (int i = 0; i < 4; i++) {
+    EXPECT_NEAR(result[i], data[i], 0.001);
+  }
+}
+
+
 TEST(runtime, basic_io) {
   const char *basic_io = R"(
   func simple_loop(A:float<x:10>) {

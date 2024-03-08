@@ -535,7 +535,7 @@ struct ComputeEstimator : public NodeVisitor {
   }
 
   virtual void leave(Stmt *E) override {
-    // Loop expressions multipliy the cost of the sum of the body cost.
+    // Loop expressions multiply the cost of the sum of the body cost.
     if (auto *LE = dynamic_cast<Loop *>(E)) {
       ComputeCostTy total = {0, 0};
       auto tripcount = LE->getEnd() / LE->getStride();
@@ -627,7 +627,7 @@ uint64_t
 bistra::getAccessedMemoryForSubscript(const std::vector<ExprHandle> &indices,
                                       std::set<Loop *> *live) {
   int span = 1;
-  // Multipliy the accessed range of all indices. The range that the load can
+  // Multiply the accessed range of all indices. The range that the load can
   // access is defined as the multiplication of all of the indices, where
   // non-live loops are fixed to zero. For example, for the live loops 'i' and
   // 'j' and the fixed loop k: A[i, j, k] -> range(i) * range(j) * 1

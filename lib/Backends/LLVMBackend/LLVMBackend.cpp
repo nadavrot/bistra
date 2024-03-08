@@ -20,10 +20,11 @@
 using namespace bistra;
 
 class LLVMEmitter {
-  llvm::LLVMContext ctx_;
+  std::unique_ptr<llvm::LLVMContext> ctx_;
   llvm::IRBuilder<> builder_;
   std::unique_ptr<llvm::Module> M_;
-  std::map<std::string, llvm::Value *> namedValues_;
+  /// Maps lowered values to LLVM value and LLVM type.
+  std::map<std::string, std::pair<llvm::Value *, llvm::Type*>> namedValues_;
   std::map<Loop *, llvm::Value *> loopIndices_;
   llvm::Function *func_;
 
@@ -33,16 +34,17 @@ class LLVMEmitter {
   llvm::Constant *int32Zero_;
 
 public:
-  LLVMEmitter() : builder_(ctx_) {
-    int64Ty_ = llvm::Type::getInt64Ty(ctx_);
+  LLVMEmitter() : ctx_(std::make_unique<llvm::LLVMContext>()), builder_(*ctx_) {
+    int64Ty_ = llvm::Type::getInt64Ty(*ctx_);
     int64Zero_ = llvm::Constant::getNullValue(int64Ty_);
-    int32Ty_ = llvm::Type::getInt32Ty(ctx_);
+    int32Ty_ = llvm::Type::getInt32Ty(*ctx_);
     int32Zero_ = llvm::Constant::getNullValue(int32Ty_);
 
-    M_ = std::make_unique<llvm::Module>("", ctx_);
+    M_ = std::make_unique<llvm::Module>("", *ctx_);
   }
 
   std::unique_ptr<llvm::Module> &getModule() { return M_; }
+  std::unique_ptr<llvm::LLVMContext> &getContext() { return ctx_; }
 
   llvm::Function *emitPrototype(Program *p) {
     std::vector<llvm::Type *> argListType;
@@ -51,7 +53,7 @@ public:
     for (auto *arg : p->getArgs()) {
       switch (arg->getType()->getElementType()) {
       case ElemKind::Float32Ty: {
-        auto *ptrTy = llvm::PointerType::get(llvm::Type::getFloatTy(ctx_), 0);
+        auto *ptrTy = llvm::PointerType::get(llvm::Type::getFloatTy(*ctx_), 0);
         argListType.push_back(ptrTy);
         break;
       }
@@ -62,7 +64,7 @@ public:
 
     // Make the function type:  double(double,double) etc.
     llvm::FunctionType *FT = llvm::FunctionType::get(
-        llvm::Type::getVoidTy(ctx_), argListType, false);
+        llvm::Type::getVoidTy(*ctx_), argListType, false);
 
     llvm::Function *F = llvm::Function::Create(
         FT, llvm::Function::ExternalLinkage, p->getName(), M_.get());
@@ -200,10 +202,8 @@ public:
 
     // Handle load-local expressions.
     if (auto *r = dynamic_cast<const LoadLocalExpr *>(e)) {
-      auto *alloca = namedValues_[r->getDest()->getName()];
-      auto *allocaTy =
-          llvm::cast<llvm::PointerType>(alloca->getType())->getElementType();
-      return builder_.CreateLoad(allocaTy, alloca, r->getDest()->getName());
+      auto alloca = namedValues_[r->getDest()->getName()];
+      return builder_.CreateLoad(alloca.second, alloca.first, r->getDest()->getName());
     }
 
     // Handle GEP expressions.
@@ -211,59 +211,57 @@ public:
       auto *bufferTy = gep->getDest()->getType();
       llvm::Value *offset =
           getIndexOffsetForBuffer(gep->getIndices(), bufferTy);
-      auto *arg = namedValues_[gep->getDest()->getName()];
-      return builder_.CreateGEP(arg, offset);
+      auto arg = namedValues_[gep->getDest()->getName()];
+      return builder_.CreateGEP(arg.second, arg.first, offset);
     }
 
     // Handle Load expressions.
     if (auto *ld = dynamic_cast<const LoadExpr *>(e)) {
       auto *ptr = generate(ld->getGep());
-      auto *arg = namedValues_[ld->getDest()->getName()];
-      llvm::Type *elemTy = arg->getType();
+      auto arg = namedValues_[ld->getDest()->getName()];
 
       if (ld->getType().isVector()) {
         auto width = ld->getType().getWidth();
-        elemTy = llvm::cast<llvm::PointerType>(elemTy)->getElementType();
+        assert(!arg.second->isPointerTy() && "Can't create a vector of pointers");
 
-        auto *vecTy = llvm::VectorType::get(elemTy, width);
+        auto *vecTy = llvm::VectorType::get(arg.second, width, false);
         auto *vecPTy = llvm::PointerType::get(vecTy, 0);
-        auto *vt = builder_.CreateBitCast(ptr, vecPTy);
-        auto *ld = builder_.CreateLoad(vt, "ld");
-        ld->setAlignment(1);
+        auto *vt = builder_.CreateBitCast(ptr, vecPTy, "vload_expr_cast");
+        auto *ld = builder_.CreateLoad(vecTy, vt, "ld");
+        ld->setAlignment(llvm::Align(1));
         return ld;
       }
 
-      ptr = builder_.CreateBitCast(ptr, elemTy);
-      return builder_.CreateLoad(ptr, "ld");
+      return builder_.CreateLoad(arg.second, ptr, "ld");
     }
 
     assert(false && "unhandled expression");
   }
 
   void emit(StoreLocalStmt *SL) {
-    llvm::Value *varAlloca = namedValues_[SL->getDest()->getName()];
+    auto varAlloca = namedValues_[SL->getDest()->getName()];
     llvm::Value *storedVal = generate(SL->getValue());
     if (SL->isAccumulate()) {
-      auto *prev = builder_.CreateLoad(varAlloca);
+      auto *prev = builder_.CreateLoad(varAlloca.second, varAlloca.first);
       storedVal = builder_.CreateFAdd(prev, storedVal);
     }
-    builder_.CreateStore(storedVal, varAlloca);
+    builder_.CreateStore(storedVal, varAlloca.first);
   }
 
   void emit(StoreStmt *SS) {
     auto *ptr = generate(SS->getGep());
     auto *storedVal = generate(SS->getValue());
     auto *ptelem = llvm::PointerType::get(storedVal->getType(), 0);
-    auto *vt = builder_.CreateBitCast(ptr, ptelem);
+    auto *vt = builder_.CreateBitCast(ptr, ptelem, "store_cast");
 
     if (SS->isAccumulate()) {
-      auto *ld = builder_.CreateLoad(vt);
-      ld->setAlignment(1);
+      auto *ld = builder_.CreateLoad(storedVal->getType(), vt);
+      ld->setAlignment(llvm::Align(1));
       storedVal = builder_.CreateFAdd(ld, storedVal);
     }
 
     auto *st = builder_.CreateStore(storedVal, vt);
-    st->setAlignment(1);
+    st->setAlignment(llvm::Align(1));
   }
 
   void emit(CallStmt *SS) {
@@ -276,13 +274,13 @@ public:
       // See section 6.5.2.2 in the C99 standard and section 5.2.2 in the C++
       // standard.
       if (val->getType()->isFloatTy()) {
-        val = builder_.CreateFPCast(val, llvm::Type::getDoubleTy(ctx_));
+        val = builder_.CreateFPCast(val, llvm::Type::getDoubleTy(*ctx_));
       }
       params.push_back(val);
       argListType.push_back(params.back()->getType());
     }
 
-    auto *proto = llvm::FunctionType::get(llvm::Type::getVoidTy(ctx_),
+    auto *proto = llvm::FunctionType::get(llvm::Type::getVoidTy(*ctx_),
                                           argListType, false);
     M_->getOrInsertFunction(SS->getName(), proto);
     auto *callee = M_->getFunction(SS->getName());
@@ -294,8 +292,8 @@ public:
     llvm::Value *indexVal = generate(IR->getIndex());
     auto range = IR->getRange();
 
-    llvm::BasicBlock *inrng = llvm::BasicBlock::Create(ctx_, "inRange", func_);
-    llvm::BasicBlock *cont = llvm::BasicBlock::Create(ctx_, "continue", func_);
+    llvm::BasicBlock *inrng = llvm::BasicBlock::Create(*ctx_, "inRange", func_);
+    llvm::BasicBlock *cont = llvm::BasicBlock::Create(*ctx_, "continue", func_);
 
     auto *a =
         builder_.CreateICmp(llvm::CmpInst::Predicate::ICMP_SGE, indexVal,
@@ -323,10 +321,10 @@ public:
     // Record the loop index for expressions that need to reference it.
     loopIndices_[L] = index;
 
-    llvm::BasicBlock *header = llvm::BasicBlock::Create(ctx_, "header", func_);
-    llvm::BasicBlock *body = llvm::BasicBlock::Create(ctx_, "body", func_);
-    llvm::BasicBlock *nextIter = llvm::BasicBlock::Create(ctx_, "next", func_);
-    llvm::BasicBlock *exit = llvm::BasicBlock::Create(ctx_, "exit", func_);
+    llvm::BasicBlock *header = llvm::BasicBlock::Create(*ctx_, "header", func_);
+    llvm::BasicBlock *body = llvm::BasicBlock::Create(*ctx_, "body", func_);
+    llvm::BasicBlock *nextIter = llvm::BasicBlock::Create(*ctx_, "next", func_);
+    llvm::BasicBlock *exit = llvm::BasicBlock::Create(*ctx_, "exit", func_);
 
     builder_.CreateBr(header);
     builder_.SetInsertPoint(header);
@@ -377,20 +375,21 @@ public:
     llvm::Type *res = nullptr;
     switch (p.getElementType()) {
     case ElemKind::Float32Ty:
-      res = llvm::Type::getFloatTy(ctx_);
+      res = llvm::Type::getFloatTy(*ctx_);
       break;
     case ElemKind::IndexTy:
       res = int64Ty_;
       break;
     case ElemKind::PtrTy:
-      res = llvm::Type::getInt8PtrTy(ctx_);
+      res = llvm::PointerType::get(*ctx_, 0);
       break;
     default:
       assert(false && "Invalid type");
     }
 
     if (p.isVector()) {
-      res = llvm::VectorType::get(res, p.getWidth());
+      assert(!res->isPointerTy() && "Can't create a vector of pointers");
+      res = llvm::VectorType::get(res, p.getWidth(), false);
     }
 
     return res;
@@ -401,34 +400,34 @@ public:
   /// chunks.
   llvm::Function *emitBenchmark(Program *p, int iter) {
     std::vector<llvm::Type *> argListType;
-    argListType.push_back(llvm::Type::getInt8PtrTy(ctx_));
+    argListType.push_back(llvm::PointerType::get(*ctx_, 0));
 
     // Make the function type:  void benchmark(char *mem).
     llvm::FunctionType *FT = llvm::FunctionType::get(
-        llvm::Type::getVoidTy(ctx_), argListType, false);
+        llvm::Type::getVoidTy(*ctx_), argListType, false);
     llvm::Function *F = llvm::Function::Create(
         FT, llvm::Function::ExternalLinkage, "benchmark", M_.get());
 
     // Create a new basic block to start insertion into.
-    llvm::BasicBlock *BB = llvm::BasicBlock::Create(ctx_, "entry", F);
+    llvm::BasicBlock *BB = llvm::BasicBlock::Create(*ctx_, "entry", F);
     builder_.SetInsertPoint(BB);
 
     // Get the input buffer.
     auto *memBuffer = F->args().begin();
     std::vector<llvm::Value *> params;
 
-    // Construct the offsets into the memory buffer.
+    // Construct the offsets into the memory buffer (in bytes).
     uint64_t offset = 0;
     for (auto *arg : p->getArgs()) {
       switch (arg->getType()->getElementType()) {
       case ElemKind::Float32Ty: {
         llvm::Value *offsetV = llvm::ConstantInt::get(int64Ty_, offset);
-        auto *gep = builder_.CreateGEP(memBuffer, offsetV);
-        auto *bc =
-            builder_.CreateBitCast(gep, llvm::PointerType::getFloatPtrTy(ctx_));
-        params.push_back(bc);
+        auto *i8Ty = llvm::Type::getInt8Ty(*ctx_);
+        auto *gep = builder_.CreateGEP(i8Ty, memBuffer, offsetV);
+        params.push_back(gep);
         // Adjust the pointer for the next buffer.
-        offset += arg->getType()->size() * 4;
+        offset += arg->getType()->size() * 
+            Type::getElementSizeInBytes(arg->getType()->getElementType());
         break;
       }
       default:
@@ -440,9 +439,9 @@ public:
     auto *index = builder_.CreateAlloca(int64Ty_, 0, "i");
     builder_.CreateStore(int64Zero_, index);
 
-    llvm::BasicBlock *header = llvm::BasicBlock::Create(ctx_, "header", F);
-    llvm::BasicBlock *body = llvm::BasicBlock::Create(ctx_, "body", F);
-    llvm::BasicBlock *exit = llvm::BasicBlock::Create(ctx_, "exit", F);
+    llvm::BasicBlock *header = llvm::BasicBlock::Create(*ctx_, "header", F);
+    llvm::BasicBlock *body = llvm::BasicBlock::Create(*ctx_, "body", F);
+    llvm::BasicBlock *exit = llvm::BasicBlock::Create(*ctx_, "exit", F);
 
     builder_.CreateBr(header);
     builder_.SetInsertPoint(header);
@@ -469,7 +468,7 @@ public:
     return F;
   }
 
-  // Enable fast-math for all instrtuctions:
+  // Enable fast-math for all instructions:
   void enableFastMath(llvm::Function *F) {
     llvm::FastMathFlags FMF;
     FMF.set();
@@ -489,18 +488,20 @@ public:
       return nullptr;
 
     // Create a new basic block to start insertion into.
-    llvm::BasicBlock *BB = llvm::BasicBlock::Create(ctx_, "entry", func_);
+    llvm::BasicBlock *BB = llvm::BasicBlock::Create(*ctx_, "entry", func_);
     builder_.SetInsertPoint(BB);
 
     // Record the function arguments in the NamedValues map.
     namedValues_.clear();
-    for (auto &arg : func_->args())
-      namedValues_[arg.getName()] = &arg;
+    for (auto &arg : func_->args()) {
+      auto *ty = llvm::Type::getFloatTy(*ctx_);
+      namedValues_[arg.getName().str()] = std::make_pair(&arg, ty);
+    }
 
     for (auto *var : p->getVars()) {
-      auto ty = getLLVMTypeForType(var->getType());
-      namedValues_[var->getName()] =
-          builder_.CreateAlloca(ty, 0, var->getName());
+      auto *ty = getLLVMTypeForType(var->getType());
+      auto *alloca = builder_.CreateAlloca(ty, 0, var->getName());
+      namedValues_[var->getName()] = std::make_pair(alloca, ty);
     }
 
     // Emit the code for the function body.
@@ -560,7 +561,8 @@ double LLVMBackend::evaluateCode(Program *p, unsigned iter) {
   auto *scratchPad = (float *)malloc(memSz);
   initBuffer(scratchPad, memSz / sizeof(float));
 
-  auto res = run(std::move(EE.getModule()), scratchPad, iter);
+  auto res = run(std::move(EE.getModule()), std::move(EE.getContext()),
+          scratchPad, iter);
 
   free(scratchPad);
   return res;
@@ -571,5 +573,5 @@ void LLVMBackend::runOnce(Program *p, void *mem) {
   EE.emit(p);
   EE.emitBenchmark(p, 1);
   optimize(getTargetMachine(), EE.getModule().get());
-  run(std::move(EE.getModule()), mem, 1);
+  run(std::move(EE.getModule()), std::move(EE.getContext()), mem, 1);
 }
