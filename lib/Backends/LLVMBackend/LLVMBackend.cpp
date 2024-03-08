@@ -24,7 +24,7 @@ class LLVMEmitter {
   llvm::IRBuilder<> builder_;
   std::unique_ptr<llvm::Module> M_;
   /// Maps lowered values to LLVM value and LLVM type.
-  std::map<std::string, std::pair<llvm::Value *, llvm::Type*>> namedValues_;
+  std::map<std::string, std::pair<llvm::Value *, llvm::Type *>> namedValues_;
   std::map<Loop *, llvm::Value *> loopIndices_;
   llvm::Function *func_;
 
@@ -203,7 +203,8 @@ public:
     // Handle load-local expressions.
     if (auto *r = dynamic_cast<const LoadLocalExpr *>(e)) {
       auto alloca = namedValues_[r->getDest()->getName()];
-      return builder_.CreateLoad(alloca.second, alloca.first, r->getDest()->getName());
+      return builder_.CreateLoad(alloca.second, alloca.first,
+                                 r->getDest()->getName());
     }
 
     // Handle GEP expressions.
@@ -222,7 +223,8 @@ public:
 
       if (ld->getType().isVector()) {
         auto width = ld->getType().getWidth();
-        assert(!arg.second->isPointerTy() && "Can't create a vector of pointers");
+        assert(!arg.second->isPointerTy() &&
+               "Can't create a vector of pointers");
 
         auto *vecTy = llvm::VectorType::get(arg.second, width, false);
         auto *vecPTy = llvm::PointerType::get(vecTy, 0);
@@ -426,8 +428,8 @@ public:
         auto *gep = builder_.CreateGEP(i8Ty, memBuffer, offsetV);
         params.push_back(gep);
         // Adjust the pointer for the next buffer.
-        offset += arg->getType()->size() * 
-            Type::getElementSizeInBytes(arg->getType()->getElementType());
+        offset += arg->getType()->size() *
+                  Type::getElementSizeInBytes(arg->getType()->getElementType());
         break;
       }
       default:
@@ -562,7 +564,7 @@ double LLVMBackend::evaluateCode(Program *p, unsigned iter) {
   initBuffer(scratchPad, memSz / sizeof(float));
 
   auto res = run(std::move(EE.getModule()), std::move(EE.getContext()),
-          scratchPad, iter);
+                 scratchPad, iter);
 
   free(scratchPad);
   return res;

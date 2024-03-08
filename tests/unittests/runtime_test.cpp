@@ -27,10 +27,16 @@ TEST(runtime, easy_test) {
   prog->dump();
 
   float data[4] = {
-      1.,1.,1.,1.,
+      1.,
+      1.,
+      1.,
+      1.,
   };
   float result[4] = {
-      9.0, 7.0, 10.0, 5.0,
+      9.0,
+      7.0,
+      10.0,
+      5.0,
   };
 
   auto backend = getBackend("llvm");
@@ -40,7 +46,6 @@ TEST(runtime, easy_test) {
     EXPECT_NEAR(result[i], data[i], 0.001);
   }
 }
-
 
 TEST(runtime, basic_io) {
   const char *basic_io = R"(

@@ -20,10 +20,7 @@
 #include <vector>
 
 namespace llvm {
-namespace orc {
-
-
-} // end namespace orc
+namespace orc {} // end namespace orc
 } // end namespace llvm
 
 #endif // BISTRA_BACKENDS_LLVMBACKEND_JIT_H

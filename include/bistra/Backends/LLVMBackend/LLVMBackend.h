@@ -36,8 +36,7 @@ public:
                                int iter) override;
 
   double run(std::unique_ptr<llvm::Module> M,
-             std::unique_ptr<llvm::LLVMContext> ctx,
-              void *mem, unsigned iter);
+             std::unique_ptr<llvm::LLVMContext> ctx, void *mem, unsigned iter);
 
   virtual double evaluateCode(Program *p, unsigned iter) override;
 
